@@ -1,0 +1,4 @@
+QA reset complete. database=tmt_qa orgs=TMT-QA-ORG, TMT-QA-ORG-B users=19
+Fixtures written to qa-artifacts/qa-fixtures.json
+QA stack ready: API http://localhost:5100  UI http://localhost:3100
+Servers running. Press Ctrl+C to stop.

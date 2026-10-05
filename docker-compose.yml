@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # MongoDB Database Service
+  mongodb:
+    image: mongo:6.0
+    container_name: ims-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=intern_management_system
+    networks:
+      - ims-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # IMS Backend API Server
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: ims-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - uploads_data:/app/server/uploads
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/intern_management_system
+      - JWT_SECRET=ims_production_jwt_secret_key_secure_2026_salt_hash
+      - JWT_EXPIRES_IN=7d
+      - UPLOAD_DIR=/app/server/uploads
+      - CLIENT_URL=http://localhost:3000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - ims-network
+
+  # IMS React Frontend Client (Nginx)
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: ims-client
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+    networks:
+      - ims-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  ims-network:
+    driver: bridge

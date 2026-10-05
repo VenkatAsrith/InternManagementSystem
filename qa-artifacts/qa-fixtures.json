@@ -1,0 +1,149 @@
+{
+  "password": "QaPass2026!",
+  "users": {
+    "A": {
+      "superadmin": {
+        "id": "6ab8c24de238fc1fac76cc1c",
+        "email": "qa.superadmin@tmt-qa.test",
+        "role": "SUPER_ADMIN"
+      },
+      "orgadmin": {
+        "id": "6ab8c24de238fc1fac76cc1e",
+        "email": "qa.orgadmin@tmt-qa.test",
+        "role": "ORGANIZATION_ADMIN"
+      },
+      "hradmin": {
+        "id": "6ab8c24de238fc1fac76cc20",
+        "email": "qa.hradmin@tmt-qa.test",
+        "role": "HR_ADMIN"
+      },
+      "recruiter": {
+        "id": "6ab8c24de238fc1fac76cc22",
+        "email": "qa.recruiter@tmt-qa.test",
+        "role": "HR_RECRUITER"
+      },
+      "manager": {
+        "id": "6ab8c24de238fc1fac76cc24",
+        "email": "qa.manager@tmt-qa.test",
+        "role": "PROGRAM_MANAGER"
+      },
+      "mentor": {
+        "id": "6ab8c24de238fc1fac76cc26",
+        "email": "qa.mentor@tmt-qa.test",
+        "role": "MENTOR"
+      },
+      "mentor2": {
+        "id": "6ab8c24de238fc1fac76cc28",
+        "email": "qa.mentor2@tmt-qa.test",
+        "role": "MENTOR"
+      },
+      "lead": {
+        "id": "6ab8c24de238fc1fac76cc2a",
+        "email": "qa.lead@tmt-qa.test",
+        "role": "TEAM_LEAD"
+      },
+      "interviewer": {
+        "id": "6ab8c24de238fc1fac76cc2c",
+        "email": "qa.interviewer@tmt-qa.test",
+        "role": "INTERVIEWER"
+      },
+      "finance": {
+        "id": "6ab8c24de238fc1fac76cc2e",
+        "email": "qa.finance@tmt-qa.test",
+        "role": "FINANCE_ADMIN"
+      },
+      "financeviewer": {
+        "id": "6ab8c24de238fc1fac76cc30",
+        "email": "qa.financeviewer@tmt-qa.test",
+        "role": "FINANCE_VIEWER"
+      },
+      "documentadmin": {
+        "id": "6ab8c24de238fc1fac76cc32",
+        "email": "qa.documentadmin@tmt-qa.test",
+        "role": "DOCUMENT_ADMIN"
+      },
+      "auditor": {
+        "id": "6ab8c24de238fc1fac76cc34",
+        "email": "qa.auditor@tmt-qa.test",
+        "role": "AUDITOR"
+      },
+      "intern": {
+        "id": "6ab8c24de238fc1fac76cc36",
+        "email": "qa.intern@tmt-qa.test",
+        "role": "INTERN"
+      },
+      "candidate": {
+        "id": "6ab8c24de238fc1fac76cc38",
+        "email": "qa.candidate@tmt-qa.test",
+        "role": "CANDIDATE"
+      }
+    },
+    "B": {
+      "orgadmin": {
+        "id": "6ab8c24de238fc1fac76cc3a",
+        "email": "qa.b.orgadmin@tmt-qa.test",
+        "role": "ORGANIZATION_ADMIN"
+      },
+      "hradmin": {
+        "id": "6ab8c24de238fc1fac76cc3c",
+        "email": "qa.b.hradmin@tmt-qa.test",
+        "role": "HR_ADMIN"
+      },
+      "mentor": {
+        "id": "6ab8c24de238fc1fac76cc3e",
+        "email": "qa.b.mentor@tmt-qa.test",
+        "role": "MENTOR"
+      },
+      "intern": {
+        "id": "6ab8c24de238fc1fac76cc40",
+        "email": "qa.b.intern@tmt-qa.test",
+        "role": "INTERN"
+      }
+    }
+  },
+  "ids": {
+    "deptA": "6ab8c24de238fc1fac76cc16",
+    "deptA2": "6ab8c24de238fc1fac76cc18",
+    "deptB": "6ab8c24de238fc1fac76cc1a",
+    "programA": "6ab8c24de238fc1fac76cc66",
+    "programB": "6ab8c24de238fc1fac76cc68",
+    "openingA": "6ab8c24de238fc1fac76cc6a",
+    "closedOpening": "6ab8c24de238fc1fac76cc6c",
+    "openingB": "6ab8c24de238fc1fac76cc6e",
+    "intern": "6ab8c24de238fc1fac76cc8f",
+    "internB": "6ab8c24de238fc1fac76cc9a",
+    "project": "6ab8c24de238fc1fac76cc9e",
+    "taskTodo": "6ab8c24de238fc1fac76cca0",
+    "taskInProgress": "6ab8c24de238fc1fac76cca2",
+    "taskB": "6ab8c24de238fc1fac76cca4",
+    "path": "6ab8c24de238fc1fac76cca6",
+    "lesson1": "6ab8c24de238fc1fac76ccaa",
+    "lesson2": "6ab8c24de238fc1fac76ccac",
+    "asset": "6ab8c24de238fc1fac76ccb1"
+  },
+  "orgA": "6ab8c24de238fc1fac76cc12",
+  "orgB": "6ab8c24de238fc1fac76cc14",
+  "openingSlug": "qa-software-engineering-intern",
+  "openingSlugB": "qa-org-b-intern",
+  "apps": {
+    "applied": {
+      "id": "6ab8c24de238fc1fac76cc73",
+      "applicationId": "APP-2026-000001",
+      "email": "qa.cand.alice@tmt-qa.test"
+    },
+    "shortlisted": {
+      "id": "6ab8c24de238fc1fac76cc79",
+      "applicationId": "APP-2026-000002"
+    },
+    "underReview": {
+      "id": "6ab8c24de238fc1fac76cc7f",
+      "applicationId": "APP-2026-000003"
+    },
+    "orgB": {
+      "id": "6ab8c24de238fc1fac76cc85",
+      "applicationId": "APP-2026-000004"
+    }
+  },
+  "internCode": "INT-2026-000001",
+  "today": "2026-09-26T18:30:00.000Z"
+}

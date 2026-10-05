@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply min-h-screen bg-slate-50 font-sans text-slate-900 antialiased;
+  }
+  /* Visible keyboard focus everywhere; individual components refine it. */
+  :focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }
+  /* Long tokens (emails, IDs, links) must wrap instead of forcing horizontal scroll on phones. */
+  h1, h2, h3, p, dd, td, li { overflow-wrap: anywhere; }
+  table td, table th { overflow-wrap: normal; }
+  img { max-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+@media print {
+  aside, header, nav, .no-print { display: none !important; }
+}

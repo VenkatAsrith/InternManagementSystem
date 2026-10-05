@@ -1,0 +1,890 @@
+[Normal] TECHMECHA TORQUE
+PRIVATE LIMITED
+[Normal] TMT OPERATIONS PLATFORM
+[Normal] Intern Implementation-Ready Documentation
+[Normal] Version 1.0  |  13 September 2026
+[Normal] Purpose
+[Normal] Single execution blueprint for interns building TMT's internal operations platform from lead acquisition through training, company internship, work execution, communications, payments, documents, certificates, reporting and audit.
+[Normal] INTERNAL • IMPLEMENTATION USE
+[Heading 1] Document Control
+[Heading 1] Contents
+[List Number] 1. Product Goal and Scope
+[List Number] 2. Reference Technology Architecture
+[List Number] 3. Domain Model and Identity Rules
+[List Number] 4. Authorization: Role + Permission + Scope + Context
+[List Number] 5. Person and Lead CRM
+[List Number] 6. Bootcamp, Pass and Check-In
+[List Number] 7. Demo Pipeline
+[List Number] 8. Training Intern Management
+[List Number] 9. Company Internship Management
+[List Number] 10. Programs, Batches, Attendance and Progress
+[List Number] 11. Payments and Finance
+[List Number] 12. Projects, Work Items, Submission and Evaluation
+[List Number] 13. Standalone Tasks and Founder Private Work
+[List Number] 14. Communication Center: Email, WhatsApp and Inbox
+[List Number] 15. Document, Letter and Certificate Center
+[List Number] 16. Candidate / Intern Portal
+[List Number] 17. Calendar, Reminders, Notifications and Cautions
+[List Number] 18. Search, Bulk Operations and Activity Timeline
+[List Number] 19. Reporting and Dashboards
+[List Number] 20. Integrations and Background Jobs
+[List Number] 21. File Storage, Security, Audit and Recovery
+[List Number] 22. API Conventions and Endpoint Inventory
+[List Number] 23. Database Collections and Key Fields
+[List Number] 24. Frontend Route and Screen Inventory
+[List Number] 25. Error, Edge-Case and State-Machine Rules
+[List Number] 26. E2E Acceptance Scenarios
+[List Number] 27. Intern Build Sequence and Definition of Done
+[List Number] 28. V1 Exclusions and Change-Control Rule
+[Heading 1] 1. Product Goal and Scope
+[Normal] Build one connected TMT operations platform where a known person keeps one identity while moving through acquisition, training, company internship, work contribution and later employment. The system must preserve a complete operational timeline instead of duplicating the person across modules.
+[CodeBlock] UNKNOWN AUDIENCE
+    ↓ becomes identifiable/contactable
+PERSON + LEAD
+    ↓
+Bootcamp / Demo / Direct Training / LearningSpaces
+    ↓
+Training Engagement (optional)
+    ↓ selection / eligibility
+Company Internship (optional)
+    ↓
+Projects / Tasks / Evaluations / Stipend / Documents
+    ↓
+Completion / Experience / Employee (future)
+
+[Heading 2] 1.1 V1 business outcomes
+[List Bullet] Every identifiable candidate has one Person record and a complete timeline.
+[List Bullet] Employees can manage assigned leads, bootcamps, demos, training, interns, tasks, documents and communications without seeing unrelated sensitive data.
+[List Bullet] Training Intern and Company Intern are separate engagement types.
+[List Bullet] Bootcamp is never a mandatory prerequisite for training enrollment.
+[List Bullet] Company Intern work follows assign → submit → evaluate → revise/approve, with immutable activity history.
+[List Bullet] Authorized users can generate a versioned letter once and deliver the same issued artifact through portal, email, WhatsApp or any combination.
+[List Bullet] Payments, stipend and candidate fees remain separate financial domains.
+[List Bullet] Founder/Admin receives an operational command center with cautions, private work, communications, finance and reports.
+[Heading 1] 2. Reference Technology Architecture
+[Normal] Use a modular monolith for V1. This is easier for interns to reason about, test and deploy while preserving strong module boundaries. Split into services later only when scale or organizational boundaries justify it.
+[CodeBlock] apps/
+  web/
+  api/
+modules/
+  auth/ people/ leads/ bootcamps/ demos/ training/ internships/
+  work/ evaluations/ payments/ stipends/ communications/ mail/
+  documents/ certificates/ calendar/ notifications/ reports/ audit/
+shared/
+  permissions/ events/ files/ integrations/ validation/
+
+[List Bullet] No module directly calls Razorpay/WhatsApp/SMTP/IMAP. It calls an integration adapter.
+[List Bullet] Domain services own state transitions. Controllers/routes must not contain business rules.
+[List Bullet] Background work uses durable queues. Sending or webhook retries must be idempotent.
+[List Bullet] Use correlation IDs across API request → job → provider delivery log → audit event.
+[Heading 1] 3. Domain Model and Identity Rules
+[Heading 2] 3.1 Person is identity; engagements are history
+[CodeBlock] Person
+ ├─ Lead #1, Lead #2 ...
+ ├─ BootcampRegistration[]
+ ├─ Demo[]
+ ├─ TrainingEngagement[]
+ ├─ CompanyInternship[]
+ ├─ LearningSpacesLink[]
+ ├─ EmployeeProfile?
+ └─ UserAccount?
+
+[Heading 2] 3.2 Duplicate management
+[List Bullet] Before creating Person, normalize and compare phone and email against existing records.
+[List Bullet] Possible duplicate must be suggested; do not silently merge.
+[List Bullet] Authorized merge keeps a canonical Person and re-links leads, payments, documents, tasks, communications and engagements.
+[List Bullet] Merge itself creates an immutable audit event containing source IDs, destination ID and actor.
+[List Bullet] Never delete financial transactions, issued documents, certificate records or audit events during merge.
+[Heading 1] 4. Authorization: Role + Permission + Scope + Context
+[Normal] Do not implement pure role-based gating. Every sensitive request is evaluated using role, explicit permission, resource scope, assignment/ownership and field visibility.
+[CodeBlock] ALLOW = hasPermission(user, action)
+    AND scopeAllows(user, resource)
+    AND contextAllows(user, resource)
+    AND fieldPolicyAllows(user, requestedFields)
+
+[Heading 2] 4.1 Permission catalog
+[List Bullet] person.read / person.update / person.merge
+[List Bullet] lead.read / lead.manage / lead.assign
+[List Bullet] bootcamp.manage / attendance.manage / pass.generate
+[List Bullet] demo.manage
+[List Bullet] training.manage / attendance.manage / training.evaluate
+[List Bullet] payment.read / payment.create / payment.verify / payment.refund
+[List Bullet] intern.read / intern.manage / stipend.read / stipend.manage
+[List Bullet] project.manage / workitem.create / workitem.assign / workitem.reassign
+[List Bullet] evaluation.perform / evaluation.reassign
+[List Bullet] document.template.read / document.template.manage / document.generate / document.approve / document.send / document.reissue
+[List Bullet] certificate.issue / certificate.revoke
+[List Bullet] mailbox.read / mailbox.send / mailbox.manage
+[List Bullet] communication.send / communication.template.manage
+[List Bullet] reports.view / reports.finance.view
+[List Bullet] settings.manage / audit.read
+[Heading 2] 4.2 Scope values
+[Heading 1] 5. Person and Lead CRM
+[Heading 2] 5.1 Lead creation sources
+[List Bullet] Google Form / Sheet import
+[List Bullet] Instagram/social campaign
+[List Bullet] Direct call or message
+[List Bullet] Walk-in
+[List Bullet] Employee referral
+[List Bullet] Student referral
+[List Bullet] College referral
+[List Bullet] LearningSpaces cross-sell
+[List Bullet] Manual entry
+[List Bullet] Other configured source
+[Heading 2] 5.2 Lead state machine
+[CodeBlock] NEW → CONTACTED → INTERESTED / NOT_INTERESTED
+INTERESTED → BOOTCAMP_BOOKED / DEMO_SCHEDULED / DIRECT_TRAINING / FOLLOW_UP
+... → CONVERTED / LOST
+
+[Heading 2] 5.3 Lead fields
+[Heading 2] 5.4 Calls and follow-ups
+[List Bullet] Every call creates immutable CallActivity: employee, timestamp, outcome, notes, next follow-up.
+[List Bullet] Editing notes may be allowed through revision history; original activity timestamp/actor must remain.
+[List Bullet] Follow-up queue is ordered by overdue first, then due time, then priority.
+[List Bullet] Closing or converting a lead cancels irrelevant future follow-up reminders.
+[Heading 1] 6. Bootcamp, Pass and Check-In
+[Heading 2] 6.1 Registration lifecycle
+[CodeBlock] BOOKING_REQUESTED → BOOKING_CONFIRMED → SLOT_ASSIGNED → PASS_GENERATED → PASS_SENT
+→ CHECKED_IN → ATTENDED
+Alternative: CANCELLED / RESCHEDULED / WAITLISTED / NO_SHOW
+
+[Heading 2] 6.2 Check-in rules
+[List Bullet] QR contains only secure pass identifier/token, not sensitive PII.
+[List Bullet] Duplicate scan returns previous check-in details instead of creating another attendance record.
+[List Bullet] Manual search/check-in is available to authorized staff when QR is unavailable.
+[List Bullet] Activation checklist can record LinkedIn URL/status, Instagram URL/status and LearningSpaces link/activation status.
+[List Bullet] Verification is historical: store who checked, when, result and notes instead of one mutable Yes/No field.
+[Heading 1] 7. Demo Pipeline
+[CodeBlock] DEMO_TO_SCHEDULE → DEMO_SCHEDULED → REMINDER_SENT → ATTENDED / NO_SHOW
+ATTENDED → OUTCOME_RECORDED → FOLLOW_UP / CONVERTED / LOST
+NO_SHOW → RESCHEDULED / LOST
+
+[Heading 1] 8. Training Intern Management
+[Normal] Training Intern means the person is still learning and has not completed all required training/work milestones. They may enroll directly before bootcamp and may never attend a bootcamp or demo.
+[CodeBlock] ENROLLED → ACTIVE_TRAINING → CHECKPOINT_PENDING ↔ TRAINING_IN_PROGRESS
+→ TRAINING_COMPLETED → ELIGIBLE_FOR_COMPANY_INTERNSHIP / COMPLETED
+Alternative: PAUSED / TRANSFERRED / DROPPED / EXTENDED
+
+[Heading 1] 9. Company Internship Management
+[Normal] Company Intern means a person contributes to actual TMT company work for experience and/or stipend. This is distinct from Training Intern.
+[CodeBlock] OFFERED → OFFER_SENT → ACKNOWLEDGED / ACCEPTED → ONBOARDING → ACTIVE
+→ EXTENDED / PAUSED → COMPLETED / RESIGNED / TERMINATED
+
+[Heading 2] 9.1 Onboarding checklist
+[List Bullet] Offer issued and acknowledged
+[List Bullet] Required agreements/documents uploaded
+[List Bullet] Portal/user account activated
+[List Bullet] Project/repository/access permissions granted
+[List Bullet] Work mode and reporting contact confirmed
+[List Bullet] Initial project/task assigned
+[List Bullet] Communication channels confirmed
+[Heading 2] 9.2 Offboarding checklist
+[List Bullet] All work submitted/handed over
+[List Bullet] Outstanding evaluations resolved
+[List Bullet] Company access revoked
+[List Bullet] Assets returned if applicable
+[List Bullet] Stipend/dues reconciled
+[List Bullet] Exit reason recorded
+[List Bullet] Completion/experience/relieving documents processed
+[List Bullet] Portal retained with reduced historical access if desired
+[Heading 1] 10. Programs, Batches, Attendance and Progress
+[List Bullet] Completion rules must be configurable by program: curriculum completion, required checkpoints, attendance threshold, final assessment/project and payment condition if business policy requires it.
+[List Bullet] Completion eligibility is computed; final completion/certificate issuance remains an authorized action.
+[List Bullet] Changing a batch schedule updates future calendar events and reminders.
+[Heading 1] 11. Payments and Finance
+[Heading 2] 11.1 Candidate/training payments
+[CodeBlock] PAYMENT_REQUESTED → PROVIDER_ORDER_CREATED → PAID_PROVIDER / FAILED / EXPIRED
+PAID_PROVIDER → WEBHOOK_VERIFIED → TRANSACTION_RECORDED → INSTALLMENT_ALLOCATED → RECEIPT
+Manual: SUBMITTED_PROOF → PENDING_VERIFICATION → VERIFIED / REJECTED
+
+[Heading 2] 11.2 Payment edge cases
+[List Bullet] Failed payment
+[List Bullet] Expired link/order
+[List Bullet] Partial payment
+[List Bullet] Refund / partial refund
+[List Bullet] Fee waiver/write-off with permission
+[List Bullet] Overpayment/credit balance
+[List Bullet] Installment reschedule
+[List Bullet] Manual reconciliation mismatch
+[List Bullet] Duplicate provider webhook
+[Heading 2] 11.3 Stipend
+[CodeBlock] SCHEDULED → PENDING_APPROVAL → APPROVED → PAID → VERIFIED
+Alternative: HOLD / ADJUSTED / CANCELLED
+
+[List Bullet] Stipend records are separate from candidate fee collections.
+[List Bullet] Intern sees only own stipend history.
+[List Bullet] Payment recording captures period, eligible amount, adjustments/reason, approved amount, payment method/date/reference, approver.
+[List Bullet] Configured PAID event can trigger email + WhatsApp + portal notification.
+[Heading 1] 12. Projects, Work Items, Submission and Evaluation
+[Heading 2] 12.1 Work model
+[CodeBlock] Project
+  └─ WorkItem (PROJECT_TASK)
+       └─ WorkItem (SUBTASK)
+Standalone WorkItem can exist without Project.
+
+[Heading 2] 12.2 Work state machine
+[CodeBlock] ASSIGNED → IN_PROGRESS → SUBMITTED → WAITING_FOR_EVALUATION
+WAITING_FOR_EVALUATION → CHANGES_REQUIRED → IN_PROGRESS → RESUBMITTED
+WAITING_FOR_EVALUATION → APPROVED → COMPLETED
+Operational alternatives: BLOCKED / CANCELLED / PAUSED / REOPENED
+
+[Heading 2] 12.3 Submission versioning
+[List Bullet] Every submit/resubmit creates a new Submission version; old versions remain read-only.
+[List Bullet] Submission can include text, URLs, Git reference, file attachments and notes.
+[List Bullet] Intern cannot mark evaluated work COMPLETED directly.
+[List Bullet] Evaluator decision stores evaluator, timestamp, submission version, scorecard, written feedback and decision.
+[List Bullet] Changing evaluator creates assignment history; previous evaluations remain attributed to original evaluator.
+[Heading 2] 12.4 Evaluation scorecard
+[List Bullet] Code/work quality
+[List Bullet] Completeness
+[List Bullet] Documentation
+[List Bullet] Communication
+[List Bullet] Deadline adherence
+[List Bullet] Optional custom criteria per project
+[Heading 1] 13. Standalone Tasks and Founder Private Work
+[List Bullet] Founder/Admin/authorized employees can create standalone tasks and nested subtasks.
+[List Bullet] Founder can create PRIVATE tasks visible only to the creator; privacy is enforced by API query scope.
+[List Bullet] Tasks may be assigned to employees, interns or selected authenticated users when business-appropriate.
+[List Bullet] A task can have one deadline and multiple reminders.
+[List Bullet] Reminder examples: 2 days before, 3 hours before, at due time, recurring while overdue.
+[List Bullet] Extension requests record requested date, reason, requester, approver and decision.
+[Heading 1] 14. Communication Center: Email, WhatsApp and Inbox
+[Heading 2] 14.1 Unified communication service
+[CodeBlock] Business Event / Manual Compose
+      ↓
+Communication Rule (optional)
+      ↓
+Template Renderer / Custom Body
+      ↓
+Email | WhatsApp | In-App | Portal
+      ↓
+DeliveryLog per channel
+
+[List Bullet] Any relevant Person, Lead, Demo, Training, Internship, Payment, Project, Work Item or Document screen can expose Send Communication if permission allows.
+[List Bullet] User may compose manually or choose a template.
+[List Bullet] Delivery status is tracked independently per channel.
+[List Bullet] Retries must not duplicate a previously accepted provider message.
+[List Bullet] Communication logs are linked back to the related Person and business entity.
+[Heading 2] 14.2 Multi-mailbox
+[Heading 2] 14.3 Inbox UX
+[List Bullet] Unified inbox containing only permitted mailboxes
+[List Bullet] Per-mailbox filters
+[List Bullet] Thread view
+[List Bullet] Reply/forward
+[List Bullet] Internal note not sent externally
+[List Bullet] Link thread to Person/Lead/Intern/Payment/Project
+[List Bullet] Create Task from email
+[List Bullet] Assign/resolve/archive
+[List Bullet] Search within permitted messages
+[Heading 2] 14.4 Communication triggers
+[List Bullet] Bootcamp registration/booking/pass/reminder
+[List Bullet] Demo scheduled/reminder/rescheduled
+[List Bullet] Training enrollment
+[List Bullet] Payment request/received/installment reminder
+[List Bullet] Internship offer/onboarding
+[List Bullet] Revision requested
+[List Bullet] Certificate/document issued
+[List Bullet] Stipend paid
+[List Bullet] Optional task assignment/reminder
+[Heading 1] 15. Document, Letter and Certificate Center
+[Heading 2] 15.1 Versioned templates
+[List Bullet] Training Internship Enrollment/Confirmation
+[List Bullet] Company Internship Offer
+[List Bullet] Joining Letter
+[List Bullet] Extension Letter
+[List Bullet] Work Mode Change
+[List Bullet] Stipend Confirmation/Revision
+[List Bullet] Completion Letter
+[List Bullet] Experience Letter/Certificate
+[List Bullet] Relieving Letter
+[List Bullet] Termination Letter
+[List Bullet] Payment receipt
+[List Bullet] Bootcamp invitation/pass
+[List Bullet] Custom company letter
+[Normal] Templates support controlled merge fields such as {{intern.name}}, {{intern.type}}, {{intern.workMode}}, {{intern.startDate}}, {{intern.endDate}}, {{intern.stipend}}, {{program.name}}, {{company.name}}, {{reference.code}}, {{issue.date}}.
+[Heading 2] 15.2 Issued document workflow
+[CodeBlock] DRAFT → GENERATED → APPROVED → SENT → VIEWED → ACKNOWLEDGED
+→ SIGNED_COPY_UPLOADED → VERIFIED
+Optional: REVOKED / REISSUED
+
+[List Bullet] Not every document requires every state.
+[List Bullet] Editing the master template creates a new template version and never modifies already-issued artifacts.
+[List Bullet] One generated/issued artifact is reused across portal/email/WhatsApp delivery instead of regenerating separate copies.
+[List Bullet] Issued document stores template version, rendered file reference, actor, timestamps, person/engagement relation and delivery logs.
+[Heading 2] 15.3 Certificates
+[List Bullet] Public verification exposes only safe fields: certificate number, recipient, program/event, issue date and validity/status.
+[List Bullet] Certificate issuance is an authorized action; end date alone never auto-issues a certificate.
+[Heading 1] 16. Candidate / Intern Portal
+[Normal] The portal closes operational loops that otherwise become manual WhatsApp follow-ups.
+[Heading 2] 16.1 Social evidence workflow
+[CodeBlock] ACTION_REQUESTED → SUBMITTED (URL + screenshot/proof) → UNDER_REVIEW
+→ VERIFIED
+OR → CHANGES_REQUESTED → RESUBMITTED
+
+[Heading 1] 17. Calendar, Reminders, Notifications and Cautions
+[List Bullet] Rescheduling source entity updates/cancels linked future calendar events and reminders.
+[List Bullet] Notification supports unread/read; reminder supports dismiss/snooze when allowed.
+[List Bullet] Cautions are higher-priority operational risks, not ordinary notifications.
+[List Bullet] Founder caution examples: payment aging, overdue work, delayed evaluations, event capacity, stipend pending, failed communication, document issuance waiting.
+[Heading 1] 18. Search, Bulk Operations and Activity Timeline
+[Heading 2] 18.1 Global search
+[List Bullet] Search Person by name, phone, email, reference code
+[List Bullet] Search leads, internships, training enrollments, payments, documents, certificates, tasks and email threads within user permissions
+[List Bullet] Return grouped results; never leak existence of unauthorized records
+[Heading 2] 18.2 Bulk operations
+[List Bullet] Assign employee
+[List Bullet] Assign bootcamp slot
+[List Bullet] Generate/send passes
+[List Bullet] Send email/WhatsApp
+[List Bullet] Schedule reminders
+[List Bullet] Schedule demos
+[List Bullet] Issue certificates/documents where eligible
+[List Bullet] Export permitted data
+[Heading 2] 18.3 Person 360° timeline
+[List Bullet] Lead and call activities
+[List Bullet] Bootcamp registration/pass/check-in
+[List Bullet] Demo events
+[List Bullet] Training enrollment/progress/payments
+[List Bullet] Internship offer/onboarding/status
+[List Bullet] Project/task/submission/evaluation
+[List Bullet] Documents/certificates
+[List Bullet] Email/WhatsApp deliveries
+[List Bullet] Social action requests
+[List Bullet] Stipend events
+[List Bullet] Critical admin changes
+[Heading 1] 19. Reporting and Dashboards
+[Heading 2] 19.1 Founder/Admin dashboard
+[List Bullet] Lead funnel and source performance
+[List Bullet] Bootcamp booking/attendance
+[List Bullet] Demo scheduled/attended/no-show/conversion
+[List Bullet] Training enrollments/completion/dropout
+[List Bullet] Collections/outstanding aging/refunds
+[List Bullet] Training Intern → Company Intern conversion
+[List Bullet] Company Intern work health/evaluation backlog
+[List Bullet] Stipend pending/paid
+[List Bullet] Important inbox/mailbox failures
+[List Bullet] Documents/certificates pending issuance
+[List Bullet] Private tasks + company cautions + today calendar
+[Heading 2] 19.2 Employee dashboard
+[List Bullet] Assigned leads/follow-ups
+[List Bullet] Today demos
+[List Bullet] Assigned events/batches
+[List Bullet] Assigned candidates/interns
+[List Bullet] Pending evaluations
+[List Bullet] Tasks/work items
+[List Bullet] Permitted inbox
+[List Bullet] Calendar/cautions
+[Heading 2] 19.3 Intern dashboard
+[List Bullet] Due today/overdue
+[List Bullet] Waiting evaluation
+[List Bullet] Changes requested
+[List Bullet] Training progress where applicable
+[List Bullet] Current projects
+[List Bullet] Latest feedback
+[List Bullet] Documents/actions
+[List Bullet] Calendar
+[List Bullet] Own stipend status for Company Intern
+[Heading 2] 19.4 Required metrics
+[Heading 1] 20. Integrations and Background Jobs
+[Heading 2] 20.1 Queue names / job categories
+[List Bullet] communication.send
+[List Bullet] communication.retry
+[List Bullet] mailbox.sync
+[List Bullet] reminder.dispatch
+[List Bullet] payment.reconcile
+[List Bullet] bulk.operation
+[List Bullet] document.render
+[List Bullet] certificate.generate
+[List Bullet] import.googleForms
+[List Bullet] notification.fanout
+[List Bullet] maintenance.cleanup
+[List Bullet] Every job payload contains entity ID, actor/system context, correlation ID and idempotency key.
+[List Bullet] Use exponential backoff for transient provider failures; terminal failures create caution/admin visibility.
+[List Bullet] Do not retry validation/authentication failures indefinitely.
+[Heading 1] 21. File Storage, Security, Audit and Recovery
+[Heading 2] 21.1 File policy
+[List Bullet] Store metadata in MongoDB and bytes in object storage.
+[List Bullet] Use allowlisted MIME types/extensions and maximum sizes per purpose.
+[List Bullet] Use short-lived signed URLs for private downloads.
+[List Bullet] Authorization is checked before creating signed URL.
+[List Bullet] Maintain attachment owner/entity linkage and upload actor.
+[List Bullet] Virus/malware scanning can be added if infrastructure permits; design upload pipeline to support it.
+[Heading 2] 21.2 Security controls
+[List Bullet] MFA recommended/required for Founder/Admin
+[List Bullet] Secure password hashing and password reset
+[List Bullet] Session/token expiry and revocation
+[List Bullet] Rate limiting on authentication, public verification and webhook endpoints
+[List Bullet] Encrypted provider credentials/secrets
+[List Bullet] Server-side authorization on every resource mutation/read
+[List Bullet] CSRF protection if cookie auth is used
+[List Bullet] Input validation and output sanitization
+[List Bullet] No secrets/PII in logs
+[List Bullet] Environment separation: dev/test/prod
+[Heading 2] 21.3 Audit events
+[Heading 2] 21.4 Backup and recovery
+[List Bullet] Automated MongoDB backups with tested restore procedure
+[List Bullet] Object storage versioning/backup policy where available
+[List Bullet] Configuration/secrets backup through secure mechanism
+[List Bullet] Document recovery runbook records last successful backup and restore test
+[List Bullet] Never call backup “done” until restore is successfully tested in non-production
+[Heading 1] 22. API Conventions and Endpoint Inventory
+[Heading 2] 22.1 Conventions
+[List Bullet] Base path: /api/v1
+[List Bullet] JSON request/response; multipart only for file upload endpoints
+[List Bullet] IDs are opaque strings/ObjectIds; clients do not infer business meaning from IDs
+[List Bullet] Standard response envelope: data + meta where needed; errors use stable machine code + message + field details
+[List Bullet] All mutation endpoints return resulting resource/version and correlation ID
+[List Bullet] Use optimistic version/revision checks on sensitive mutable records where concurrent edits are possible
+[List Bullet] Pagination uses cursor or page/limit consistently; do not mix per endpoint without reason
+[Heading 2] 22.2 Endpoint inventory
+[Heading 1] 23. Database Collections and Key Fields
+[Heading 2] 23.1 Index requirements
+[List Bullet] Unique normalized email/phone rules are business-sensitive: support nullable values and duplicate review instead of naïve global uniqueness if shared family contacts are possible.
+[List Bullet] Unique provider IDs on payment transaction/webhook event records.
+[List Bullet] Unique pass token/hash and certificate verification token.
+[List Bullet] Indexes on lead owner+status+nextFollowUpAt; demo owner+scheduledAt; work assignee+status+dueAt; training status+batch; document person+status; email mailbox+provider IDs.
+[List Bullet] Text/search indexes or dedicated search layer only within authorization-safe query paths.
+[Heading 1] 24. Frontend Route and Screen Inventory
+[List Bullet] Navigation items are permission-filtered, but route guards and backend authorization remain mandatory.
+[List Bullet] Every major entity detail screen includes Activity/Timeline tab when relevant.
+[List Bullet] Context actions (Send Communication, Generate Document, Create Task) appear only when permitted.
+[Heading 1] 25. Error, Edge-Case and State-Machine Rules
+[Heading 1] 26. E2E Acceptance Scenarios
+[Normal] A. Lead → Bootcamp → Demo → Training — Import lead; dedupe/create Person; call; book slot; generate/send pass; check in; record activation; attend; schedule demo; reminder; demo outcome; enroll 45-day program; part payment; outstanding visible.
+[Normal] B. Direct Training without Bootcamp — Create identifiable lead/walk-in; directly create Training Engagement; no bootcamp/demo prerequisite validation; batch + fee plan + portal visible.
+[Normal] C. Training → Company Internship — Training Intern completes configured milestones; marked eligible; Admin creates Company Internship; offer generated; sent by portal/email/WhatsApp; intern acknowledges; onboarding starts.
+[Normal] D. Direct Company Intern — Person/application becomes Company Intern without Training Engagement; offer/onboarding/work lifecycle works.
+[Normal] E. Company Work Evaluation — Assign project/task/subtask; intern submits; evaluator requests changes; resubmit; approve; completion activity immutable.
+[Normal] F. Founder Private Task — Founder creates PRIVATE task with subtasks/reminders; another admin/employee direct API request cannot read it unless explicit policy says otherwise.
+[Normal] G. Multi-Mailbox Access — Employee A granted careers mailbox; Employee B not granted; A can read/reply; B gets 403 and mailbox is absent from UI.
+[Normal] H. Document + Social Evidence — Generate offer from versioned template; send same artifact via portal/email/WhatsApp; intern views/acknowledges/uploads signed copy; LinkedIn action request accepts URL+screenshot; employee verifies.
+[Normal] I. Stipend Paid — Authorized user approves and records payout; Company Intern sees own payout; configured email/WhatsApp notification logs independent channel results.
+[Normal] J. Payment Idempotency — Provider sends same webhook twice; only one transaction/allocation exists.
+[Normal] K. Duplicate Person Merge — Two duplicate Persons discovered; authorized merge preserves leads/payments/docs/work/history and creates audit event.
+[Normal] L. Bulk Bootcamp Operations — Select candidates; assign slot, generate passes and send communications; per-item successes/failures displayed; retry only failures.
+[Normal] M. Certificate — Eligible completion; Admin issues certificate; QR/public token verifies safe data; revoke/reissue preserves history.
+[Normal] N. Permission Revocation — Remove employee mailbox/document permission; current session immediately loses protected action/read access on next request.
+[Heading 2] 26.1 Minimum Playwright E2E suite
+[List Bullet] A. Lead → Bootcamp → Demo → Training
+[List Bullet] B. Direct Training without Bootcamp
+[List Bullet] C. Training → Company Internship
+[List Bullet] D. Direct Company Intern
+[List Bullet] E. Company Work Evaluation
+[List Bullet] F. Founder Private Task
+[List Bullet] G. Multi-Mailbox Access
+[List Bullet] H. Document + Social Evidence
+[List Bullet] I. Stipend Paid
+[List Bullet] J. Payment Idempotency
+[List Bullet] K. Duplicate Person Merge
+[List Bullet] L. Bulk Bootcamp Operations
+[List Bullet] M. Certificate
+[List Bullet] N. Permission Revocation
+[Heading 1] 27. Intern Build Sequence and Definition of Done
+[Heading 2] 27.1 Per-task Definition of Done
+[List Bullet] Acceptance criteria are written before implementation.
+[List Bullet] Data model/migration/index changes documented.
+[List Bullet] API validation and server-side authorization implemented.
+[List Bullet] Happy path + forbidden path + key edge-case tests pass.
+[List Bullet] Frontend loading/empty/error/success states handled.
+[List Bullet] Activity/audit event added for critical transition.
+[List Bullet] No provider secret appears in frontend/network response/log.
+[List Bullet] Playwright flow updated if user-visible critical journey changed.
+[List Bullet] Documentation updated with any approved business-rule change.
+[List Bullet] Code review completed before merge.
+[Heading 2] 27.2 Suggested intern task sizing
+[List Bullet] Keep work items to roughly 1–2 development days.
+[List Bullet] Avoid “Build entire module” tasks. Split by entity/transition/screen/test.
+[List Bullet] One intern should not independently invent schema + API + UI semantics; use this document as contract.
+[List Bullet] Dependencies must be linked; do not build documents/mailboxes before auth, Person and permissions are stable.
+[Heading 1] 28. V1 Exclusions and Change-Control Rule
+[List Bullet] AI performance scoring
+[List Bullet] Automatic LinkedIn/Instagram scraping
+[List Bullet] Full payroll
+[List Bullet] Biometric attendance
+[List Bullet] Native mobile app
+[List Bullet] Video calling
+[List Bullet] Full LMS duplication of LearningSpaces
+[List Bullet] Complex general accounting
+[List Bullet] AI task generation
+[Heading 1] Final Implementation Principles
+[Normal] 1. One Person, many historical engagements.
+[Normal] 2. Bootcamp/demo are optional acquisition paths, never universal prerequisites.
+[Normal] 3. Training Intern = learning relationship; Company Intern = actual company work relationship.
+[Normal] 4. Important state transitions are actions with server-side rules, not free-form status edits.
+[Normal] 5. Authorization = Role + Permission + Scope + Assignment/Ownership + Field Policy.
+[Normal] 6. One versioned document artifact can be delivered through multiple channels.
+[Normal] 7. Email/WhatsApp/in-app communications share one event-driven engine.
+[Normal] 8. Discussion is editable human collaboration; Activity/Audit is immutable system history.
+[Normal] 9. Payments and stipend are separate financial domains.
+[Normal] 10. External providers are replaceable adapters.
+[Normal] 11. Every critical user journey must have an E2E test before V1 is accepted.
+
+--- TABLE 0 ---
+Field | Value
+Document | TMT Operations Platform — Intern Implementation-Ready Documentation
+Version | 1.0
+Date | 13 September 2026
+Owner | TechMecha Torque Private Limited
+Audience | Founder/Admin, engineering interns, developers, QA interns, operations stakeholders
+Status | V1 requirements frozen for implementation; changes require documented change request
+Implementation principle | No business status transition is frontend-only; server-side validation and audit are mandatory.
+
+--- TABLE 1 ---
+Important: This document defines implementation behavior, contracts and acceptance criteria. It is intentionally not production source code. Interns should implement module-by-module and not redesign business rules without approval.
+
+--- TABLE 2 ---
+Core identity rule: Unknown advertisement viewers are not Persons. Create a Person when TMT receives enough identifiable/contactable data, usually at lead creation, application, walk-in, referral, direct inquiry or existing LearningSpaces linkage.
+
+--- TABLE 3 ---
+Layer | Recommended V1 choice | Responsibility
+Web | React + Vite + TypeScript | Role-based UI, forms, dashboards, portal, inbox, document actions
+API | Node.js + Express + TypeScript | Domain services, authorization, validation, REST APIs, webhooks
+Database | MongoDB + Mongoose | Operational records and immutable event/audit records
+Cache / Jobs | Redis + BullMQ | Reminders, communication jobs, mailbox sync, retries, scheduled checks
+Realtime | Socket.IO or SSE | In-app notifications, inbox/task updates where useful
+Files | S3-compatible object storage / MinIO | Signed documents, screenshots, proofs, attachments, certificates
+Testing | Vitest/Jest + Supertest + Playwright | Unit/service/API/E2E coverage
+Integrations | Adapter interfaces | Razorpay, WhatsApp provider, SMTP/provider API, IMAP/provider inbox, LearningSpaces, Google Forms/Sheet import
+
+--- TABLE 4 ---
+Entity | Meaning | Can repeat for one Person?
+Person | Canonical identity | No — one active canonical identity
+Lead | Acquisition/sales opportunity | Yes
+TrainingEngagement | Learning relationship/program enrollment | Yes
+CompanyInternship | Company-work experience relationship | Yes
+EmployeeProfile | Employment relationship | Future; may exist after internships
+UserAccount | Authentication identity for portal/internal access | Usually one active account
+
+--- TABLE 5 ---
+Role | Default intent | Important restrictions
+Founder/Admin | Company-wide operational control | Still audited; sensitive actions require explicit permission
+Employee | Assigned operational work | No implicit access to all candidates, mailboxes, stipends, founder-private work or settings
+Training Intern | Own learning engagement and allowed portal/work items | No company finance/admin access
+Company Intern | Own company internship, assigned work, submissions, feedback, own stipend/docs | Cannot approve own work or alter stipend/payment state
+Candidate/Portal User | Own passes, demos, payments, docs, uploads | No internal notes, employee-only data or other users
+
+--- TABLE 6 ---
+Scope | Meaning
+OWN | User’s own records only
+ASSIGNED | Records explicitly assigned to user
+TEAM | Records belonging to permitted team
+SELECTED | Explicit IDs/entities granted
+ALL | Company-wide within that permission
+
+--- TABLE 7 ---
+Security rule: Frontend hiding is usability only. API must return 403 for unauthorized resource access even if a user guesses an ID or directly calls the endpoint.
+
+--- TABLE 8 ---
+Field group | Required fields
+Identity | personId, name/phone/email snapshot when captured
+Acquisition | source, campaign, formResponseRef, createdAt
+Ownership | assignedEmployeeId, assignedAt
+Intent | interest, desired program, notes
+Progress | status, callOutcome, nextFollowUpAt
+Conversion | conversionType, convertedAt, related engagement IDs
+Loss | lostReason, lostAt
+
+--- TABLE 9 ---
+Component | Required behavior
+Bootcamp | title, date, venue, capacity, registration cutoff, status
+Slot | start/end, capacity, booked count, checked-in count
+Registration | person, bootcamp, slot, status, booking source
+Pass | unique pass code, secure random token/QR, issue status
+Attendance | check-in timestamp, staff actor, check-in method, activation checks
+Waitlist | optional ordered queue when capacity full
+
+--- TABLE 10 ---
+Field | Notes
+personId | Required
+relatedBootcampId | Optional; demo can exist without bootcamp
+assignedEmployeeId | Required ownership
+demoType | Configured type
+scheduledAt | Timezone-aware
+mode | OFFLINE / ONLINE
+locationOrMeeting | Address/meeting link
+status | State machine value
+interestLevel | Optional scoring/category
+recommendedOffering | Training/LearningSpaces/etc.
+nextFollowUpAt | Optional
+notes | Internal
+
+--- TABLE 11 ---
+Category | Fields / behavior
+Enrollment | person, program, batch, source, start/end, fee plan
+Learning progress | curriculum milestone completion, checkpoints, trainer notes
+Attendance | session-level present/absent/leave if enabled
+Assessment | attempts, score/decision, evaluator, feedback
+Exceptions | pause, extension, batch transfer, dropout, rejoin
+Completion | eligibility calculation + authorized completion action
+Next step | company internship recommendation/selection is separate and never automatic
+
+--- TABLE 12 ---
+Field group | Required
+Identity | personId, internship reference code
+Terms | department/type, start/end, work mode, paid/unpaid
+Stipend | applicable, amount, schedule; separated from training fees
+Ownership | manager/assigned employees/evaluators
+Work | projects, work items, pending submissions
+Performance | evaluation history, metrics, feedback
+Lifecycle | status, extension/pause/exit reason
+Documents | offer, acknowledgement, signed copies, completion/experience documents
+
+--- TABLE 13 ---
+Entity | Key fields
+TrainingProgram | name, duration, fee structure, curriculum ref, active
+TrainingBatch | programId, trainerId, start/end, capacity, schedule, status
+TrainingSession | batchId, date/time, topic, trainer, attendance required
+AttendanceRecord | person/engagement, session, status, markedBy, notes
+CurriculumMilestone | program, sequence, title, required/optional
+Checkpoint | engagement, milestone, due, status, attempt, feedback
+
+--- TABLE 14 ---
+Field | Requirement
+grossFee | Original fee
+discount | Reason + approver where required
+netPayable | Computed
+collected | Derived from verified allocations
+outstanding | Derived
+installments | Multiple scheduled amounts/dates
+paymentMethod | Razorpay/UPI/bank/cash/etc.
+proof | Required for manual payment when configured
+verification | Authorized verifier and timestamp
+
+--- TABLE 15 ---
+Idempotency: Razorpay/provider webhook handling must use provider event/payment IDs and idempotency keys so retries never create duplicate transactions.
+
+--- TABLE 16 ---
+Field | Requirement
+type | PROJECT_TASK / STANDALONE_TASK
+parentId | Optional self-reference
+projectId | Optional
+creatorId | Required
+assignees | One or more
+evaluators | Primary + optional additional
+priority | Configured
+startAt / dueAt | Timezone-aware
+status | State machine
+visibility | PRIVATE / ASSIGNED_ONLY / SELECTED_USERS / TEAM
+attachments/comments | Supported
+activity | Immutable events
+
+--- TABLE 17 ---
+Entity | Important fields
+Mailbox | display name, address, provider, send adapter, inbox adapter, auth type, encrypted credential/token ref, sync status, signature, active
+MailboxAccessGrant | mailbox, user, view inbox, view sent, compose, send, reply, download attachments, manage templates/settings
+EmailThread | mailbox, provider thread ID, participants, subject, linked business entities, assigned owner, status
+EmailMessage | thread, provider message ID, from/to/cc, sentAt, direction, body ref, attachment refs, delivery metadata
+
+--- TABLE 18 ---
+Credential rule: SMTP/IMAP passwords, app passwords and OAuth refresh tokens are encrypted server-side and never returned to employees or the frontend.
+
+--- TABLE 19 ---
+Field | Requirement
+certificateNumber | Unique, configurable format
+recipient | Person
+type | Bootcamp/Training/Internship/Course/custom
+relatedEntity | Bootcamp/Training/Internship/etc.
+issueDate | Required
+templateVersion | Immutable linkage
+signatory | Configured authorized signer
+verificationToken | Secure public verification token/QR
+status | ELIGIBLE / PENDING_APPROVAL / GENERATED / ISSUED / SENT / REVOKED / REISSUED
+
+--- TABLE 20 ---
+Portal section | Candidate / Training Intern | Company Intern
+Profile | Own profile/contact details | Own profile/contact details
+Bootcamp/Demo | Pass, schedule, status | Historical if applicable
+Training | Enrollment, schedule, progress, attendance, checkpoints | Historical if applicable
+Payments | Own invoices/installments/payment links/receipts | Only if related training engagement
+Documents | View/download/acknowledge/upload signed copy | Same + company internship documents
+Work | Practice tasks if assigned | Projects/tasks/subtasks/submissions/feedback
+Social actions | Upload URL/screenshot when requested | Upload URL/screenshot when requested
+Calendar | Own events/reminders | Own deadlines, evaluations, internship events
+Certificates | Own issued certificates | Own issued certificates
+Stipend | No company stipend unless Company Intern engagement exists | Own stipend history/status
+
+--- TABLE 21 ---
+Policy: Do not hardwire a public LinkedIn/Instagram post as a condition for unrelated financial payment unless the business requirement was explicitly agreed and documented.
+
+--- TABLE 22 ---
+Source | Calendar/caution examples
+Growth | bootcamp, follow-up, demo
+Training | sessions, checkpoints, batch dates, installments
+Work | task/subtask deadlines, evaluation reminders
+Internship | start/end, onboarding/offboarding
+Finance | installments, stipend payout dates
+Documents | acknowledgement/signature/action due dates
+Communication | scheduled reminder jobs
+
+--- TABLE 23 ---
+Bulk safety: Bulk actions show count + validation summary before commit, process in jobs, log per-item success/failure and support retry only for failed items.
+
+--- TABLE 24 ---
+Domain | Metrics
+Growth | leads, contacted, booked, attended, demo scheduled, demo attended, conversion, lost reason
+Marketing | CPL, cost/attendee, cost/enrollment, source conversion
+Training | active, attendance, checkpoint completion, completion %, dropout %, extension rate
+Finance | gross/net fees, collected, outstanding aging, refund, failed payment
+Intern | tasks completed, on-time %, revision rate, avg score, evaluation turnaround
+Communication | sent/delivered/failed by channel, retry failures
+Operations | pending docs, certificate turnaround, overdue cautions
+
+--- TABLE 25 ---
+Integration | Adapter responsibility
+Google Forms/Sheet import | Normalize rows, dedupe Person, create/update Lead, import log
+Razorpay | Create order/link, verify webhook signature, fetch status if reconciling
+LearningSpaces | Link/activate account reference; do not duplicate LMS
+Email send | SMTP or provider API behind SendMailAdapter
+Inbox receive | IMAP/provider API behind MailboxSyncAdapter
+WhatsApp | Template/session messages behind WhatsAppAdapter
+Object storage | Upload, signed download, retention/access control
+
+--- TABLE 26 ---
+Must audit | Examples
+Authorization/admin | role/permission grant, mailbox access grant
+Finance | payment verification, refund, waiver, stipend approval/paid
+Documents | template version, approval, issue, revoke/reissue
+Work | reassignment, evaluator change, deadline change, approval
+Identity | Person merge, key contact data change
+Settings | provider configuration, signatory/numbering changes
+
+--- TABLE 27 ---
+Module | Representative endpoints
+Auth | POST /auth/login; /logout; /refresh; /forgot-password; /reset-password; GET /me
+People | GET/POST /people; GET/PATCH /people/:id; POST /people/:id/merge; GET /people/:id/timeline
+Leads | GET/POST /leads; PATCH /leads/:id; POST /leads/:id/assign; POST /leads/:id/calls; POST /leads/:id/convert
+Bootcamps | CRUD /bootcamps; /bootcamps/:id/slots; POST registrations; pass generate/send; check-in
+Demos | CRUD /demos; schedule/reschedule; attendance; outcome
+Training | CRUD /programs; /batches; POST /training-engagements; progress/checkpoints/attendance/complete
+Payments | payment requests; manual proof; verify/reject; GET transactions; POST refunds; Razorpay webhook
+Internships | POST /company-internships; offer; acknowledge; onboarding; status transitions; offboarding
+Work | CRUD /projects; CRUD /work-items; assign/reassign; submit; evaluation; request-extension
+Stipends | plans/payouts; approve; mark-paid; verify
+Documents | templates; versions; generate; approve; send; acknowledge; upload-signed-copy; verify/reissue/revoke
+Certificates | eligibility; issue; send; revoke/reissue; public verify token endpoint
+Mail | mailboxes; access grants; threads; messages; sync; reply; internal-note; create-task
+Communications | templates/rules; compose/send; delivery logs; retry
+Calendar | GET events; reminders; snooze/dismiss
+Search | GET /search?q=...
+Bulk | POST /bulk-operations; GET /bulk-operations/:id
+Reports | growth/training/finance/intern/communication dashboards
+Admin | roles/permissions; settings; audit logs; integrations health
+
+--- TABLE 28 ---
+Transition endpoints: Prefer explicit action endpoints for important transitions (approve, complete, verify, refund, issue) instead of allowing arbitrary status PATCH. This centralizes validation, permissions and audit.
+
+--- TABLE 29 ---
+Collection | Purpose
+people | identity/contact, canonical status, normalized email/phone, duplicate flags
+users | auth identity, personId, role IDs, status, session/security metadata
+roles / permissions | role definitions, permission grants, scopes
+employeeProfiles | personId, department, status
+leads | personId, source/campaign, owner, status, intent, follow-up, conversion
+callActivities | leadId, actor, outcome, notes, nextFollowUp, immutable timestamp
+bootcamps / bootcampSlots | event configuration/capacity/schedule
+registrations / passes / attendance | person-event lifecycle and secure pass token
+demos | person, owner, schedule, mode, status, outcome
+trainingPrograms / trainingBatches | program and cohort configuration
+trainingEngagements | person, program/batch, source, status, fee linkage, completion
+trainingSessions / trainingAttendance | session and attendance records
+curriculumMilestones / checkpoints | learning progress and assessment
+enrollments / installments | commercial enrollment and payment schedule
+paymentRequests / paymentTransactions / refunds | provider/manual payment lifecycle
+companyInternships | person, terms, work mode, stipend setup, lifecycle
+projects / workItems | project and unified task/subtask/standalone work
+submissions / evaluations | versioned submissions and immutable decisions
+discussionThreads / comments | human collaboration
+activityEvents | structured immutable domain activity
+actionRequests | social/documentation/demo/Git/etc. requests and evidence status
+stipendPlans / stipendPayouts | separate intern payout records
+documentTemplates / documentTemplateVersions | versioned reusable letter/document content
+generatedDocuments / documentIssueLogs | rendered artifact and lifecycle
+certificateTemplates / certificates | certificate issuance and public verification
+mailboxes / mailboxAccessGrants | multi-mailbox config and permissions
+emailThreads / emailMessages / emailAttachments | synced inbox/sent metadata/content refs
+communicationTemplates / communicationRules / communicationEvents / deliveryLogs | event/manual multichannel communication
+calendarEvents / reminders / notifications | derived operational schedule and user alerts
+attachments | file metadata + secure storage key + ownership
+auditLogs | security/sensitive before-after audit
+bulkOperations | bulk request, per-item results, retry state
+integrationHealth | provider sync/webhook/credential status summaries
+
+--- TABLE 30 ---
+Route | Screen
+/dashboard | Role-specific dashboard
+/people | People search/list
+/people/:id | Person 360° profile/timeline
+/growth/leads | Lead queue
+/growth/bootcamps | Bootcamp list
+/growth/bootcamps/:id | Slots/registrations/attendance
+/growth/demos | Demo board/calendar
+/growth/follow-ups | Daily follow-up queue
+/training/programs | Programs
+/training/batches | Batches
+/training/engagements | Training Interns
+/training/engagements/:id | Progress/attendance/checkpoints/payments/docs
+/internships | Company Interns
+/internships/:id | Intern profile/work/stipend/docs/timeline
+/work/projects | Projects
+/work/projects/:id | Project board
+/work/tasks | My/assigned/standalone tasks
+/work/evaluations | Evaluation queue
+/communication/inbox | Permitted inboxes
+/communication/sent | Sent communications
+/communication/templates | Communication templates
+/communication/logs | Delivery logs
+/documents | Issued documents
+/documents/templates | Document templates/versions
+/certificates | Certificates
+/finance/payments | Candidate payments
+/finance/stipends | Intern stipends
+/calendar | Unified calendar
+/notifications | Notifications/cautions
+/reports | Reports
+/settings | Permission-filtered settings
+/portal | Candidate/Intern home
+/verify/certificate/:token | Public safe certificate verification
+
+--- TABLE 31 ---
+Case | Required behavior
+Duplicate lead/person | Suggest existing Person; create new Lead if same person has new opportunity.
+Bootcamp full | Waitlist or reject slot; do not overbook unless authorized override with audit.
+Duplicate check-in | Return existing attendance; no second record.
+Demo no-show | Allow reschedule; retain original attempt/history.
+Training pause/transfer | Do not erase original batch/progress history.
+Payment webhook repeated | Idempotent success; no duplicate transaction.
+Manual payment proof rejected | Retain proof/history; allow resubmission.
+Task deadline extension | Original due date remains in activity; approved new due date becomes active.
+Evaluator unavailable | Reassign with history; old evaluations remain attributed.
+Document template edited | New version only; issued documents unchanged.
+Email/WhatsApp failure | DeliveryLog failed + retry policy + caution after terminal failure.
+Mailbox sync failure | Show mailbox health; retry safely; do not expose credentials.
+User loses permission | Subsequent reads/actions blocked immediately; historical audit remains.
+Person merge | Re-link data and audit; no destructive loss.
+Intern exits early | Close/hand over work, revoke access, reconcile stipend/docs, retain history.
+Bulk partial failure | Operation completes PARTIAL; retry only failed items.
+
+--- TABLE 32 ---
+Phase | Build | Exit condition
+0 | Repo, environments, lint/test conventions, CI | Build/test pipeline works; env config documented
+1 | Auth + User + Role/Permission/Scope engine | Protected route/API tests including 403 cases pass
+2 | Person + duplicate detection + Lead CRM | Lead creation/import/follow-up/timeline works
+3 | Bootcamp + slots + pass + attendance | Form/lead to check-in works
+4 | Demo pipeline | Schedule/reminder/no-show/outcome works
+5 | Programs + batches + Training Engagement | Direct training and post-demo training both work
+6 | Training progress + attendance/checkpoints | Completion eligibility computed correctly
+7 | Payments + installments + Razorpay/manual verification | Part payments, webhook idempotency, outstanding pass tests
+8 | Company Internship lifecycle | Offer → onboarding → active → exit states work
+9 | Projects + WorkItem + submission/evaluation | Revision/approval flow audited
+10 | Standalone/private work + reminders | Founder private task API isolation passes
+11 | Stipend | Approval/pay/verify and own-view gating pass
+12 | Documents + templates + certificates | Versioning, issue, ack, verify/reissue pass
+13 | Communication engine + WhatsApp/email send | Manual/template/event send + delivery logs pass
+14 | Multi-mailbox inbox + grants | Mailbox-level authorization and sync pass
+15 | Portal | Candidate/Training/Company Intern self-service journeys pass
+16 | Calendar/notifications/cautions | Derived events and reschedule synchronization pass
+17 | Search + bulk operations + reports | Permission-safe search, partial bulk failure, dashboard metrics pass
+18 | Security hardening + backup/restore + final E2E | Audit/security/restore checklist and acceptance suite pass
+
+--- TABLE 33 ---
+Change control: Once implementation begins, new ideas go to a V2 backlog unless they close a defect in an already-approved V1 journey. Any V1 change must document affected entity, API, permission, UI, background job, audit event and E2E scenario.

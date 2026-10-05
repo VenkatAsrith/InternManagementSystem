@@ -1,0 +1,28 @@
+{
+  "name": "tmt-ims",
+  "version": "1.1.0",
+  "private": true,
+  "description": "TechMecha Torque Internship Management System - QA tooling (Cypress, data integrity, API lifecycle suites)",
+  "type": "module",
+  "scripts": {
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install",
+    "qa:reset": "node scripts/qa-reset.js",
+    "qa:integrity": "node scripts/verify-integrity.js --env=.env.qa",
+    "qa:audit-dev": "node scripts/audit-data.js",
+    "qa:migrate-dev": "node scripts/migrate-canonical.js",
+    "qa:servers": "node scripts/qa-servers.js",
+    "qa:api": "node qa/api/run-all.mjs",
+    "qa:unit": "npm --prefix server run test:unit",
+    "cy:open": "node scripts/qa-servers.js --cypress=open",
+    "cy:smoke": "node scripts/qa-servers.js --cypress=run --spec=cypress/e2e/smoke/**/*.cy.js",
+    "cy:critical": "node scripts/qa-servers.js --cypress=run --spec=cypress/e2e/{smoke,auth,rbac,public,recruitment,offers,onboarding,lifecycle}/**/*.cy.js",
+    "cy:run": "node scripts/qa-servers.js --cypress=run",
+    "cy:responsive": "node scripts/qa-servers.js --cypress=run --spec=cypress/e2e/responsive/**/*.cy.js",
+    "cy:a11y": "node scripts/qa-servers.js --cypress=run --spec=cypress/e2e/accessibility/**/*.cy.js",
+    "qa:all": "npm run qa:unit && npm run qa:api && npm run cy:run && npm run qa:integrity"
+  },
+  "devDependencies": {
+    "axe-core": "^4.10.0",
+    "cypress": "^16.1.0"
+  }
+}

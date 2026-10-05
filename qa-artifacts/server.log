@@ -1,0 +1,16 @@
+2026-09-21 19:23:32 [[32minfo[39m]: [EmailService] SMTP credentials not configured. Running in simulation mode (delivery is logged, not sent).
+2026-09-21 19:23:32 [[32minfo[39m]: MongoDB Connected: 127.0.0.1/tmt_qa
+2026-09-21 19:23:32 [[32minfo[39m]: ========================================================
+2026-09-21 19:23:32 [[32minfo[39m]: IMS Backend Server running on http://localhost:5100
+2026-09-21 19:23:32 [[32minfo[39m]: Environment: qa
+2026-09-21 19:23:32 [[32minfo[39m]: Health check: http://localhost:5100/health
+2026-09-21 19:23:32 [[32minfo[39m]: API Base URL: http://localhost:5100/api/v1
+2026-09-21 19:23:32 [[32minfo[39m]: ========================================================
+[0mGET /health [32m200[0m 2.947 ms - 96[0m
+[0mPOST /api/v1/auth/login [32m200[0m 40.445 ms - 1456[0m
+[0mGET /api/v1/finance/payments?status=PENDING [32m200[0m 21.983 ms - 1076[0m
+2026-09-21 19:23:36 [[34mdebug[39m]: POST /api/v1/finance/payments/6ab136e027b7a5cbcf62b222/process -> 409 ALREADY_PAID
+[0mPOST /api/v1/finance/payments/6ab136e027b7a5cbcf62b222/process [33m409[0m 25.844 ms - 148[0m
+2026-09-21 19:23:36 [[34mdebug[39m]: POST /api/v1/finance/payments/6ab136e027b7a5cbcf62b222/process -> 409 ALREADY_PAID
+[0mPOST /api/v1/finance/payments/6ab136e027b7a5cbcf62b222/process [33m409[0m 26.378 ms - 148[0m
+[0mPOST /api/v1/finance/payments/6ab136e027b7a5cbcf62b222/process [32m200[0m 33.759 ms - 805[0m

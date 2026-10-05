@@ -1,0 +1,1309 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { Calendar, Clock, MapPin, Users, QrCode, Plus, CheckCircle2, ShieldCheck, Ticket, Paperclip, Award, Trash2, ExternalLink, FileSpreadsheet, RefreshCw, Link2, AlertTriangle, Send, Eye, Download } from 'lucide-react';
+import api, { downloadFile } from '../../lib/http';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { useFetch } from '../../hooks/useFetch';
+import { useForm, rules } from '../../hooks/useForm';
+import { fmtDate, fmtDateTime } from '../../lib/format';
+import { Button, DetailList, FormGrid, FormModal, Modal, PageHeader, SectionCard, StateView, StatusBadge, Tabs, TabPanel, TextField, InlineAlert, LoadingBlock } from '../../components/ui';
+import { PassPreviewModal } from '../../components/domain/PassPreviewModal';
+import { SendBootcampPassModal } from '../../components/domain/SendBootcampPassModal';
+import { BootcampPreviewModal } from '../../components/domain/BootcampPreviewModal';
+
+function AddSlotModal({ bootcampId, onClose, onDone }) {
+  const toast = useToast();
+  const form = useForm({
+    slotName: 'Afternoon Track',
+    startTime: '02:00 PM',
+    endTime: '05:00 PM',
+    capacity: 25
+  });
+  const f = form.field;
+
+  const handleSubmit = async (v) => {
+    return await api.post(`/growth/bootcamps/${bootcampId}/slots`, {
+      slotName: v.slotName.trim(),
+      startTime: v.startTime.trim(),
+      endTime: v.endTime.trim(),
+      capacity: Number(v.capacity)
+    });
+  };
+
+  return (
+    <FormModal
+      open
+      onClose={onClose}
+      size="md"
+      testId="add-slot-modal"
+      title="Add Bootcamp Slot"
+      submitLabel="Add Slot"
+      form={form}
+      rules={{
+        slotName: rules.required('Slot Name'),
+        startTime: rules.required('Start Time'),
+        endTime: rules.required('End Time'),
+        capacity: [rules.required('Capacity'), (v) => (Number(v) < 1 ? 'Capacity must be at least 1' : null)]
+      }}
+      onSubmit={handleSubmit}
+      onDone={() => {
+        toast.success('Slot added successfully');
+        onDone();
+      }}
+    >
+      <FormGrid>
+        <TextField {...f('slotName')} label="Slot Name" required placeholder="Evening Cohort" className="sm:col-span-2" />
+        <TextField {...f('startTime')} label="Start Time" required placeholder="02:00 PM" />
+        <TextField {...f('endTime')} label="End Time" required placeholder="05:00 PM" />
+        <TextField {...f('capacity')} label="Slot Capacity" type="number" required min={1} className="sm:col-span-2" />
+      </FormGrid>
+    </FormModal>
+  );
+}
+
+function IssuePassModal({ bootcamp, slotId, onClose, onDone }) {
+  const toast = useToast();
+  const form = useForm({ candidateName: '', candidateEmail: '', candidatePhone: '' });
+  const f = form.field;
+
+  const handleRegister = async (v) => {
+    const res = await api.post(`/growth/bootcamps/${bootcamp._id}/register`, {
+      candidateName: v.candidateName.trim(),
+      candidateEmail: v.candidateEmail.trim(),
+      candidatePhone: v.candidatePhone.trim(),
+      slotId: slotId || bootcamp.slots?.[0]?._id
+    });
+    toast.success(`Pass generated: ${res.data.passCode}`);
+    onDone();
+  };
+
+  return (
+    <FormModal
+      open
+      onClose={onClose}
+      size="md"
+      testId="issue-pass-modal"
+      title="Generate Admission Pass"
+      description={`Issue authenticated ticket for ${bootcamp.title}.`}
+      submitLabel="Generate Pass"
+      form={form}
+      rules={{
+        candidateName: rules.required('Candidate name'),
+        candidateEmail: [rules.required('Email'), rules.email('Email')]
+      }}
+      onSubmit={handleRegister}
+      onDone={() => {}}
+    >
+      <FormGrid>
+        <TextField {...f('candidateName')} label="Candidate Full Name" required className="sm:col-span-2" />
+        <TextField {...f('candidateEmail')} label="Email Address" type="email" required className="sm:col-span-2" />
+        <TextField {...f('candidatePhone')} label="Phone" className="sm:col-span-2" />
+      </FormGrid>
+    </FormModal>
+  );
+}
+
+function CheckInScanModal({ onClose, onDone }) {
+  const toast = useToast();
+  const form = useForm({ passCode: '' });
+  const [errorMsg, setErrorMsg] = useState(null);
+
+  const handleScan = async (v) => {
+    setErrorMsg(null);
+    try {
+      const res = await api.post('/growth/passes/check-in', { passCode: v.passCode.trim() });
+      toast.success(`Checked in: ${res.data.candidateName}`);
+      onDone();
+    } catch (err) {
+      setErrorMsg(err.message || 'Check-in failed');
+    }
+  };
+
+  return (
+    <FormModal
+      open
+      onClose={onClose}
+      size="md"
+      testId="scan-checkin-modal"
+      title="Scan Entrance Pass"
+      submitLabel="Verify Check-in"
+      form={form}
+      rules={{ passCode: rules.required('Pass Code') }}
+      onSubmit={handleScan}
+      onDone={() => {}}
+    >
+      <TextField {...form.field('passCode')} label="Pass Code" required placeholder="TMT-PASS-XXXXXX-XXXX" autoFocus />
+      {errorMsg && <InlineAlert tone="error" className="mt-3">{errorMsg}</InlineAlert>}
+    </FormModal>
+  );
+}
+
+function UploadAttachmentModal({ bootcampId, onClose, onDone }) {
+  const toast = useToast();
+  const [file, setFile] = useState(null);
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!file) {
+      setError('Please select a file to upload');
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      if (description.trim()) fd.append('description', description.trim());
+      await api.post(`/growth/bootcamps/${bootcampId}/attachments`, fd);
+      toast.success('Attachment uploaded successfully');
+      onDone();
+    } catch (err) {
+      setError(err.message || 'Upload failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="md"
+      testId="upload-attachment-modal"
+      title="Add Attachment / Media"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button variant="primary" onClick={handleUpload} loading={loading} data-testid="upload-attachment-btn">Upload</Button>
+        </div>
+      }
+    >
+      <form onSubmit={handleUpload} className="space-y-4">
+        {error && <InlineAlert tone="error">{error}</InlineAlert>}
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            File (Images, GIFs, Media, PDFs)
+          </label>
+          <input
+            type="file"
+            accept="image/*,image/gif,application/pdf"
+            onChange={(e) => setFile(e.target.files[0] || null)}
+            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer"
+            data-testid="attachment-file-input"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Description (Optional)
+          </label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. Schedule Graphic, Promotional GIF"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+          />
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function SocialVerificationModal({ pass, onClose, onDone }) {
+  const toast = useToast();
+  const form = useForm({
+    linkedInUrl: pass?.linkedInUrl || '',
+    instagramUrl: pass?.instagramUrl || '',
+    status: pass?.socialVerificationStatus || 'NOT_SUBMITTED',
+    notes: pass?.socialVerificationNotes || ''
+  });
+  const f = form.field;
+
+  const handleSubmit = async (v) => {
+    if (v.linkedInUrl && !/^https?:\/\/(www\.)?linkedin\.com\/.+/i.test(v.linkedInUrl.trim())) {
+      throw new Error('Please enter a valid LinkedIn URL (https://linkedin.com/...)');
+    }
+    if (v.instagramUrl && !/^https?:\/\/(www\.)?instagram\.com\/.+/i.test(v.instagramUrl.trim())) {
+      throw new Error('Please enter a valid Instagram URL (https://instagram.com/...)');
+    }
+    await api.patch(`/growth/passes/${pass._id}/social-verification`, {
+      linkedInUrl: v.linkedInUrl.trim(),
+      instagramUrl: v.instagramUrl.trim(),
+      status: v.status,
+      notes: v.notes.trim()
+    });
+    toast.success('Social verification updated');
+    onDone();
+  };
+
+  return (
+    <FormModal
+      open
+      onClose={onClose}
+      size="md"
+      testId="social-verification-modal"
+      title={`Social Verification — ${pass.candidateName}`}
+      submitLabel="Save Verification"
+      form={form}
+      onSubmit={handleSubmit}
+      onDone={() => {}}
+    >
+      <FormGrid>
+        <TextField
+          {...f('linkedInUrl')}
+          label="LinkedIn Profile URL"
+          placeholder="https://linkedin.com/in/username"
+          className="sm:col-span-2"
+        />
+        <TextField
+          {...f('instagramUrl')}
+          label="Instagram Profile URL"
+          placeholder="https://instagram.com/username"
+          className="sm:col-span-2"
+        />
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
+            Verification Status
+          </label>
+          <select
+            value={form.values.status}
+            onChange={(e) => form.setValue('status', e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+            data-testid="verification-status-select"
+          >
+            <option value="NOT_SUBMITTED">Not Submitted</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="UNDER_REVIEW">Under Review</option>
+            <option value="VERIFIED">Verified</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </div>
+        <TextField
+          {...f('notes')}
+          label="Verification Notes"
+          placeholder="Notes on profile authenticity or review findings"
+          className="sm:col-span-2"
+        />
+      </FormGrid>
+    </FormModal>
+  );
+}
+
+function PassCertificatePreviewModal({ pass, onClose }) {
+  const toast = useToast();
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    let url = null;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await api.get(`/growth/passes/${pass._id}/certificate?inline=1`, { responseType: 'blob' });
+        if (!active) return;
+        url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+        setBlobUrl(url);
+      } catch (err) {
+        if (!active) return;
+        setError(err.message || 'Failed to load certificate preview');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    load();
+    return () => { active = false; if (url) URL.revokeObjectURL(url); };
+  }, [pass._id]);
+
+  const handleDownload = async () => {
+    try {
+      await downloadFile(`/growth/passes/${pass._id}/certificate`, `${pass.candidateName.replace(/\s+/g, '_')}_Certificate.pdf`);
+      toast.success('Certificate downloaded');
+    } catch (e) {
+      toast.error(e.message || 'Download failed');
+    }
+  };
+
+  const handleEmail = async () => {
+    try {
+      const res = await api.post(`/growth/passes/${pass._id}/send-certificate`);
+      toast.success(res.message || `Certificate sent to ${pass.candidateEmail}`);
+    } catch (e) {
+      toast.error(e.message || 'Failed to send certificate');
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="xl"
+      title={`Bootcamp Certificate: ${pass.candidateName} (${pass.certificateId || 'TMT'})`}
+      testId="pass-cert-preview-modal"
+      footer={(
+        <div className="flex w-full items-center justify-between">
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" icon={Send} onClick={handleEmail}>Email to Candidate</Button>
+            <Button variant="primary" size="sm" icon={Download} onClick={handleDownload}>Download PDF</Button>
+          </div>
+        </div>
+      )}
+    >
+      <div className="space-y-3">
+        <div className="min-h-[460px] h-[65vh] w-full rounded-lg bg-slate-100 flex flex-col items-center justify-center overflow-hidden border border-slate-200 relative">
+          {loading && <LoadingBlock label="Rendering certificate preview..." />}
+          {error && (
+            <div className="text-center p-6 space-y-2">
+              <p className="text-sm font-medium text-slate-800">{error}</p>
+              <Button size="sm" variant="outline" icon={Download} onClick={handleDownload}>Download to inspect</Button>
+            </div>
+          )}
+          {!loading && !error && blobUrl && (
+            <iframe src={`${blobUrl}#toolbar=0`} title={`Preview of ${pass.candidateName} Certificate`} className="w-full h-full border-0 rounded-lg" />
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function BulkCertificatesResultModal({ result, onClose }) {
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="md"
+      testId="bulk-cert-result-modal"
+      title="Certificate Generation Result"
+      footer={<Button onClick={onClose}>Done</Button>}
+    >
+      <div className="space-y-4 text-sm">
+        <div className="grid grid-cols-2 gap-3 text-center">
+          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+            <span className="block text-2xl font-bold text-emerald-800">{result.successfulCount}</span>
+            <span className="text-xs font-medium text-emerald-600 uppercase">Successful</span>
+          </div>
+          <div className="rounded-lg bg-rose-50 border border-rose-200 p-3">
+            <span className="block text-2xl font-bold text-rose-800">{result.failedCount}</span>
+            <span className="text-xs font-medium text-rose-600 uppercase">Failed</span>
+          </div>
+        </div>
+
+        {result.failed && result.failed.length > 0 && (
+          <div className="space-y-2 border-t border-slate-200 pt-3">
+            <p className="text-xs font-bold text-slate-700 uppercase">Failures</p>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {result.failed.map((f, i) => (
+                <div key={i} className="rounded border border-rose-100 bg-rose-50/60 p-2 text-xs text-rose-900">
+                  <p className="font-semibold">{f.candidateName}</p>
+                  <p className="text-slate-600">Reason: {f.reason}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result.successful && result.successful.length > 0 && (
+          <div className="space-y-2 border-t border-slate-200 pt-3">
+            <p className="text-xs font-bold text-slate-700 uppercase">Generated Certificates</p>
+            <div className="space-y-1.5 max-h-36 overflow-y-auto">
+              {result.successful.map((s, i) => (
+                <div key={i} className="flex justify-between items-center rounded border border-emerald-100 bg-emerald-50/60 p-2 text-xs text-emerald-900">
+                  <span className="font-semibold">{s.candidateName}</span>
+                  <span className="font-mono text-[11px]">{s.certificateId}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function GoogleFormsPanel({ bootcamp, onReload }) {
+  const toast = useToast();
+  const existingConfig = bootcamp.googleForm || {};
+  const [formUrl, setFormUrl] = useState(existingConfig.formUrl || '');
+  const [mapping, setMapping] = useState({
+    candidateName: existingConfig.fieldMapping?.candidateName || 'Full Name',
+    candidateEmail: existingConfig.fieldMapping?.candidateEmail || 'Email Address',
+    candidatePhone: existingConfig.fieldMapping?.candidatePhone || 'Phone Number',
+    college: existingConfig.fieldMapping?.college || 'College / University',
+    course: existingConfig.fieldMapping?.course || 'Degree / Branch',
+    resumeUrl: existingConfig.fieldMapping?.resumeUrl || 'Resume Link'
+  });
+  const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
+
+  const handleValidateUrl = () => {
+    if (!formUrl.trim()) {
+      setValidationResult({ valid: false, message: 'Please enter a Google Form URL.' });
+      return;
+    }
+    const match = formUrl.match(/forms\/d\/(?:e\/)?([a-zA-Z0-9_-]+)/);
+    if (!match) {
+      setValidationResult({ valid: false, message: 'URL does not match a standard Google Form format (docs.google.com/forms/d/...).' });
+    } else {
+      setValidationResult({ valid: true, formId: match[1], message: `Valid Google Form detected (ID: ${match[1].slice(0, 10)}...)` });
+    }
+  };
+
+  const handleSaveConfig = async (e) => {
+    e.preventDefault();
+    if (!formUrl.trim()) {
+      toast.error('Google Form URL is required');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post(`/growth/bootcamps/${bootcamp._id}/google-form`, {
+        formUrl: formUrl.trim(),
+        fieldMapping: mapping
+      });
+      toast.success('Google Form integration configuration saved');
+      onReload();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSyncResponses = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.post(`/growth/bootcamps/${bootcamp._id}/google-form/sync`, {});
+      toast.success(res.message || 'Google Forms responses synced successfully');
+      onReload();
+    } catch (err) {
+      toast.error(err.message || 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const stats = bootcamp.googleForm?.syncStats || { newResponses: 0, updatedResponses: 0, duplicates: 0, failed: 0 };
+
+  return (
+    <div className="space-y-6" data-testid="google-forms-panel">
+      {/* Overview & Live Sync Status Card */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+              <FileSpreadsheet className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">Google Forms Registration Ingestion</h3>
+              <p className="text-xs text-slate-500">Collect candidate applications via Google Forms with automated deduplication & pass generation.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              icon={RefreshCw}
+              loading={syncing}
+              disabled={!bootcamp.googleForm?.formUrl}
+              onClick={handleSyncResponses}
+              data-testid="sync-google-forms-btn"
+            >
+              Sync Responses
+            </Button>
+          </div>
+        </div>
+
+        {/* Sync Stats KPIs */}
+        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">New Responses</span>
+            <p className="mt-1 text-2xl font-bold text-emerald-700" data-testid="sync-stat-new">{stats.newResponses || 0}</p>
+            <span className="text-[11px] text-slate-400">Newly registered passes</span>
+          </div>
+          <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Updated</span>
+            <p className="mt-1 text-2xl font-bold text-blue-700" data-testid="sync-stat-updated">{stats.updatedResponses || 0}</p>
+            <span className="text-[11px] text-slate-400">Refreshed details</span>
+          </div>
+          <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Duplicates</span>
+            <p className="mt-1 text-2xl font-bold text-amber-700" data-testid="sync-stat-duplicates">{stats.duplicates || 0}</p>
+            <span className="text-[11px] text-slate-400">Existing email / phone matched</span>
+          </div>
+          <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Failed / Skipped</span>
+            <p className="mt-1 text-2xl font-bold text-rose-700" data-testid="sync-stat-failed">{stats.failed || 0}</p>
+            <span className="text-[11px] text-slate-400">Invalid records</span>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between text-xs text-slate-500">
+          <span>
+            Last synced: <strong className="text-slate-700">{bootcamp.googleForm?.lastSyncedAt ? fmtDateTime(bootcamp.googleForm.lastSyncedAt) : 'Never synced'}</strong>
+          </span>
+          {stats.lastError && (
+            <span className="flex items-center gap-1 text-rose-600 font-medium">
+              <AlertTriangle className="h-3.5 w-3.5" /> {stats.lastError}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Form URL & Field Mapping Configuration */}
+      <form onSubmit={handleSaveConfig} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+        <div>
+          <h4 className="text-sm font-bold uppercase tracking-wider text-slate-800">1. Google Form Connection</h4>
+          <p className="text-xs text-slate-500 mt-0.5">Enter the public or edit URL of your Google Form created for this bootcamp cohort.</p>
+
+          <div className="mt-3 flex gap-2">
+            <div className="flex-1">
+              <input
+                type="url"
+                value={formUrl}
+                onChange={(e) => { setFormUrl(e.target.value); setValidationResult(null); }}
+                placeholder="https://docs.google.com/forms/d/e/1FAIpQLSc.../viewform"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                data-testid="google-form-url-input"
+              />
+            </div>
+            <Button type="button" variant="outline" onClick={handleValidateUrl} data-testid="validate-form-url-btn">
+              Validate Form
+            </Button>
+          </div>
+
+          {validationResult && (
+            <div className={`mt-2 text-xs flex items-center gap-1.5 font-medium ${validationResult.valid ? 'text-emerald-700' : 'text-rose-600'}`}>
+              {validationResult.valid ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+              {validationResult.message}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-slate-100 pt-5">
+          <h4 className="text-sm font-bold uppercase tracking-wider text-slate-800">2. Form Field Mapping</h4>
+          <p className="text-xs text-slate-500 mt-0.5">Map Google Form question titles to IMS candidate profile fields for automated ingestion.</p>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Full Name Field</label>
+              <input
+                type="text"
+                value={mapping.candidateName}
+                onChange={(e) => setMapping((m) => ({ ...m, candidateName: e.target.value }))}
+                placeholder="Full Name"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                data-testid="mapping-name-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Email Address Field</label>
+              <input
+                type="text"
+                value={mapping.candidateEmail}
+                onChange={(e) => setMapping((m) => ({ ...m, candidateEmail: e.target.value }))}
+                placeholder="Email Address"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                data-testid="mapping-email-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Phone Number Field</label>
+              <input
+                type="text"
+                value={mapping.candidatePhone}
+                onChange={(e) => setMapping((m) => ({ ...m, candidatePhone: e.target.value }))}
+                placeholder="Phone Number"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                data-testid="mapping-phone-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">College / University Field</label>
+              <input
+                type="text"
+                value={mapping.college}
+                onChange={(e) => setMapping((m) => ({ ...m, college: e.target.value }))}
+                placeholder="College / University"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                data-testid="mapping-college-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Course / Branch Field</label>
+              <input
+                type="text"
+                value={mapping.course}
+                onChange={(e) => setMapping((m) => ({ ...m, course: e.target.value }))}
+                placeholder="Course / Branch"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                data-testid="mapping-course-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Resume Link Field</label>
+              <input
+                type="text"
+                value={mapping.resumeUrl}
+                onChange={(e) => setMapping((m) => ({ ...m, resumeUrl: e.target.value }))}
+                placeholder="Resume Link"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                data-testid="mapping-resume-input"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+          <Button type="submit" variant="primary" loading={saving} data-testid="save-google-form-config-btn">
+            Save Form Configuration
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export function BootcampDetailPage() {
+  const { id } = useParams();
+  const { can } = useAuth();
+  const toast = useToast();
+  const [tab, setTab] = useState('overview');
+  const [modal, setModal] = useState(null);
+  const [selectedPasses, setSelectedPasses] = useState([]);
+  const state = useFetch(() => api.get(`/growth/bootcamps/${id}`), [id]);
+
+  return (
+    <StateView state={state} loadingLabel="Loading bootcamp details...">
+      {(bootcamp) => {
+        const slots = bootcamp.slots || [];
+        const passes = bootcamp.passes || [];
+        const totalBooked = slots.reduce((sum, s) => sum + (s.bookedCount || 0), 0);
+        const totalCheckedIn = slots.reduce((sum, s) => sum + (s.checkedInCount || 0), 0);
+        const totalCap = bootcamp.totalCapacity || 1;
+        const pctBooked = Math.min(100, Math.round((totalBooked / totalCap) * 100));
+
+        return (
+          <>
+            <PageHeader
+              breadcrumbs={[{ label: 'Bootcamps', to: '/admin/bootcamps' }, { label: bootcamp.title }]}
+              title={<span data-testid="bootcamp-detail-title">{bootcamp.title}</span>}
+              description={bootcamp.description || 'Educational Acquisition Cohort'}
+              actions={
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setModal({ type: 'preview' })} data-testid="bootcamp-preview-btn">
+                    Preview
+                  </Button>
+                  <Button
+                    variant="outline"
+                    icon={FileSpreadsheet}
+                    onClick={() => setTab('googleForms')}
+                    data-testid="header-attach-gforms-btn"
+                  >
+                    {bootcamp.googleForm?.formUrl ? 'Google Form Linked' : 'Attach Google Form'}
+                  </Button>
+                  <Button variant="outline" icon={QrCode} onClick={() => setModal({ type: 'checkin' })} data-testid="detail-checkin-btn">
+                    Check-In Pass
+                  </Button>
+                  <Button variant="primary" icon={Plus} onClick={() => setModal({ type: 'issue' })} data-testid="detail-register-btn">
+                    Register Candidate
+                  </Button>
+                </div>
+              }
+            />
+
+            {/* Operational Preview Banner */}
+            <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4" data-testid="bootcamp-operational-preview">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="flex flex-wrap items-center gap-6 text-sm text-slate-700">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Calendar className="h-4 w-4 text-brand-600" />
+                    {fmtDate(bootcamp.date)}
+                  </span>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <MapPin className="h-4 w-4 text-brand-600" />
+                    {bootcamp.venue || 'Virtual Campus'}
+                  </span>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Users className="h-4 w-4 text-brand-600" />
+                    {slots.length} Active {slots.length === 1 ? 'Slot' : 'Slots'}
+                  </span>
+                </div>
+                <StatusBadge status={bootcamp.status || 'SCHEDULED'} />
+              </div>
+
+              {/* Visual Capacity Progress Bar */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="font-semibold text-slate-900">Capacity & Booking Status</span>
+                  <span className="font-medium text-slate-700">
+                    {totalBooked} / {totalCap} Booked ({pctBooked}%) &bull; <strong className="text-emerald-700">{totalCheckedIn} Attended</strong>
+                  </span>
+                </div>
+                <div className="w-full h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
+                  <div
+                    className={`h-full transition-all duration-300 ${pctBooked >= 100 ? 'bg-amber-500' : 'bg-brand-600'}`}
+                    style={{ width: `${pctBooked}%` }}
+                    data-testid="capacity-progress-bar"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Tabs
+              label="Bootcamp sections"
+              active={tab}
+              onChange={setTab}
+              tabs={[
+                { id: 'overview', label: 'Slots & Schedule', count: slots.length },
+                { id: 'passes', label: 'Registrations & Passes', count: passes.length },
+                { id: 'googleForms', label: 'Google Forms Integration', badge: bootcamp.googleForm?.formUrl ? 'Connected' : 'Setup' },
+                { id: 'attachments', label: 'Attachments & Media', count: (bootcamp.attachments || []).length }
+              ]}
+            />
+
+            <TabPanel id="overview" active={tab}>
+              <div className="space-y-6">
+                <SectionCard
+                  title="Scheduled Time Slots"
+                  actions={
+                    can('bootcamps.manage') && (
+                      <Button size="sm" variant="outline" icon={Plus} onClick={() => setModal({ type: 'addSlot' })} data-testid="add-slot-btn">
+                        Add Slot
+                      </Button>
+                    )
+                  }
+                >
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {slots.map((slot) => {
+                      const avail = Math.max(0, slot.capacity - slot.bookedCount);
+                      const isFull = slot.bookedCount >= slot.capacity;
+                      return (
+                        <div key={slot._id} className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-bold text-slate-900">{slot.slotName}</p>
+                              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                                <Clock className="h-3.5 w-3.5" />
+                                {slot.startTime} – {slot.endTime}
+                              </p>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded font-semibold ${isFull ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                              {isFull ? 'FULL' : `${avail} open`}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1 text-xs text-slate-600 border-t border-slate-200 pt-2">
+                            <div className="flex justify-between">
+                              <span>Total Slot Capacity:</span>
+                              <strong>{slot.capacity}</strong>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Booked Seats:</span>
+                              <strong>{slot.bookedCount}</strong>
+                            </div>
+                            <div className="flex justify-between text-emerald-700">
+                              <span>Checked In:</span>
+                              <strong>{slot.checkedInCount}</strong>
+                            </div>
+                          </div>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full"
+                            disabled={isFull}
+                            onClick={() => setModal({ type: 'issue', slotId: slot._id })}
+                            data-testid={`slot-book-${slot._id}`}
+                          >
+                            {isFull ? 'Slot Full' : 'Book Seat in Slot'}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </SectionCard>
+              </div>
+            </TabPanel>
+
+            <TabPanel id="passes" active={tab}>
+              {(() => {
+                const checkedInPasses = passes.filter((p) => p.status === 'CHECKED_IN');
+                const allCheckedInSelected = checkedInPasses.length > 0 && checkedInPasses.every((p) => selectedPasses.includes(p._id));
+                const toggleSelectAll = () => {
+                  if (allCheckedInSelected) {
+                    setSelectedPasses([]);
+                  } else {
+                    setSelectedPasses(checkedInPasses.map((p) => p._id));
+                  }
+                };
+                const toggleSelect = (pid) => {
+                  setSelectedPasses((prev) => prev.includes(pid) ? prev.filter((id) => id !== pid) : [...prev, pid]);
+                };
+                const handleBulkCertificates = async () => {
+                  try {
+                    const payload = selectedPasses.length > 0 ? { passIds: selectedPasses } : {};
+                    const res = await api.post(`/growth/bootcamps/${bootcamp._id}/bulk-certificates`, payload);
+                    setModal({ type: 'bulkCertResult', result: res.data });
+                    toast.success(res.message || 'Bulk certificates processed');
+                    setSelectedPasses([]);
+                    state.reload();
+                  } catch (err) {
+                    toast.error(err.message || 'Failed to generate bulk certificates');
+                  }
+                };
+
+                const handleBulkSendCertificates = async () => {
+                  try {
+                    const payload = selectedPasses.length > 0 ? { passIds: selectedPasses } : {};
+                    const res = await api.post(`/growth/bootcamps/${bootcamp._id}/bulk-send-certificates`, payload);
+                    toast.success(res.message || 'Bulk certificates sent successfully');
+                    setSelectedPasses([]);
+                    state.reload();
+                  } catch (err) {
+                    toast.error(err.message || 'Failed to email certificates');
+                  }
+                };
+
+                return (
+                  <SectionCard
+                    title="Issued Passes & Check-In History"
+                    actions={
+                      can('certificates.manage') && passes.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            icon={Award}
+                            onClick={handleBulkCertificates}
+                            data-testid="bulk-generate-certs-btn"
+                          >
+                            {selectedPasses.length > 0 ? `Generate Certificates (${selectedPasses.length})` : 'Generate All Checked-in Certificates'}
+                          </Button>
+                          {passes.some(p => p.certificateId) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              icon={Send}
+                              onClick={handleBulkSendCertificates}
+                              data-testid="bulk-send-certs-btn"
+                            >
+                              {selectedPasses.length > 0 ? `Email Certificates (${selectedPasses.length})` : 'Email All Issued Certificates'}
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    }
+                  >
+                    {passes.length === 0 ? (
+                      <p className="text-sm text-slate-500 py-6 text-center">No passes issued yet for this bootcamp.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm" data-testid="passes-table">
+                          <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600 uppercase">
+                            <tr>
+                              <th className="p-3 w-8">
+                                <input
+                                  type="checkbox"
+                                  checked={allCheckedInSelected}
+                                  onChange={toggleSelectAll}
+                                  title="Select all checked-in participants"
+                                  className="rounded border-slate-300 text-brand-700 focus:ring-brand-500"
+                                />
+                              </th>
+                              <th className="p-3">Pass Code</th>
+                              <th className="p-3">Candidate</th>
+                              <th className="p-3">College & Course</th>
+                              <th className="p-3">Source</th>
+                              <th className="p-3">Status</th>
+                              <th className="p-3">Checked In At</th>
+                              <th className="p-3">Social Verification</th>
+                              <th className="p-3">Certificate</th>
+                              <th className="p-3 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {passes.map((p) => (
+                              <tr key={p._id} className="hover:bg-slate-50">
+                                <td className="p-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedPasses.includes(p._id)}
+                                    onChange={() => toggleSelect(p._id)}
+                                    disabled={p.status !== 'CHECKED_IN'}
+                                    title={p.status !== 'CHECKED_IN' ? 'Only checked-in participants are eligible' : 'Select for certificate'}
+                                    className="rounded border-slate-300 text-brand-700 focus:ring-brand-500 disabled:opacity-30"
+                                  />
+                                </td>
+                                <td className="p-3 font-mono font-medium text-slate-900">{p.passCode}</td>
+                                <td className="p-3">
+                                  <span className="font-medium text-slate-900 block">{p.candidateName}</span>
+                                  <span className="text-xs text-slate-500">{p.candidateEmail}</span>
+                                  {p.candidatePhone && <span className="text-xs text-slate-400 block">{p.candidatePhone}</span>}
+                                </td>
+                                <td className="p-3 text-xs text-slate-600">
+                                  {p.college || p.course ? (
+                                    <>
+                                      <span className="font-medium text-slate-800 block truncate max-w-[150px]" title={p.college}>{p.college || '-'}</span>
+                                      <span className="text-slate-500 truncate max-w-[150px] block" title={p.course}>{p.course || '-'}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-slate-400">-</span>
+                                  )}
+                                  {p.resumeUrl && (
+                                    <a href={p.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline inline-flex items-center gap-0.5 mt-0.5 text-[11px]">
+                                      Resume <ExternalLink className="h-2.5 w-2.5" />
+                                    </a>
+                                  )}
+                                </td>
+                                <td className="p-3">
+                                  <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded ${
+                                    p.source === 'GOOGLE_FORM' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-700'
+                                  }`}>
+                                    {p.source === 'GOOGLE_FORM' ? 'Google Form' : 'Direct'}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded ${
+                                    p.status === 'CHECKED_IN' ? 'bg-emerald-100 text-emerald-800' :
+                                    p.status === 'APPROVED' ? 'bg-teal-100 text-teal-800' :
+                                    p.status === 'WAITLISTED' ? 'bg-amber-100 text-amber-800' :
+                                    p.status === 'REJECTED' ? 'bg-rose-100 text-rose-800' :
+                                    'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {p.status}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-xs text-slate-500">
+                                  {p.checkedInAt ? fmtDateTime(p.checkedInAt) : '-'}
+                                </td>
+                                <td className="p-3">
+                                  <div className="space-y-1.5 min-w-[170px]">
+                                    <select
+                                      value={p.socialVerificationStatus || 'NOT_SUBMITTED'}
+                                      onChange={async (e) => {
+                                        const newStatus = e.target.value;
+                                        try {
+                                          await api.patch(`/growth/passes/${p._id}/social-verification`, { status: newStatus });
+                                          toast.success(`Social verification set to ${newStatus}`);
+                                          state.reload({ silent: true });
+                                        } catch (err) {
+                                          toast.error(err.message || 'Failed to update social verification');
+                                        }
+                                      }}
+                                      className={`w-full text-xs font-semibold rounded-md border px-2 py-1 focus:outline-none transition-colors ${
+                                        p.socialVerificationStatus === 'VERIFIED'
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                          : p.socialVerificationStatus === 'REJECTED'
+                                          ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                          : p.socialVerificationStatus === 'UNDER_REVIEW' || p.socialVerificationStatus === 'SUBMITTED'
+                                          ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                          : 'bg-slate-50 text-slate-700 border-slate-200'
+                                      }`}
+                                      data-testid={`social-verification-dropdown-${p.passCode}`}
+                                    >
+                                      <option value="NOT_SUBMITTED">Not Submitted</option>
+                                      <option value="SUBMITTED">Submitted</option>
+                                      <option value="UNDER_REVIEW">Under Review</option>
+                                      <option value="VERIFIED">Verified</option>
+                                      <option value="REJECTED">Rejected</option>
+                                    </select>
+
+                                    <div className="flex items-center justify-between gap-1 text-[11px]">
+                                      <div className="flex items-center gap-1.5">
+                                        {p.linkedInUrl ? (
+                                          <a
+                                            href={p.linkedInUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-0.5 font-medium text-blue-700 hover:underline"
+                                            title={p.linkedInUrl}
+                                          >
+                                            LinkedIn <ExternalLink className="h-2.5 w-2.5" />
+                                          </a>
+                                        ) : (
+                                          <span className="text-slate-400">No LI</span>
+                                        )}
+                                        <span className="text-slate-300">&bull;</span>
+                                        {p.instagramUrl ? (
+                                          <a
+                                            href={p.instagramUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-0.5 font-medium text-pink-700 hover:underline"
+                                            title={p.instagramUrl}
+                                          >
+                                            Insta <ExternalLink className="h-2.5 w-2.5" />
+                                          </a>
+                                        ) : (
+                                          <span className="text-slate-400">No IG</span>
+                                        )}
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => setModal({ type: 'socialVerification', pass: p })}
+                                        className="text-[10px] font-semibold text-slate-500 hover:text-brand-700 underline"
+                                        title="Edit LinkedIn / Instagram Profile URLs & Review Notes"
+                                        data-testid={`edit-socials-${p.passCode}`}
+                                      >
+                                        Edit
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="p-3 text-xs">
+                                  {p.certificateId ? (
+                                    <div className="space-y-1">
+                                      <span className="inline-flex items-center gap-1 font-mono text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                        <Award className="h-3 w-3" /> {p.certificateId}
+                                      </span>
+                                      <div className="flex items-center gap-2 text-[11px]">
+                                        <button
+                                          type="button"
+                                          onClick={() => setModal({ type: 'previewCert', pass: p })}
+                                          className="text-brand-700 font-medium hover:underline inline-flex items-center gap-0.5"
+                                          data-testid={`cert-preview-${p.passCode}`}
+                                        >
+                                          <Eye className="h-2.5 w-2.5" /> Preview
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            try {
+                                              await downloadFile(`/growth/passes/${p._id}/certificate`, `${p.candidateName.replace(/\s+/g, '_')}_Certificate.pdf`);
+                                              toast.success('Certificate downloaded');
+                                            } catch (e) {
+                                              toast.error(e.message || 'Download failed');
+                                            }
+                                          }}
+                                          className="text-slate-600 font-medium hover:underline inline-flex items-center gap-0.5"
+                                          data-testid={`cert-download-${p.passCode}`}
+                                        >
+                                          <Download className="h-2.5 w-2.5" /> PDF
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            try {
+                                              const res = await api.post(`/growth/passes/${p._id}/send-certificate`);
+                                              toast.success(res.message || `Certificate emailed to ${p.candidateEmail}`);
+                                            } catch (e) {
+                                              toast.error(e.message || 'Failed to email certificate');
+                                            }
+                                          }}
+                                          className="text-brand-600 font-semibold hover:underline inline-flex items-center gap-0.5"
+                                          data-testid={`cert-send-${p.passCode}`}
+                                        >
+                                          <Send className="h-2.5 w-2.5" /> Email
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-400">None</span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-right">
+                                  <div className="flex flex-col items-end gap-1.5">
+                                    <div className="flex gap-1.5">
+                                      <Button
+                                        size="xs"
+                                        variant="outline"
+                                        onClick={() => setModal({ type: 'previewPass', pass: p })}
+                                        data-testid={`preview-pass-${p.passCode}`}
+                                      >
+                                        Preview
+                                      </Button>
+                                      <Button
+                                        size="xs"
+                                        variant="primary"
+                                        onClick={() => setModal({ type: 'sendPass', pass: p })}
+                                        data-testid={`send-pass-${p.passCode}`}
+                                      >
+                                        Send
+                                      </Button>
+                                    </div>
+                                    {can('bootcamps.manage') && p.status !== 'CHECKED_IN' && (
+                                      <div className="flex gap-1 text-[10px]">
+                                        {p.status !== 'APPROVED' && (
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              await api.patch(`/growth/passes/${p._id}/status`, { status: 'APPROVED' });
+                                              toast.success('Pass approved');
+                                              state.reload();
+                                            }}
+                                            className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold"
+                                            data-testid={`approve-pass-${p.passCode}`}
+                                          >
+                                            Approve
+                                          </button>
+                                        )}
+                                        {p.status !== 'WAITLISTED' && (
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              await api.patch(`/growth/passes/${p._id}/status`, { status: 'WAITLISTED' });
+                                              toast.success('Pass waitlisted');
+                                              state.reload();
+                                            }}
+                                            className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 hover:bg-amber-100 font-semibold"
+                                            data-testid={`waitlist-pass-${p.passCode}`}
+                                          >
+                                            Waitlist
+                                          </button>
+                                        )}
+                                        {p.status !== 'REJECTED' && (
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              await api.patch(`/growth/passes/${p._id}/status`, { status: 'REJECTED' });
+                                              toast.success('Pass rejected');
+                                              state.reload();
+                                            }}
+                                            className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 hover:bg-rose-100 font-semibold"
+                                            data-testid={`reject-pass-${p.passCode}`}
+                                          >
+                                            Reject
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </SectionCard>
+                );
+              })()}
+            </TabPanel>
+
+            <TabPanel id="googleForms" active={tab}>
+              <GoogleFormsPanel bootcamp={bootcamp} onReload={state.reload} />
+            </TabPanel>
+
+            <TabPanel id="attachments" active={tab}>
+              <SectionCard
+                title="Bootcamp Attachments & Media"
+                actions={
+                  can('bootcamps.manage') && (
+                    <Button size="sm" variant="primary" icon={Plus} onClick={() => setModal({ type: 'uploadAttachment' })} data-testid="add-attachment-btn">
+                      Add Attachment
+                    </Button>
+                  )
+                }
+              >
+                {(bootcamp.attachments || []).length === 0 ? (
+                  <div className="py-8 text-center text-slate-500 text-sm">
+                    <Paperclip className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                    <p>No media or files attached to this bootcamp.</p>
+                    <p className="text-xs text-slate-400 mt-1">Upload GIFs, images, promotional graphics or syllabus documents.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="bootcamp-attachments-grid">
+                    {bootcamp.attachments.map((att) => {
+                      const isImageOrGif = att.mimeType?.startsWith('image/');
+                      return (
+                        <div key={att._id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm space-y-3 flex flex-col justify-between">
+                          <div>
+                            {isImageOrGif ? (
+                              <div className="h-36 w-full rounded bg-slate-100 mb-3 overflow-hidden flex items-center justify-center border border-slate-100">
+                                <img
+                                  src={`/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
+                                  alt={att.originalName}
+                                  className="max-h-full max-w-full object-contain"
+                                />
+                              </div>
+                            ) : (
+                              <div className="h-36 w-full rounded bg-slate-50 mb-3 flex items-center justify-center text-slate-400 border border-slate-100">
+                                <Paperclip className="h-10 w-10" />
+                              </div>
+                            )}
+                            <p className="font-semibold text-slate-900 text-sm truncate" title={att.originalName}>{att.originalName}</p>
+                            {att.description && <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{att.description}</p>}
+                            <p className="text-[11px] text-slate-400 mt-1">
+                              {Math.round(att.size / 1024)} KB &bull; {fmtDate(att.uploadedAt)}
+                            </p>
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t border-slate-100">
+                            <a
+                              href={`/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 text-center py-1.5 px-3 text-xs font-medium rounded border border-slate-300 text-slate-700 hover:bg-slate-50"
+                              data-testid={`preview-attachment-${att._id}`}
+                            >
+                              Preview
+                            </a>
+                            {can('bootcamps.manage') && (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                tone="danger"
+                                onClick={async () => {
+                                  if (window.confirm(`Remove attachment "${att.originalName}"?`)) {
+                                    await api.delete(`/growth/bootcamps/${bootcamp._id}/attachments/${att._id}`);
+                                    toast.success('Attachment removed');
+                                    state.reload();
+                                  }
+                                }}
+                                data-testid={`remove-attachment-${att._id}`}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </SectionCard>
+            </TabPanel>
+
+            {modal?.type === 'addSlot' && <AddSlotModal bootcampId={bootcamp._id} onClose={() => setModal(null)} onDone={() => { setModal(null); state.reload(); }} />}
+            {modal?.type === 'issue' && <IssuePassModal bootcamp={bootcamp} slotId={modal.slotId} onClose={() => setModal(null)} onDone={() => { setModal(null); state.reload(); }} />}
+            {modal?.type === 'checkin' && <CheckInScanModal onClose={() => setModal(null)} onDone={() => { setModal(null); state.reload(); }} />}
+            {modal?.type === 'uploadAttachment' && <UploadAttachmentModal bootcampId={bootcamp._id} onClose={() => setModal(null)} onDone={() => { setModal(null); state.reload(); }} />}
+            {modal?.type === 'socialVerification' && <SocialVerificationModal pass={modal.pass} onClose={() => setModal(null)} onDone={() => { setModal(null); state.reload(); }} />}
+            {modal?.type === 'bulkCertResult' && <BulkCertificatesResultModal result={modal.result} onClose={() => setModal(null)} />}
+            {modal?.type === 'previewCert' && <PassCertificatePreviewModal pass={modal.pass} onClose={() => setModal(null)} />}
+            {modal?.type === 'preview' && (
+              <BootcampPreviewModal
+                bootcamp={bootcamp}
+                onClose={() => setModal(null)}
+                onOpenSendPass={(pass) => setModal({ type: 'sendPass', pass })}
+              />
+            )}
+            {modal?.type === 'previewPass' && (
+              <PassPreviewModal
+                pass={modal.pass}
+                onClose={() => setModal(null)}
+                onOpenSend={(pass) => setModal({ type: 'sendPass', pass })}
+              />
+            )}
+            {modal?.type === 'sendPass' && (
+              <SendBootcampPassModal
+                pass={modal.pass}
+                bootcamp={bootcamp}
+                onClose={() => setModal(null)}
+                onDone={() => { setModal(null); state.reload(); }}
+              />
+            )}
+          </>
+        );
+      }}
+    </StateView>
+  );
+}

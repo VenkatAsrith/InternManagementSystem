@@ -1,0 +1,116 @@
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import api from '../lib/http';
+import { session } from '../lib/session';
+import { setDisplayTimezone } from '../lib/format';
+import { hasAnyGranted, hasGranted } from '@shared/permissions.js';
+
+const AuthContext = createContext(null);
+
+/**
+ * Authentication state.
+ *  - `status` is 'loading' until GET /auth/me has answered, then 'authenticated' or 'anonymous'.
+ *  - permissions come from the server (dynamic RBAC). The UI uses them only to hide what the API would
+ *    refuse anyway; the API remains the single authority.
+ *  - a network failure while booting does NOT sign the user out: it shows a retry state instead.
+ */
+export function AuthProvider({ children }) {
+  const [state, setState] = useState({
+    status: session.getToken() ? 'loading' : 'anonymous',
+    user: null,
+    permissions: [],
+    organization: null,
+    bootError: null,
+    endedReason: null
+  });
+
+  const applySession = useCallback((payload) => {
+    setDisplayTimezone(payload.organization?.timezone || payload.user?.organizationId?.timezone);
+    setState({
+      status: 'authenticated',
+      user: payload.user,
+      permissions: payload.permissions || [],
+      organization: payload.organization || null,
+      bootError: null,
+      endedReason: null
+    });
+  }, []);
+
+  const boot = useCallback(async () => {
+    if (!session.getToken()) {
+      setState((s) => ({ ...s, status: 'anonymous' }));
+      return;
+    }
+    setState((s) => ({ ...s, status: 'loading', bootError: null }));
+    try {
+      const res = await api.get('/auth/me');
+      const { user, permissions } = res.data;
+      session.setUser(user);
+      const org = user.organizationId && typeof user.organizationId === 'object' ? { name: user.organizationId.name, timezone: user.organizationId.timezone } : null;
+      applySession({ user, permissions, organization: org });
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) {
+        session.clear(error.code);
+      } else {
+        setState((s) => ({ ...s, status: 'error', bootError: error }));
+      }
+    }
+  }, [applySession]);
+
+  useEffect(() => { boot(); }, [boot]);
+
+  // Session cleared anywhere (expired token, other tab logged out, tampered token) -> back to anonymous.
+  useEffect(() => session.subscribe((event) => {
+    if (event.type === 'cleared') {
+      setState({ status: 'anonymous', user: null, permissions: [], organization: null, bootError: null, endedReason: event.reason || null });
+    }
+  }), []);
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === session.KEYS.token && !e.newValue) {
+        setState({ status: 'anonymous', user: null, permissions: [], organization: null, bootError: null, endedReason: 'other-tab' });
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  const login = useCallback(async (email, password) => {
+    const res = await api.post('/auth/login', { email, password });
+    const { token, refreshToken, user, permissions, organization } = res.data;
+    session.setTokens(token, refreshToken);
+    session.setUser(user);
+    applySession({ user, permissions, organization });
+    return { user, permissions };
+  }, [applySession]);
+
+  const logout = useCallback(async () => {
+    const refreshToken = session.getRefresh();
+    try {
+      await api.post('/auth/logout', { refreshToken });
+    } catch { /* the local session is cleared regardless */ }
+    session.clear('logout');
+  }, []);
+
+  const value = useMemo(() => ({
+    ...state,
+    isAuthenticated: state.status === 'authenticated',
+    isLoading: state.status === 'loading',
+    login,
+    logout,
+    reload: boot,
+    setPermissions: (permissions) => setState((s) => ({ ...s, permissions })),
+    can: (perm) => hasGranted(state.permissions, perm),
+    canAny: (perms) => !perms || perms.length === 0 || hasAnyGranted(state.permissions, perms),
+    hasRole: (...roles) => !!state.user && roles.includes(state.user.role),
+    isSuperAdmin: state.user?.role === 'SUPER_ADMIN'
+  }), [state, login, logout, boot]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
+}

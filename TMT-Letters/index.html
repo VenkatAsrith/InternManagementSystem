@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TechMecha Torque — Document Generator</title>
+  <meta name="description" content="TechMecha Torque premium document automation dashboard — certificates, offer letters, and more." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="login-page">
+
+<!-- =========================================================
+     LOGIN PAGE
+     ========================================================= -->
+<div id="loginPage" class="login-container">
+  <div class="login-bg-pattern"></div>
+  <div class="login-card">
+
+    <!-- Logo hero -->
+    <div class="login-logo-hero">
+      <img src="tmt-logo.png" alt="TechMecha Torque" class="login-tmt-img" />
+    </div>
+
+    <div class="login-brand-text">
+      <span class="login-company-name">TechMecha Torque</span>
+      <span class="login-company-sub">Document Generator Dashboard</span>
+    </div>
+
+    <div class="login-divider"></div>
+    <h1 class="login-heading">Welcome back</h1>
+    <p class="login-sub">Sign in to your workspace</p>
+
+    <form id="loginForm" class="login-form" autocomplete="off">
+      <div class="form-group">
+        <label class="form-label" for="loginUsername">Username</label>
+        <input class="form-input" type="text" id="loginUsername" placeholder="Enter your username" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="loginPassword">Password</label>
+        <div class="password-wrap">
+          <input class="form-input" type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password" />
+          <button type="button" class="pwd-toggle" id="pwdToggle" aria-label="Toggle password">
+            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="loginError" class="login-error hidden">Incorrect username or password</div>
+      <button type="submit" class="btn-login" id="loginBtn">
+        <span class="btn-label">Sign In</span>
+        <span class="btn-arrow">→</span>
+      </button>
+    </form>
+    <p class="login-footer-note">TechMecha Torque Pvt. Ltd. &copy; 2026</p>
+  </div>
+</div>
+
+<!-- =========================================================
+     DASHBOARD
+     ========================================================= -->
+<div id="dashboardPage" class="dashboard-layout hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <img src="tmt-logo.png" alt="TMT" class="sb-tmt-logo" />
+        <div class="sb-brand-text">
+          <span class="sb-title">TechMecha</span>
+          <span class="sb-sub">Torque</span>
+        </div>
+      </div>
+      <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close sidebar">✕</button>
+    </div>
+
+    <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
+      <ul class="nav-list">
+        <li><a href="#" class="nav-item active" data-section="dashboard" id="nav-dashboard"><span class="nav-icon">⊞</span><span class="nav-label">Dashboard</span></a></li>
+        <li><a href="#" class="nav-item" data-section="certificates" id="nav-certificates"><span class="nav-icon">◈</span><span class="nav-label">Certificates</span></a></li>
+        <li><a href="#" class="nav-item" data-section="offerLetters" id="nav-offerLetters"><span class="nav-icon">◉</span><span class="nav-label">Offer Letters</span></a></li>
+        <li><a href="#" class="nav-item" data-section="completionLetters" id="nav-completionLetters"><span class="nav-icon">◍</span><span class="nav-label">Completion Letters</span></a></li>
+        <li><a href="#" class="nav-item" data-section="internshipLetters" id="nav-internshipLetters"><span class="nav-icon">◎</span><span class="nav-label">Internship Letters</span></a></li>
+        <li><a href="#" class="nav-item" data-section="appreciationLetters" id="nav-appreciationLetters"><span class="nav-icon">◇</span><span class="nav-label">Appreciation Letters</span></a></li>
+        <li><a href="#" class="nav-item" data-section="experienceLetters" id="nav-experienceLetters"><span class="nav-icon">◆</span><span class="nav-label">Experience Letters</span></a></li>
+        <li><a href="#" class="nav-item" data-section="idCards" id="nav-idCards"><span class="nav-icon">▣</span><span class="nav-label">ID Cards</span></a></li>
+        <li><a href="#" class="nav-item" data-section="settings" id="nav-settings"><span class="nav-icon">⚙</span><span class="nav-label">Settings</span></a></li>
+      </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar">VS</div>
+        <div class="user-info">
+          <span class="user-name">Venkatasrith</span>
+          <span class="user-role">Admin</span>
+        </div>
+      </div>
+      <button class="logout-btn" id="logoutBtn" title="Sign out">↩</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content" id="mainContent">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open sidebar">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="topbar-left">
+        <div class="topbar-greeting" id="topbarGreeting">Good morning, Venkatasrith</div>
+        <div class="topbar-date" id="topbarDate"></div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-wrap">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-input" type="text" id="searchInput" placeholder="Search…" aria-label="Search documents" />
+        </div>
+        <div class="profile-btn" id="profileBtn">VS</div>
+      </div>
+    </header>
+
+    <!-- ── DASHBOARD SECTION ── -->
+    <section class="content-section active" id="section-dashboard">
+      <div class="section-header">
+        <h2 class="section-title">Dashboard</h2>
+        <p class="section-desc">Your document automation workspace</p>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><span class="stat-number" id="statCerts">0</span><span class="stat-label">Certificates</span></div>
+        <div class="stat-card"><span class="stat-number" id="statOffers">0</span><span class="stat-label">Offer Letters</span></div>
+        <div class="stat-card"><span class="stat-number" id="statCompletion">0</span><span class="stat-label">Completion Letters</span></div>
+        <div class="stat-card"><span class="stat-number" id="statTotal">0</span><span class="stat-label">Total Generated</span></div>
+      </div>
+      <div class="doc-cards-grid">
+        <div class="doc-card" data-section="certificates"><div class="doc-card-icon">◈</div><div class="doc-card-info"><h3 class="doc-card-title">Certificate of Recognition</h3><p class="doc-card-desc">Generate professional certificates for participants and achievers.</p></div><button class="doc-card-btn">Generate →</button></div>
+        <div class="doc-card" data-section="offerLetters"><div class="doc-card-icon">◉</div><div class="doc-card-info"><h3 class="doc-card-title">Offer Letter</h3><p class="doc-card-desc">Create formal employment offer letters instantly.</p></div><button class="doc-card-btn">Generate →</button></div>
+        <div class="doc-card" data-section="completionLetters"><div class="doc-card-icon">◍</div><div class="doc-card-info"><h3 class="doc-card-title">Completion Letter</h3><p class="doc-card-desc">Issue completion letters for internships and courses.</p></div><button class="doc-card-btn">Generate →</button></div>
+        <div class="doc-card" data-section="internshipLetters"><div class="doc-card-icon">◎</div><div class="doc-card-info"><h3 class="doc-card-title">Internship Letter</h3><p class="doc-card-desc">Produce internship offer and joining letters.</p></div><button class="doc-card-btn">Generate →</button></div>
+        <div class="doc-card" data-section="appreciationLetters"><div class="doc-card-icon">◇</div><div class="doc-card-info"><h3 class="doc-card-title">Appreciation Letter</h3><p class="doc-card-desc">Recognize outstanding contributions and efforts.</p></div><button class="doc-card-btn">Generate →</button></div>
+        <div class="doc-card" data-section="experienceLetters"><div class="doc-card-icon">◆</div><div class="doc-card-info"><h3 class="doc-card-title">Experience Letter</h3><p class="doc-card-desc">Issue experience and relieving letters for employees.</p></div><button class="doc-card-btn">Generate →</button></div>
+        <div class="doc-card" data-section="idCards"><div class="doc-card-icon">▣</div><div class="doc-card-info"><h3 class="doc-card-title">ID Card</h3><p class="doc-card-desc">Design and print employee identity cards.</p></div><button class="doc-card-btn">Generate →</button></div>
+      </div>
+    </section>
+
+    <!-- ── CERTIFICATE SECTION ── -->
+    <section class="content-section" id="section-certificates">
+      <div class="section-header">
+        <h2 class="section-title">Certificate Generator</h2>
+        <p class="section-desc">Fill details and preview your certificate in real time</p>
+      </div>
+
+      <!-- CSV Toolbar -->
+      <div class="csv-toolbar">
+        <button class="csv-btn" id="certImportCsv" title="Import from CSV file">⬆ Import CSV</button>
+        <button class="csv-btn" id="certFetchSheets" title="Fetch from Google Sheets">🔗 Google Sheets</button>
+        <button class="csv-btn csv-export" id="certExportCsv" title="Export data as CSV">⬇ Export CSV</button>
+        <input type="file" id="certCsvFile" accept=".csv" class="hidden" />
+      </div>
+
+      <div class="generator-layout">
+        <div class="gen-form-panel">
+          <h3 class="panel-title">Certificate Details</h3>
+          <div class="form-group">
+            <label class="form-label" for="cert-type">Certificate Type</label>
+            <select class="form-input" id="cert-type">
+              <option value="internship" selected>Internship Completion Certificate</option>
+              <option value="bootcamp">Bootcamp Certificate</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cert-name">Participant Name</label>
+            <input class="form-input" type="text" id="cert-name" placeholder="e.g. Venkatasrith" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cert-id">Certificate ID</label>
+            <input class="form-input" type="text" id="cert-id" placeholder="e.g. TMT001" value="TMT001" />
+          </div>
+          <div class="form-group" id="form-group-cert-role">
+            <label class="form-label" for="cert-role">Internship Role</label>
+            <input class="form-input" type="text" id="cert-role" placeholder="e.g. Full Stack Web Development Intern" />
+          </div>
+          <div class="form-group hidden" id="form-group-cert-bootcamp">
+            <label class="form-label" for="cert-bootcamp">Bootcamp Name</label>
+            <input class="form-input" type="text" id="cert-bootcamp" placeholder="e.g. Full-Stack AI & Cloud Bootcamp" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cert-start">Start Date</label>
+            <input class="form-input" type="text" id="cert-start" value="1st March 2026" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cert-end">End Date</label>
+            <input class="form-input" type="text" id="cert-end" value="31st May 2026" />
+          </div>
+          <div class="batch-nav hidden" id="batchNav-cert">
+            <button class="batch-btn" id="batchPrev-cert">◀ Prev</button>
+            <span class="batch-count" id="batchCount-cert">Record 1 of 1</span>
+            <button class="batch-btn" id="batchNext-cert">Next ▶</button>
+          </div>
+          <div class="download-btns">
+            <button class="btn-download btn-png" id="certDownloadPng">⬇ PNG</button>
+            <button class="btn-download btn-pdf" id="certDownloadPdf">⬇ PDF</button>
+          </div>
+        </div>
+
+        <div class="gen-preview-panel">
+          <h3 class="panel-title">Live Preview</h3>
+          <div class="preview-scaler-wrap" id="certScalerWrap">
+            <div class="cert-preview" id="certPreview">
+              <!-- Giant vertical background watermark letters -->
+              <div class="cert-watermark-bg">
+                <span>T</span>
+                <span>M</span>
+                <span>T</span>
+              </div>
+
+              <!-- Top Right Gold Medal Seal -->
+              <div class="cert-gold-medal">
+                <svg width="60" height="74" viewBox="0 0 60 74" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22 42L12 70L24 63L29 45Z" fill="#DC2626" />
+                  <path d="M38 42L48 70L36 63L31 45Z" fill="#B91C1C" />
+                  <circle cx="30" cy="30" r="26" fill="url(#goldGrad)" stroke="#B45309" stroke-width="2" />
+                  <circle cx="30" cy="30" r="22" fill="url(#goldInner)" />
+                  <polygon points="30,14 34,24 45,24 36,31 39,42 30,35 21,42 24,31 15,24 26,24" fill="#B45309" />
+                  <defs>
+                    <linearGradient id="goldGrad" x1="10" y1="4" x2="50" y2="56" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#FDE047"/>
+                      <stop offset="0.5" stop-color="#EAB308"/>
+                      <stop offset="1" stop-color="#CA8A04"/>
+                    </linearGradient>
+                    <linearGradient id="goldInner" x1="14" y1="10" x2="46" y2="48" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#FEF08A"/>
+                      <stop offset="0.7" stop-color="#F59E0B"/>
+                      <stop offset="1" stop-color="#D97706"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+
+              <!-- MAIN BODY -->
+              <div class="cert-body">
+                <!-- Header row -->
+                <div class="cert-header-row">
+                  <div>
+                    <h1 class="cert-main-title">CERTIFICATE</h1>
+                    <p class="cert-subtitle" id="certPreviewSubtitle">of Recognisation</p>
+                  </div>
+                </div>
+
+                <!-- Intro -->
+                <p class="cert-intro-text">
+                  Techmechatorque is proud to formally recognize the exceptional dedication and professional excellence demonstrated by
+                </p>
+
+                <!-- Name -->
+                <div class="cert-name-section">
+                  <div class="cert-name" id="certPreviewName">{Name}</div>
+                  <div class="cert-dashed-line"></div>
+                </div>
+
+                <!-- Tenure text -->
+                <p class="cert-during-text" id="certPreviewTenure">
+                  during their tenure from <strong id="certPreviewStart">1st March 2026</strong> to <strong id="certPreviewEnd">31st May 2026</strong> Serving as our <strong id="certPreviewRole">Full Stack Web Development Intern</strong>
+                </p>
+
+                <!-- Statement text -->
+                <p class="cert-body-para">
+                  This recognition serves as a testament to their unwavering commitment to operational excellence and the strategic value they have delivered to our organization.
+                </p>
+
+                <!-- Footer row -->
+                <div class="cert-footer-content">
+                  <div class="cert-sig-block">
+                    <img src="signature.png" alt="Signature" class="cert-sig-img" />
+                    <div class="cert-sig-name">Jaya Chandra Reddy Chilakamarry</div>
+                    <div class="cert-sig-role">Founder</div>
+                  </div>
+                  <div class="cert-cid-block">
+                    <span id="certPreviewCid" class="cert-cid-text">CID: TMT001</span>
+                  </div>
+                </div>
+              </div><!-- /cert-body -->
+
+              <!-- Right decoration -->
+              <div class="cert-right-decor">
+                <div class="cert-right-top-bar"></div>
+                <div class="cert-dots-block">
+                  <div class="cert-dots"></div>
+                </div>
+                <div class="cert-right-bottom-bar"></div>
+              </div>
+
+              <!-- Bottom bar -->
+              <div class="cert-bottom-bar">
+                <span class="cert-footer-left"><span class="tmt-red">TECHMECHA TORQUE</span> <span class="cert-footer-pvt">PVT. LTD.</span></span>
+                <span class="cert-footer-right" style="color: #e11d48;">team@techmechatorque.com</span>
+              </div>
+            </div><!-- /certPreview -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── OFFER LETTER SECTION ── -->
+    <section class="content-section" id="section-offerLetters">
+      <div class="section-header">
+        <h2 class="section-title">Offer Letter Generator</h2>
+        <p class="section-desc">Create professional employment offer letters (A4 Portrait)</p>
+      </div>
+      <div class="csv-toolbar">
+        <button class="csv-btn" id="offerImportCsv">⬆ Import CSV</button>
+        <button class="csv-btn" id="offerFetchSheets">🔗 Google Sheets</button>
+        <button class="csv-btn csv-export" id="offerExportCsv">⬇ Export CSV</button>
+        <input type="file" id="offerCsvFile" accept=".csv" class="hidden" />
+      </div>
+      <div class="generator-layout">
+        <div class="gen-form-panel">
+          <h3 class="panel-title">Employee Details</h3>
+          <div class="form-group"><label class="form-label" for="offer-name">Employee Name</label><input class="form-input" type="text" id="offer-name" placeholder="e.g. Rahul Sharma" /></div>
+          <div class="form-group"><label class="form-label" for="offer-joining">Joining Date</label><input class="form-input" type="text" id="offer-joining" placeholder="e.g. 15th June 2026" /></div>
+          <div class="form-group"><label class="form-label" for="offer-end">End Date</label><input class="form-input" type="text" id="offer-end" placeholder="e.g. 15th September 2026" /></div>
+          <div class="batch-nav hidden" id="batchNav-offer">
+            <button class="batch-btn" id="batchPrev-offer">◀ Prev</button>
+            <span class="batch-count" id="batchCount-offer">Record 1 of 1</span>
+            <button class="batch-btn" id="batchNext-offer">Next ▶</button>
+          </div>
+          <div class="download-btns">
+            <button class="btn-download btn-png" id="offerDownloadPng">⬇ PNG</button>
+            <button class="btn-download btn-pdf" id="offerDownloadPdf">⬇ PDF</button>
+          </div>
+        </div>
+        <div class="gen-preview-panel">
+          <h3 class="panel-title">Live Preview (A4 Portrait)</h3>
+          <div class="preview-scaler-wrap portrait-wrap" id="offerScalerWrap">
+            <div class="letter-preview portrait" id="offerPreview">
+              <div class="letter-header-portrait">
+                <div class="letter-logo-row">
+                  <img src="tmt-logo.png" alt="TMT" class="letter-tmt-logo" style="mix-blend-mode:multiply" />
+                  <div class="letter-contact-info">
+                    <div class="lci-company">TechMecha Torque Pvt. Ltd.</div>
+                    <div class="lci-detail">careers@techmechatorque.com</div>
+                    <div class="lci-detail">+91 7993442607</div>
+                  </div>
+                </div>
+                <div class="letter-header-divider"></div>
+                <div class="letter-ref-row">
+                  <span class="letter-ref">Ref: TMT/OL/<span id="offerRefYear">2026</span>/001</span>
+                  <span class="letter-date" id="offerDateDisplay"></span>
+                </div>
+              </div>
+              <h2 class="letter-doc-title">OFFER LETTER</h2>
+              <div class="letter-body-portrait">
+                <p><strong>Subject: Offer of Internship</strong></p>
+                <p>Dear <strong id="offerPreviewName">[Employee Name]</strong>,</p>
+                <p>We are pleased to offer you an internship opportunity. This internship has been designed to provide you with practical exposure to real-world projects, professional development, and hands-on experience in an industry-oriented environment.</p>
+                <p>During your internship, you will have the opportunity to collaborate with experienced professionals, contribute to ongoing projects, enhance your technical and professional skills, and gain valuable insights into modern industry practices.</p>
+                <p>Your internship will commence on <strong id="offerPreviewJoining">[Joining Date]</strong> and conclude on <strong id="offerPreviewEnd">[End Date]</strong>. You will be assigned a mentor who will guide you throughout the internship and evaluate your progress based on your learning, participation, commitment, and overall performance.</p>
+                <p>We expect you to maintain professionalism, integrity, confidentiality, and discipline throughout the internship period.</p>
+                <p>We are delighted to welcome you and wish you a productive, enriching, and successful internship journey.</p>
+                <p>We look forward to your valuable contributions and wish you every success in your professional growth.</p>
+                <p>Warm Regards,</p>
+              </div>
+              <div class="letter-sig-section" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                  <img src="signature.png" alt="Signature" class="letter-sig-img" />
+                  <div class="letter-sig-name">Jaya Chandra Reddy Chilakamarry</div>
+                  <div class="letter-sig-designation">Founder &amp; CEO</div>
+                  <div class="letter-sig-company">TechMecha Torque Pvt. Ltd.</div>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: flex-end; margin-bottom: 5px;">
+                  <img src="DPIITTMT.png" alt="DPIIT" style="height: 40px; object-fit: contain;" />
+                  <img src="msmetmt01.png" alt="MSME" style="height: 36px; object-fit: contain;" />
+                </div>
+              </div>
+              <div class="letter-footer-bar">
+                <span><strong>TECHMECHA TORQUE</strong> <span style="font-weight:300;font-size:10px;">PVT. LTD.</span></span>
+                <span style="font-size:11px;opacity:.75">team@techmechatorque.com &nbsp;|&nbsp; +91 7993442607</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── COMPLETION LETTER SECTION ── -->
+    <section class="content-section" id="section-completionLetters">
+      <div class="section-header">
+        <h2 class="section-title">Completion Letter Generator</h2>
+        <p class="section-desc">Issue completion letters for internships and courses</p>
+      </div>
+      <div class="csv-toolbar">
+        <button class="csv-btn" id="compImportCsv">⬆ Import CSV</button>
+        <button class="csv-btn" id="compFetchSheets">🔗 Google Sheets</button>
+        <button class="csv-btn csv-export" id="compExportCsv">⬇ Export CSV</button>
+        <input type="file" id="compCsvFile" accept=".csv" class="hidden" />
+      </div>
+      <div class="generator-layout">
+        <div class="gen-form-panel">
+          <h3 class="panel-title">Participant Details</h3>
+          <div class="form-group"><label class="form-label" for="comp-name">Name</label><input class="form-input" type="text" id="comp-name" placeholder="e.g. Priya Patel" /></div>
+          <div class="form-group"><label class="form-label" for="comp-program">Program / Course Name</label><input class="form-input" type="text" id="comp-program" placeholder="e.g. Full Stack Development Bootcamp" /></div>
+          <div class="form-group"><label class="form-label" for="comp-duration">Duration</label><input class="form-input" type="text" id="comp-duration" placeholder="e.g. 3 Months" /></div>
+          <div class="form-group"><label class="form-label" for="comp-start">Start Date</label><input class="form-input" type="text" id="comp-start" placeholder="e.g. 1st March 2026" /></div>
+          <div class="form-group"><label class="form-label" for="comp-end">End Date</label><input class="form-input" type="text" id="comp-end" placeholder="e.g. 31st May 2026" /></div>
+          <div class="batch-nav hidden" id="batchNav-comp">
+            <button class="batch-btn" id="batchPrev-comp">◀ Prev</button>
+            <span class="batch-count" id="batchCount-comp">Record 1 of 1</span>
+            <button class="batch-btn" id="batchNext-comp">Next ▶</button>
+          </div>
+          <div class="download-btns">
+            <button class="btn-download btn-png" id="compDownloadPng">⬇ PNG</button>
+            <button class="btn-download btn-pdf" id="compDownloadPdf">⬇ PDF</button>
+          </div>
+        </div>
+        <div class="gen-preview-panel">
+          <h3 class="panel-title">Live Preview (A4 Portrait)</h3>
+          <div class="preview-scaler-wrap portrait-wrap" id="compScalerWrap">
+            <div class="letter-preview portrait" id="compPreview">
+              <div class="letter-header-portrait">
+                <div class="letter-logo-row">
+                  <img src="tmt-logo.png" alt="TMT" class="letter-tmt-logo" style="mix-blend-mode:multiply" />
+                  <div class="letter-contact-info">
+                    <div class="lci-company">TechMecha Torque Pvt. Ltd.</div>
+                    <div class="lci-detail">careers@techmechatorque.com</div>
+                    <div class="lci-detail">+91 7993442607</div>
+                  </div>
+                </div>
+                <div class="letter-header-divider"></div>
+                <div class="letter-ref-row">
+                  <span class="letter-ref">Ref: TMT/CL/<span id="compRefYear">2026</span>/001</span>
+                  <span class="letter-date" id="compDateDisplay"></span>
+                </div>
+              </div>
+              <h2 class="letter-doc-title">COMPLETION LETTER</h2>
+              <div class="letter-body-portrait">
+                <p><strong>Subject: Internship Completion Letter</strong></p>
+                <p>Dear <strong id="compPreviewName">[Name]</strong>,</p>
+                <p>This is to certify that you have successfully completed your internship during the period from <strong id="compPreviewStart">[Start Date]</strong> to <strong id="compPreviewEnd">[End Date]</strong>.</p>
+                <p>Throughout the internship, you demonstrated dedication, professionalism, and a strong willingness to learn. You actively participated in assigned activities, completed the designated learning objectives, and successfully fulfilled the responsibilities entrusted to you during the internship.</p>
+                <p>Your commitment towards continuous learning, adaptability, teamwork, and professional conduct is sincerely appreciated. The knowledge and practical experience gained during this internship will serve as a valuable foundation for your future academic and professional endeavors.</p>
+                <p>We congratulate you on successfully completing your internship and extend our best wishes for continued success in all your future pursuits.</p>
+                <p>Warm Regards,</p>
+              </div>
+              <div class="letter-sig-section" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                  <img src="signature.png" alt="Signature" class="letter-sig-img" />
+                  <div class="letter-sig-name">Jaya Chandra Reddy Chilakamarry</div>
+                  <div class="letter-sig-designation">Founder &amp; CEO</div>
+                  <div class="letter-sig-company">TechMecha Torque Pvt. Ltd.</div>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: flex-end; margin-bottom: 5px;">
+                  <img src="DPIITTMT.png" alt="DPIIT" style="height: 40px; object-fit: contain;" />
+                  <img src="msmetmt01.png" alt="MSME" style="height: 36px; object-fit: contain;" />
+                </div>
+              </div>
+              <div class="letter-footer-bar">
+                <span><strong>TECHMECHA TORQUE</strong> <span style="font-weight:300;font-size:10px;">PVT. LTD.</span></span>
+                <span style="font-size:11px;opacity:.75">team@techmechatorque.com &nbsp;|&nbsp; +91 7993442607</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── INTERNSHIP LETTER SECTION ── -->
+    <section class="content-section" id="section-internshipLetters">
+      <div class="section-header">
+        <h2 class="section-title">Internship Letter Generator</h2>
+        <p class="section-desc">Issue internship offer and joining letters</p>
+      </div>
+      <div class="csv-toolbar">
+        <button class="csv-btn" id="internImportCsv">⬆ Import CSV</button>
+        <button class="csv-btn" id="internFetchSheets">🔗 Google Sheets</button>
+        <button class="csv-btn csv-export" id="internExportCsv">⬇ Export CSV</button>
+        <input type="file" id="internCsvFile" accept=".csv" class="hidden" />
+      </div>
+      <div class="generator-layout">
+        <div class="gen-form-panel">
+          <h3 class="panel-title">Intern Details</h3>
+          <div class="form-group"><label class="form-label" for="intern-name">Intern Name</label><input class="form-input" type="text" id="intern-name" placeholder="e.g. Arjun Mehta" /></div>
+          <div class="form-group"><label class="form-label" for="intern-role">Internship Role</label><input class="form-input" type="text" id="intern-role" placeholder="e.g. AI Research Intern" /></div>
+          <div class="form-group"><label class="form-label" for="intern-dept">Department</label><input class="form-input" type="text" id="intern-dept" placeholder="e.g. Research & Development" /></div>
+          <div class="form-group"><label class="form-label" for="intern-start">Start Date</label><input class="form-input" type="text" id="intern-start" placeholder="e.g. 1st June 2026" /></div>
+          <div class="form-group"><label class="form-label" for="intern-end">End Date</label><input class="form-input" type="text" id="intern-end" placeholder="e.g. 31st August 2026" /></div>
+          <div class="form-group"><label class="form-label" for="intern-stipend">Stipend</label><input class="form-input" type="text" id="intern-stipend" placeholder="e.g. ₹10,000/month" /></div>
+          <div class="batch-nav hidden" id="batchNav-intern">
+            <button class="batch-btn" id="batchPrev-intern">◀ Prev</button>
+            <span class="batch-count" id="batchCount-intern">Record 1 of 1</span>
+            <button class="batch-btn" id="batchNext-intern">Next ▶</button>
+          </div>
+          <div class="download-btns">
+            <button class="btn-download btn-png" id="internDownloadPng">⬇ PNG</button>
+            <button class="btn-download btn-pdf" id="internDownloadPdf">⬇ PDF</button>
+          </div>
+        </div>
+        <div class="gen-preview-panel">
+          <h3 class="panel-title">Live Preview (A4 Portrait)</h3>
+          <div class="preview-scaler-wrap portrait-wrap">
+            <div class="letter-preview portrait" id="internPreview">
+              <div class="letter-header-portrait">
+                <div class="letter-logo-row">
+                  <img src="tmt-logo.png" alt="TMT" class="letter-tmt-logo" style="mix-blend-mode:multiply" />
+                  <div class="letter-contact-info">
+                    <div class="lci-company">TechMecha Torque Pvt. Ltd.</div>
+                    <div class="lci-detail">careers@techmechatorque.com</div>
+                    <div class="lci-detail">+91 7993442607</div>
+                  </div>
+                </div>
+                <div class="letter-header-divider"></div>
+                <div class="letter-ref-row">
+                  <span class="letter-ref">Ref: TMT/IL/<span id="internRefYear">2026</span>/001</span>
+                  <span class="letter-date" id="internDateDisplay"></span>
+                </div>
+              </div>
+              <h2 class="letter-doc-title">INTERNSHIP LETTER</h2>
+              <div class="letter-body-portrait">
+                <p><strong>Subject: Internship Confirmation</strong></p>
+                <p>Dear <strong id="internPreviewName">[Intern Name]</strong>,</p>
+                <p>This letter serves as confirmation that you have been enrolled as an <strong>Intern</strong>.</p>
+                <p>As an intern, you will participate in structured learning activities, practical assignments, project-based work, and collaborative tasks designed to enhance your technical knowledge, professional skills, and industry readiness.</p>
+                <p>Your internship will be conducted from <strong id="internPreviewStart">[Start Date]</strong> to <strong id="internPreviewEnd">[End Date]</strong>, during which you are expected to actively engage in the assigned projects, maintain regular communication with your mentor, complete assigned deliverables, and uphold the standards and values of the organization.</p>
+                <p>This internship provides an opportunity to gain practical exposure to real-world workflows while developing problem-solving, teamwork, communication, and technical competencies in a professional environment.</p>
+                <p>We are pleased to have you with us and wish you a meaningful and successful internship experience.</p>
+                <p>Warm Regards,</p>
+              </div>
+              <div class="letter-sig-section" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                  <img src="signature.png" alt="Signature" class="letter-sig-img" />
+                  <div class="letter-sig-name">Jaya Chandra Reddy Chilakamarry</div>
+                  <div class="letter-sig-designation">Founder &amp; CEO</div>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: flex-end; margin-bottom: 5px;">
+                  <img src="DPIITTMT.png" alt="DPIIT" style="height: 40px; object-fit: contain;" />
+                  <img src="msmetmt01.png" alt="MSME" style="height: 36px; object-fit: contain;" />
+                </div>
+              </div>
+              <div class="letter-footer-bar">
+                <span><strong>TECHMECHA TORQUE</strong></span>
+                <span style="font-size:11px;opacity:.75">+91 7993442607</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── APPRECIATION LETTER SECTION ── -->
+    <section class="content-section" id="section-appreciationLetters">
+      <div class="section-header">
+        <h2 class="section-title">Appreciation Letter Generator</h2>
+        <p class="section-desc">Recognize outstanding contributions</p>
+      </div>
+      <div class="csv-toolbar">
+        <button class="csv-btn" id="apprImportCsv">⬆ Import CSV</button>
+        <button class="csv-btn" id="apprFetchSheets">🔗 Google Sheets</button>
+        <button class="csv-btn csv-export" id="apprExportCsv">⬇ Export CSV</button>
+        <input type="file" id="apprCsvFile" accept=".csv" class="hidden" />
+      </div>
+      <div class="generator-layout">
+        <div class="gen-form-panel">
+          <h3 class="panel-title">Recipient Details</h3>
+          <div class="form-group"><label class="form-label" for="appr-name">Name</label><input class="form-input" type="text" id="appr-name" placeholder="e.g. Sneha Reddy" /></div>
+          <div class="form-group"><label class="form-label" for="appr-reason">Reason for Appreciation</label><input class="form-input" type="text" id="appr-reason" placeholder="e.g. Outstanding performance in Q1 2026" /></div>
+          <div class="form-group"><label class="form-label" for="appr-role">Role / Designation</label><input class="form-input" type="text" id="appr-role" placeholder="e.g. Lead Developer" /></div>
+          <div class="batch-nav hidden" id="batchNav-appr">
+            <button class="batch-btn" id="batchPrev-appr">◀ Prev</button>
+            <span class="batch-count" id="batchCount-appr">Record 1 of 1</span>
+            <button class="batch-btn" id="batchNext-appr">Next ▶</button>
+          </div>
+          <div class="download-btns">
+            <button class="btn-download btn-png" id="apprDownloadPng">⬇ PNG</button>
+            <button class="btn-download btn-pdf" id="apprDownloadPdf">⬇ PDF</button>
+          </div>
+        </div>
+        <div class="gen-preview-panel">
+          <h3 class="panel-title">Live Preview</h3>
+          <div class="preview-scaler-wrap portrait-wrap">
+            <div class="letter-preview portrait" id="apprPreview">
+              <div class="letter-header-portrait">
+                <div class="letter-logo-row">
+                  <img src="tmt-logo.png" alt="TMT" class="letter-tmt-logo" style="mix-blend-mode:multiply" />
+                  <div class="letter-contact-info">
+                    <div class="lci-company">TechMecha Torque Pvt. Ltd.</div>
+                    <div class="lci-detail">careers@techmechatorque.com</div>
+                    <div class="lci-detail">+91 7993442607</div>
+                  </div>
+                </div>
+                <div class="letter-header-divider"></div>
+                <div class="letter-ref-row">
+                  <span class="letter-ref">Ref: TMT/AL/<span id="apprRefYear">2026</span>/001</span>
+                  <span class="letter-date" id="apprDateDisplay"></span>
+                </div>
+              </div>
+              <h2 class="letter-doc-title">APPRECIATION LETTER</h2>
+              <div class="letter-body-portrait">
+                <p><strong>Subject: Letter of Appreciation</strong></p>
+                <p>Dear <strong id="apprPreviewName">[Name]</strong>,</p>
+                <p>It is with great pleasure that we express our sincere appreciation for your dedication, commitment, and valuable contribution during your internship. In particular, we commend you for <strong id="apprPreviewReason">[Reason]</strong>.</p>
+                <p>Throughout your internship, you consistently demonstrated professionalism, enthusiasm, responsibility, and a willingness to learn. Your positive attitude, collaborative approach, and commitment to delivering quality work have been highly appreciated by the organization.</p>
+                <p>Your contributions have reflected your eagerness to grow, accept new challenges, and continuously improve your skills. We recognize your efforts and commend the sincerity with which you fulfilled your responsibilities.</p>
+                <p>As a token of our appreciation, we present this letter in recognition of your valuable contribution and wish you continued success in your academic and professional journey.</p>
+                <p>We look forward to witnessing your future achievements and hope that the experience gained during your association with us contributes positively to your career.</p>
+                <p>With Best Wishes,</p>
+              </div>
+              <div class="letter-sig-section" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                  <img src="signature.png" alt="Signature" class="letter-sig-img" />
+                  <div class="letter-sig-name">Jaya Chandra Reddy Chilakamarry</div>
+                  <div class="letter-sig-designation">Founder &amp; CEO</div>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: flex-end; margin-bottom: 5px;">
+                  <img src="DPIITTMT.png" alt="DPIIT" style="height: 40px; object-fit: contain;" />
+                  <img src="msmetmt01.png" alt="MSME" style="height: 36px; object-fit: contain;" />
+                </div>
+              </div>
+              <div class="letter-footer-bar">
+                <span><strong>TECHMECHA TORQUE</strong></span>
+                <span style="font-size:11px;opacity:.75">+91 7993442607</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── EXPERIENCE LETTER SECTION ── -->
+    <section class="content-section" id="section-experienceLetters">
+      <div class="section-header">
+        <h2 class="section-title">Experience Letter Generator</h2>
+        <p class="section-desc">Issue experience and relieving letters</p>
+      </div>
+      <div class="csv-toolbar">
+        <button class="csv-btn" id="expImportCsv">⬆ Import CSV</button>
+        <button class="csv-btn" id="expFetchSheets">🔗 Google Sheets</button>
+        <button class="csv-btn csv-export" id="expExportCsv">⬇ Export CSV</button>
+        <input type="file" id="expCsvFile" accept=".csv" class="hidden" />
+      </div>
+      <div class="generator-layout">
+        <div class="gen-form-panel">
+          <h3 class="panel-title">Employee Details</h3>
+          <div class="form-group"><label class="form-label" for="exp-name">Employee Name</label><input class="form-input" type="text" id="exp-name" placeholder="e.g. Kiran Kumar" /></div>
+          <div class="form-group"><label class="form-label" for="exp-role">Designation</label><input class="form-input" type="text" id="exp-role" placeholder="e.g. Senior Engineer" /></div>
+          <div class="form-group"><label class="form-label" for="exp-dept">Department</label><input class="form-input" type="text" id="exp-dept" placeholder="e.g. Engineering" /></div>
+          <div class="form-group"><label class="form-label" for="exp-join">Date of Joining</label><input class="form-input" type="text" id="exp-join" placeholder="e.g. 1st January 2024" /></div>
+          <div class="form-group"><label class="form-label" for="exp-relieve">Last Working Day</label><input class="form-input" type="text" id="exp-relieve" placeholder="e.g. 31st May 2026" /></div>
+          <div class="batch-nav hidden" id="batchNav-exp">
+            <button class="batch-btn" id="batchPrev-exp">◀ Prev</button>
+            <span class="batch-count" id="batchCount-exp">Record 1 of 1</span>
+            <button class="batch-btn" id="batchNext-exp">Next ▶</button>
+          </div>
+          <div class="download-btns">
+            <button class="btn-download btn-png" id="expDownloadPng">⬇ PNG</button>
+            <button class="btn-download btn-pdf" id="expDownloadPdf">⬇ PDF</button>
+          </div>
+        </div>
+        <div class="gen-preview-panel">
+          <h3 class="panel-title">Live Preview</h3>
+          <div class="preview-scaler-wrap portrait-wrap">
+            <div class="letter-preview portrait" id="expPreview">
+              <div class="letter-header-portrait">
+                <div class="letter-logo-row">
+                  <img src="tmt-logo.png" alt="TMT" class="letter-tmt-logo" style="mix-blend-mode:multiply" />
+                  <div class="letter-contact-info">
+                    <div class="lci-company">TechMecha Torque Pvt. Ltd.</div>
+                    <div class="lci-detail">careers@techmechatorque.com</div>
+                    <div class="lci-detail">+91 7993442607</div>
+                  </div>
+                </div>
+                <div class="letter-header-divider"></div>
+                <div class="letter-ref-row">
+                  <span class="letter-ref">Ref: TMT/EL/<span id="expRefYear">2026</span>/001</span>
+                  <span class="letter-date" id="expDateDisplay"></span>
+                </div>
+              </div>
+              <h2 class="letter-doc-title">EXPERIENCE LETTER</h2>
+              <div class="letter-body-portrait">
+                <p><strong>Subject: Experience & Relieving Letter</strong></p>
+                <p>Dear <strong id="expPreviewName">[Name]</strong>,</p>
+                <p>This is to certify that <strong id="expPreviewName2">[Name]</strong> was associated with our organization as an <strong>Intern</strong> from <strong id="expPreviewJoin">[Joining Date]</strong> to <strong id="expPreviewRelieve">[Last Working Day]</strong>.</p>
+                <p>During this period, the intern actively participated in assigned projects, learning programs, and organizational activities. The responsibilities undertaken were completed with sincerity, professionalism, and a positive attitude toward learning and collaboration.</p>
+                <p>Throughout the internship, the intern demonstrated commitment, adaptability, effective communication, and the ability to work both independently and as part of a team. The experience gained has contributed to the development of practical knowledge and professional competencies relevant to industry practices.</p>
+                <p>Upon successful completion of the internship, the individual has been formally relieved from the responsibilities assigned during the internship period. We confirm that all assigned activities and obligations have been satisfactorily completed to the best of our knowledge.</p>
+                <p>We sincerely appreciate the contributions made during the tenure with us and extend our best wishes for continued success and growth in all future academic and professional endeavors.</p>
+                <p>Warm Regards,</p>
+              </div>
+              <div class="letter-sig-section" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                  <img src="signature.png" alt="Signature" class="letter-sig-img" />
+                  <div class="letter-sig-name">Jaya Chandra Reddy Chilakamarry</div>
+                  <div class="letter-sig-designation">Founder &amp; CEO</div>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: flex-end; margin-bottom: 5px;">
+                  <img src="DPIITTMT.png" alt="DPIIT" style="height: 40px; object-fit: contain;" />
+                  <img src="msmetmt01.png" alt="MSME" style="height: 36px; object-fit: contain;" />
+                </div>
+              </div>
+              <div class="letter-footer-bar">
+                <span><strong>TECHMECHA TORQUE</strong></span>
+                <span style="font-size:11px;opacity:.75">+91 7993442607</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ID CARDS SECTION ── -->
+    <section class="content-section" id="section-idCards">
+      <div class="section-header">
+        <h2 class="section-title">ID Card Generator</h2>
+        <p class="section-desc">Design and print employee identity cards</p>
+      </div>
+      <div class="csv-toolbar">
+        <button class="csv-btn" id="idImportCsv">⬆ Import CSV</button>
+        <button class="csv-btn" id="idFetchSheets">🔗 Google Sheets</button>
+        <button class="csv-btn csv-export" id="idExportCsv">⬇ Export CSV</button>
+        <input type="file" id="idCsvFile" accept=".csv" class="hidden" />
+      </div>
+      <div class="generator-layout">
+        <div class="gen-form-panel">
+          <h3 class="panel-title">Employee Details</h3>
+          <div class="form-group"><label class="form-label" for="id-name">Full Name</label><input class="form-input" type="text" id="id-name" placeholder="e.g. Sai Dhanush" /></div>
+          <div class="form-group"><label class="form-label" for="id-role">Designation</label><input class="form-input" type="text" id="id-role" placeholder="e.g. Technical Head" /></div>
+          <div class="form-group"><label class="form-label" for="id-empid">Employee ID</label><input class="form-input" type="text" id="id-empid" placeholder="e.g. TMT009" /></div>
+          <div class="form-group"><label class="form-label" for="id-email">Email</label><input class="form-input" type="text" id="id-email" placeholder="e.g. tshivakumarreddy36@gmail.com" /></div>
+          <div class="form-group"><label class="form-label" for="id-phone">Phone</label><input class="form-input" type="text" id="id-phone" placeholder="e.g. +91 8328656484" /></div>
+          <div class="form-group"><label class="form-label" for="id-photo">Photo Upload</label><input class="form-input" type="file" id="id-photo" accept="image/*" /></div>
+          <div class="batch-nav hidden" id="batchNav-id">
+            <button class="batch-btn" id="batchPrev-id">◀ Prev</button>
+            <span class="batch-count" id="batchCount-id">Record 1 of 1</span>
+            <button class="batch-btn" id="batchNext-id">Next ▶</button>
+          </div>
+          <div class="download-btns">
+            <button class="btn-download btn-png" id="idDownloadFront">⬇ Front PNG</button>
+            <button class="btn-download btn-pdf" id="idDownloadBack">⬇ Back PNG</button>
+          </div>
+        </div>
+        <div class="gen-preview-panel">
+          <h3 class="panel-title">Live Preview</h3>
+          <div class="preview-scaler-wrap id-card-preview-wrap">
+            <!-- Front Card -->
+            <div class="id-card-new front" id="idCardFront">
+               <div class="id-bg-red"></div>
+               <div class="id-bg-black"></div>
+               
+               <img src="tmt-logo.png" class="id-logo-top" alt="TMT" />
+               <div class="id-vertical-role">
+                 <span class="role-p1" id="idVerticalP1">TECHNICAL</span>
+                 <span class="role-p2" id="idVerticalP2">HEAD</span>
+               </div>
+               
+               <div class="id-photo-container">
+                 <img src="" id="idPreviewPhoto" class="id-photo-img" style="opacity:0;" />
+               </div>
+               
+               <div class="id-details-block">
+                 <div class="id-name" id="idPreviewName">[Name]</div>
+                 <div class="id-role-row">
+                   <div class="id-bar"></div>
+                   <div class="id-role" id="idPreviewRole">[Designation]</div>
+                 </div>
+                 <div class="id-emp-row">
+                   <div class="id-bar"></div>
+                   <div class="id-empid"><span class="tmt-red" id="idPreviewEmpPrefix">TMT</span><span id="idPreviewEmpSuffix">009</span></div>
+                 </div>
+               </div>
+               
+               <div class="id-sig-block">
+                 <img src="signature.png" class="id-sig-img" alt="Signature" />
+                 <div class="id-founder-text">Founder</div>
+               </div>
+            </div>
+
+            <!-- Back Card -->
+            <div class="id-card-new back" id="idCardBack">
+               <img src="tmt-logo.png" class="id-logo-back" alt="TMT" />
+               <div class="id-tagline">WHY NOT DO IT</div>
+               
+               <div class="id-connect-text">Connect With Us :</div>
+               
+               <div class="id-qr-box">
+                 <!-- generic qr placeholder -->
+                 <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ3aGl0ZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iYmxhY2siPlFSIENvZGU8L3RleHQ+PC9zdmc+" id="idQrImg" alt="QR Code" />
+               </div>
+               
+               <div class="id-website tmt-red">techmechatorque.com</div>
+               
+               <div class="id-contact-label">Contact :</div>
+               <div class="id-contact-val" id="idPreviewPhone">+91 8328656484</div>
+               <div class="id-contact-val" id="idPreviewEmail">tshivakumarreddy36@gmail.com</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SETTINGS SECTION ── -->
+    <section class="content-section" id="section-settings">
+      <div class="section-header">
+        <h2 class="section-title">Settings</h2>
+        <p class="section-desc">Manage your workspace preferences</p>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-card">
+          <h3 class="settings-card-title">Profile</h3>
+          <div class="form-group"><label class="form-label">Username</label><input class="form-input" type="text" value="venkatasrith" readonly /></div>
+          <div class="form-group"><label class="form-label">Role</label><input class="form-input" type="text" value="Administrator" readonly /></div>
+        </div>
+        <div class="settings-card">
+          <h3 class="settings-card-title">Organization</h3>
+          <div class="form-group"><label class="form-label">Company Name</label><input class="form-input" type="text" value="TechMecha Torque Pvt. Ltd." readonly /></div>
+          <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="text" value="careers@techmechatorque.com" readonly /></div>
+          <div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="text" value="+91 7993442607" readonly /></div>
+        </div>
+        <div class="settings-card">
+          <h3 class="settings-card-title">About</h3>
+          <p class="settings-about-text">TechMecha Torque Document Generator v2.0</p>
+          <p class="settings-about-text">HTML · CSS · Vanilla JavaScript</p>
+          <p class="settings-about-text" style="margin-top:12px; color:#888;">Built with ♥ for TechMecha Torque Pvt. Ltd.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Sidebar overlay -->
+<div class="sidebar-overlay hidden" id="sidebarOverlay"></div>
+
+<!-- Google Sheets Modal -->
+<div class="modal-overlay hidden" id="sheetsModal">
+  <div class="modal-card">
+    <h3 class="modal-title">Fetch from Google Sheets</h3>
+    <p class="modal-desc">Publish your Google Sheet as CSV: <em>File → Share → Publish to web → CSV</em>, then paste the URL below.</p>
+    <div class="form-group">
+      <label class="form-label" for="sheetsUrl">Google Sheets CSV URL</label>
+      <input class="form-input" type="url" id="sheetsUrl" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" />
+    </div>
+    <div class="modal-btns">
+      <button class="btn-download btn-pdf" id="sheetsFetchBtn">Fetch Data</button>
+      <button class="btn-download btn-png" id="sheetsCloseBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast hidden" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
