@@ -138,6 +138,14 @@ const passSchema = new mongoose.Schema({
   checkInMethod: { type: String, enum: ['QR_SCAN', 'MANUAL_SEARCH'], default: 'QR_SCAN' },
   linkedInUrl: { type: String, default: '' },
   instagramUrl: { type: String, default: '' },
+  callStatus: {
+    type: String,
+    enum: ['NOT_CALLED', 'ANSWERED', 'NOT_ANSWERED'],
+    default: 'NOT_CALLED',
+    index: true
+  },
+  callNotes: { type: String, default: '' },
+  calledAt: { type: Date },
   socialVerificationStatus: {
     type: String,
     enum: ['NOT_SUBMITTED', 'SUBMITTED', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED'],

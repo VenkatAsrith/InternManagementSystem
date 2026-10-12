@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   GraduationCap, CheckCircle2, Clock, Calendar, Award, Star, BookOpen, CheckSquare,
-  AlertTriangle, ShieldAlert, ArrowLeft, Plus, ExternalLink, MessageSquare, Download, Check
+  AlertTriangle, ShieldAlert, ArrowLeft, Plus, ExternalLink, MessageSquare, Download, Check,
+  CreditCard, Edit, DollarSign
 } from 'lucide-react';
 import api from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
@@ -318,6 +319,192 @@ function MentorFeedbackModal({ engagementId, onClose, onDone }) {
   );
 }
 
+function UpdatePaymentModal({ engagement, onClose, onDone }) {
+  const toast = useToast();
+  const cp = engagement.candidatePayment || {};
+  const form = useForm({
+    feeType: cp.feeType || 'PAID',
+    feeAmount: cp.feeAmount !== undefined ? cp.feeAmount : (engagement.programId?.grossFee || 10000),
+    amountPaid: cp.amountPaid || 0,
+    paymentStatus: cp.paymentStatus || 'PENDING',
+    paymentMethod: cp.paymentMethod || 'UPI',
+    paymentReference: cp.paymentReference || '',
+    notes: cp.notes || ''
+  });
+  const f = form.field;
+  const rem = form.values.feeType === 'FREE' ? 0 : Math.max(0, Number(form.values.feeAmount || 0) - Number(form.values.amountPaid || 0));
+
+  return (
+    <FormModal
+      open
+      onClose={onClose}
+      size="md"
+      testId="update-payment-modal"
+      title="Update Candidate Payment & Fee Status"
+      description="Record fees collected, payment method, transaction reference, or fee waiver."
+      submitLabel="Save Payment Record"
+      form={form}
+      rules={{
+        feeAmount: rules.number('Fee amount', { min: 0 }),
+        amountPaid: rules.number('Amount paid', { min: 0 })
+      }}
+      onSubmit={async (v) => {
+        return await api.patch(`/training/trainees/${engagement._id}`, {
+          candidatePayment: {
+            feeType: v.feeType,
+            feeAmount: v.feeType === 'FREE' ? 0 : Number(v.feeAmount || 0),
+            amountPaid: v.feeType === 'FREE' ? 0 : Number(v.amountPaid || 0),
+            paymentStatus: v.feeType === 'FREE' ? 'PAID' : v.paymentStatus,
+            paymentMethod: v.paymentMethod,
+            paymentReference: v.paymentReference.trim(),
+            paidAt: Number(v.amountPaid) > 0 ? new Date() : undefined,
+            notes: v.notes.trim()
+          }
+        });
+      }}
+      onDone={() => {
+        toast.success('Payment record updated successfully');
+        onDone();
+      }}
+    >
+      <FormGrid>
+        <SelectField
+          {...f('feeType')}
+          label="Fee Type"
+          options={[{ value: 'PAID', label: 'Paid Program' }, { value: 'FREE', label: 'Free / Waived' }]}
+        />
+        {form.values.feeType === 'PAID' && (
+          <>
+            <TextField {...f('feeAmount')} label="Program Gross Fee (₹)" type="number" min="0" required />
+            <TextField {...f('amountPaid')} label="Amount Paid / Collected (₹)" type="number" min="0" required />
+            <SelectField
+              {...f('paymentStatus')}
+              label="Payment Status"
+              options={[
+                { value: 'PENDING', label: 'Pending (Unpaid)' },
+                { value: 'PARTIAL', label: 'Partial Payment' },
+                { value: 'PAID', label: 'Paid in Full' },
+                { value: 'WAIVED', label: 'Waived / Full Scholarship' }
+              ]}
+            />
+            <SelectField
+              {...f('paymentMethod')}
+              label="Payment Method"
+              options={[
+                { value: 'UPI', label: 'UPI / Google Pay / PhonePe' },
+                { value: 'BANK_TRANSFER', label: 'Bank Transfer / NEFT' },
+                { value: 'CARD', label: 'Credit / Debit Card' },
+                { value: 'CASH', label: 'Cash Receipt' },
+                { value: 'OTHER', label: 'Other Mode' }
+              ]}
+            />
+            <TextField {...f('paymentReference')} label="Transaction ID / UTR" placeholder="UTR-2026-987654" className="sm:col-span-2" />
+            <div className="sm:col-span-2 flex justify-between items-center px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+              <span className="text-xs text-slate-600 font-medium">Outstanding Balance:</span>
+              <span className="text-base font-bold text-slate-900">₹{rem.toLocaleString('en-IN')}</span>
+            </div>
+          </>
+        )}
+        <TextAreaField {...f('notes')} label="Payment Notes" rows={2} className="sm:col-span-2" placeholder="Receipt number, invoice details, remarks..." />
+      </FormGrid>
+    </FormModal>
+  );
+}
+
+function ExtendTraineeModal({ engagement, onClose, onDone }) {
+  const toast = useToast();
+  const form = useForm({
+    expectedEndDate: engagement.expectedEndDate ? String(engagement.expectedEndDate).slice(0, 10) : '',
+    reason: ''
+  });
+  const f = form.field;
+  return (
+    <FormModal
+      open
+      onClose={onClose}
+      size="sm"
+      testId="extend-trainee-modal"
+      title="Extend Program End Date"
+      description="Update curriculum deadline with authorized justification."
+      submitLabel="Save End Date"
+      form={form}
+      rules={{
+        expectedEndDate: rules.required('End date'),
+        reason: [rules.required('Reason'), rules.min(3, 'Reason')]
+      }}
+      onSubmit={async (v) => {
+        return await api.patch(`/training/trainees/${engagement._id}`, {
+          expectedEndDate: v.expectedEndDate,
+          reason: v.reason.trim()
+        });
+      }}
+      onDone={() => {
+        toast.success('Program end date extended');
+        onDone();
+      }}
+    >
+      <TextField {...f('expectedEndDate')} label="New Expected End Date" type="date" required />
+      <TextAreaField {...f('reason')} label="Extension Reason / Academic Justification" required rows={2} />
+    </FormModal>
+  );
+}
+
+function EditTraineeModal({ engagement, onClose, onDone }) {
+  const toast = useToast();
+  const form = useForm({
+    institution: engagement.institution || '',
+    degree: engagement.degree || '',
+    graduationYear: engagement.graduationYear || '',
+    location: engagement.location || '',
+    workMode: engagement.workMode || 'REMOTE',
+    internalNotes: engagement.internalNotes || ''
+  });
+  const f = form.field;
+  return (
+    <FormModal
+      open
+      onClose={onClose}
+      size="md"
+      testId="edit-trainee-modal"
+      title="Edit Trainee Profile Details"
+      description="Update academic records, location, learning mode and internal notes."
+      submitLabel="Save Changes"
+      form={form}
+      onSubmit={async (v) => {
+        return await api.patch(`/training/trainees/${engagement._id}`, {
+          institution: v.institution.trim(),
+          degree: v.degree.trim(),
+          graduationYear: v.graduationYear.trim(),
+          location: v.location.trim(),
+          workMode: v.workMode,
+          internalNotes: v.internalNotes.trim()
+        });
+      }}
+      onDone={() => {
+        toast.success('Trainee profile updated');
+        onDone();
+      }}
+    >
+      <FormGrid>
+        <TextField {...f('institution')} label="College / University" />
+        <TextField {...f('degree')} label="Degree & Branch" />
+        <TextField {...f('graduationYear')} label="Graduation Year" />
+        <TextField {...f('location')} label="Location / City" />
+        <SelectField
+          {...f('workMode')}
+          label="Learning Mode"
+          options={[
+            { value: 'REMOTE', label: 'Remote' },
+            { value: 'HYBRID', label: 'Hybrid' },
+            { value: 'ON_SITE', label: 'On Site' }
+          ]}
+        />
+        <TextAreaField {...f('internalNotes')} label="Internal Notes" rows={2} className="sm:col-span-2" />
+      </FormGrid>
+    </FormModal>
+  );
+}
+
 export function TraineeDetailPage() {
   const { id } = useParams();
   const { can } = useAuth();
@@ -434,19 +621,115 @@ export function TraineeDetailPage() {
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <SectionCard title="Trainee Profile & Program">
+                  <SectionCard
+                    title="Trainee Engagement & Supervision"
+                    actions={
+                      can('training.manage') && (
+                        <div className="flex items-center gap-2">
+                          <Button size="xs" variant="outline" icon={Edit} onClick={() => setModal('editProfile')} data-testid="edit-trainee-btn">
+                            Edit Profile
+                          </Button>
+                          <Button size="xs" variant="outline" icon={Calendar} onClick={() => setModal('extend')} data-testid="extend-trainee-btn">
+                            Extend
+                          </Button>
+                        </div>
+                      )
+                    }
+                  >
                     <DetailList
                       items={[
+                        { label: 'Trainee ID', value: engagement.traineeId || '-' },
                         { label: 'Full Name', value: fullName(trainee) },
                         { label: 'Email', value: trainee?.email },
-                        { label: 'Intern ID', value: engagement.internId?.internId || '-' },
+                        { label: 'Linked Intern ID', value: engagement.internId?.internId ? (
+                          <Link to={`/admin/interns/${engagement.internId._id}`} className="text-brand-600 hover:underline font-mono">
+                            {engagement.internId.internId}
+                          </Link>
+                        ) : 'Independent Trainee' },
                         { label: 'Program', value: program?.title },
-                        { label: 'Mode', value: program?.mode },
-                        { label: 'Duration', value: `${program?.durationWeeks} Weeks` },
+                        { label: 'Department', value: engagement.departmentId?.name || '-' },
+                        { label: 'Manager / Supervisor', value: engagement.managerId ? fullName(engagement.managerId) : '-' },
+                        { label: 'Learning Mode', value: humanize(engagement.workMode || program?.mode) },
+                        { label: 'Start Date', value: fmtDate(engagement.startDate || engagement.enrolledAt) },
+                        { label: 'Expected End Date', value: fmtDate(engagement.expectedEndDate) },
                         { label: 'Status', value: humanize(engagement.status) }
                       ]}
                     />
                   </SectionCard>
+
+                  <SectionCard
+                    title="Candidate Payment & Program Fee"
+                    actions={
+                      can('training.manage') && (
+                        <Button size="xs" variant="outline" icon={CreditCard} onClick={() => setModal('updatePayment')} data-testid="update-trainee-payment-btn">
+                          Update Payment
+                        </Button>
+                      )
+                    }
+                  >
+                    {(() => {
+                      const pay = engagement.candidatePayment || {};
+                      const feeAmt = pay.feeAmount ?? program?.feeAmount ?? 0;
+                      const paidAmt = pay.amountPaid ?? 0;
+                      const balance = Math.max(0, feeAmt - paidAmt);
+                      const payStatus = pay.paymentStatus || (feeAmt === 0 ? 'WAIVED' : 'PENDING');
+                      return (
+                        <div className="space-y-3">
+                          <DetailList
+                            items={[
+                              { label: 'Fee Type', value: pay.feeType || program?.feeType || 'FREE' },
+                              { label: 'Program Fee', value: feeAmt > 0 ? `₹${feeAmt.toLocaleString()}` : 'Free / Waived' },
+                              { label: 'Amount Paid', value: `₹${paidAmt.toLocaleString()}` },
+                              { label: 'Remaining Balance', value: balance > 0 ? (
+                                <span className="font-semibold text-rose-600">₹{balance.toLocaleString()}</span>
+                              ) : (
+                                <span className="font-semibold text-emerald-600">Cleared (₹0)</span>
+                              ) },
+                              { label: 'Payment Status', value: (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                                  payStatus === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
+                                  payStatus === 'PARTIAL' ? 'bg-blue-100 text-blue-800' :
+                                  payStatus === 'WAIVED' ? 'bg-slate-100 text-slate-800' :
+                                  'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {payStatus}
+                                </span>
+                              ) },
+                              { label: 'Payment Method', value: humanize(pay.paymentMethod || 'NONE') },
+                              { label: 'Reference / UTR', value: pay.paymentReference || '-' },
+                              { label: 'Paid On', value: pay.paidAt ? fmtDate(pay.paidAt) : '-' },
+                              { label: 'Payment Notes', value: pay.notes || '-' }
+                            ]}
+                          />
+                        </div>
+                      );
+                    })()}
+                  </SectionCard>
+
+                  <SectionCard title="Academic Background & Demographics">
+                    <DetailList
+                      items={[
+                        { label: 'College / University', value: engagement.institution || '-' },
+                        { label: 'Degree & Branch', value: engagement.degree || '-' },
+                        { label: 'Graduation Year', value: engagement.graduationYear || '-' },
+                        { label: 'Location / City', value: engagement.location || '-' },
+                        { label: 'Application Source', value: humanize(engagement.source || 'TRAINING_PROGRAM') },
+                        { label: 'Internal Notes', value: engagement.internalNotes || '-' }
+                      ]}
+                    />
+                  </SectionCard>
+
+                  {engagement.compensation?.type && engagement.compensation.type !== 'UNPAID' && (
+                    <SectionCard title="Stipend & Trainee Compensation">
+                      <DetailList
+                        items={[
+                          { label: 'Type', value: humanize(engagement.compensation.type) },
+                          { label: 'Amount', value: `${engagement.compensation.currency || 'INR'} ${Number(engagement.compensation.amount || 0).toLocaleString()}` },
+                          { label: 'Frequency', value: humanize(engagement.compensation.frequency || 'MONTHLY') }
+                        ]}
+                      />
+                    </SectionCard>
+                  )}
 
                   <SectionCard
                     title="Mentor & Review Feedback (§53-§54)"
@@ -472,6 +755,22 @@ export function TraineeDetailPage() {
                       </div>
                     )}
                   </SectionCard>
+
+                  {engagement.extensionHistory && engagement.extensionHistory.length > 0 && (
+                    <SectionCard title="End Date Extension History">
+                      <div className="divide-y divide-slate-100">
+                        {engagement.extensionHistory.map((ext, i) => (
+                          <div key={i} className="py-2.5 text-xs">
+                            <div className="flex justify-between items-center font-medium text-slate-800">
+                              <span>Extended to {fmtDate(ext.newEndDate)} (from {fmtDate(ext.previousEndDate)})</span>
+                              <span className="text-slate-400">{fmtDate(ext.extendedAt)}</span>
+                            </div>
+                            <p className="text-slate-500 mt-0.5">Reason: {ext.reason}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </SectionCard>
+                  )}
                 </div>
               </div>
             </TabPanel>
@@ -741,6 +1040,27 @@ export function TraineeDetailPage() {
             {modal === 'mentorFeedback' && (
               <MentorFeedbackModal
                 engagementId={engagement._id}
+                onClose={() => setModal(null)}
+                onDone={() => { setModal(null); state.reload(); }}
+              />
+            )}
+            {modal === 'updatePayment' && (
+              <UpdatePaymentModal
+                engagement={engagement}
+                onClose={() => setModal(null)}
+                onDone={() => { setModal(null); state.reload(); }}
+              />
+            )}
+            {modal === 'extend' && (
+              <ExtendTraineeModal
+                engagement={engagement}
+                onClose={() => setModal(null)}
+                onDone={() => { setModal(null); state.reload(); }}
+              />
+            )}
+            {modal === 'editProfile' && (
+              <EditTraineeModal
+                engagement={engagement}
                 onClose={() => setModal(null)}
                 onDone={() => { setModal(null); state.reload(); }}
               />

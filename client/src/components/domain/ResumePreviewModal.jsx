@@ -20,8 +20,8 @@ export function ResumePreviewModal({ applicationId, candidateName, onClose }) {
           responseType: 'blob'
         });
         if (!active) return;
-        const mime = res.headers?.['content-type'] || 'application/pdf';
-        url = URL.createObjectURL(new Blob([res.data], { type: mime }));
+        const blob = res instanceof Blob ? res : (res?.data instanceof Blob ? res.data : new Blob([res], { type: 'application/pdf' }));
+        url = URL.createObjectURL(blob);
         setBlobUrl(url);
       } catch (err) {
         if (!active) return;

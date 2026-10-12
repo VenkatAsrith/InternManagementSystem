@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Download, ExternalLink, Printer, FileText, Send, CheckCircle, Clock, ShieldCheck, Image as ImageIcon } from 'lucide-react';
+import { Download, ExternalLink, Printer, FileText, Send, CheckCircle, Clock, ShieldCheck, Image as ImageIcon, ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';
 import api, { downloadFile } from '../../lib/http';
+import { session } from '../../lib/session';
 import { Button, Modal, LoadingBlock, DetailList, StatusBadge } from '../ui';
 import { fmtDateTime, fullName, humanize } from '../../lib/format';
 
@@ -9,23 +10,59 @@ export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
   const [detectedType, setDetectedType] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
 
   useEffect(() => {
     let active = true;
     let url = null;
 
     async function loadDocument() {
-      if (!doc?._id) return;
+      if (!doc) return;
+
+      // Sandboxed HTML preview
+      if (doc.htmlContent || doc.bodyHtml || doc.bodyMarkdown) {
+        setLoading(false);
+        setDetectedType('text/html');
+        return;
+      }
+
+      // Direct image/PDF URL (e.g. external asset or attachment)
+      if (doc.url && (doc.url.startsWith('http://') || doc.url.startsWith('https://') || doc.url.startsWith('data:'))) {
+        setBlobUrl(doc.url);
+        const lowerUrl = doc.url.toLowerCase();
+        if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.startsWith('data:image/')) {
+          setDetectedType('image/png');
+        } else if (lowerUrl.endsWith('.pdf')) {
+          setDetectedType('application/pdf');
+        }
+        setLoading(false);
+        return;
+      }
+
+      const docId = doc?._id || doc?.id;
+      if (!docId) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
-        const res = await api.get(`/documents/${doc._id}/download?inline=1`, {
-          responseType: 'blob'
-        });
+        const token = session.getToken();
+        const headers = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const actingOrg = session.getActingOrg();
+        if (actingOrg) headers['x-organization-id'] = actingOrg;
+
+        const response = await fetch(`/api/v1/documents/${docId}/download?inline=1`, { headers });
+        if (!response.ok) {
+          throw new Error(`Failed to load document (${response.status} ${response.statusText})`);
+        }
+        const mime = response.headers.get('content-type') || doc.mimeType || 'application/pdf';
+        const blobData = await response.blob();
         if (!active) return;
-        const mime = res.headers?.['content-type'] || doc.mimeType || 'application/pdf';
         setDetectedType(mime);
-        url = URL.createObjectURL(new Blob([res.data], { type: mime }));
+        url = URL.createObjectURL(blobData);
         setBlobUrl(url);
       } catch (err) {
         if (!active) return;
@@ -41,7 +78,7 @@ export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
       active = false;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [doc?._id]);
+  }, [doc?._id, doc?.id]);
 
   const handleDownload = async () => {
     try {
@@ -128,17 +165,41 @@ export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
               </Button>
             </div>
           )}
-          {!loading && !error && blobUrl && (
-            isImage ? (
+          {!loading && !error && (
+            (doc?.htmlContent || doc?.bodyHtml) ? (
+              <div className="w-full h-full flex flex-col bg-white">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-200 text-xs text-slate-600">
+                  <span className="font-medium">Sandboxed HTML Template Preview</span>
+                  <div className="flex items-center gap-1">
+                    <Button size="xs" variant="ghost" icon={ZoomOut} onClick={() => setZoomLevel(z => Math.max(50, z - 10))} />
+                    <span className="px-1 text-[11px] font-mono">{zoomLevel}%</span>
+                    <Button size="xs" variant="ghost" icon={ZoomIn} onClick={() => setZoomLevel(z => Math.min(150, z + 10))} />
+                    <Button size="xs" variant="ghost" icon={RefreshCw} onClick={() => setZoomLevel(100)}>Reset</Button>
+                  </div>
+                </div>
+                <div className="flex-1 w-full overflow-auto p-4 flex justify-center">
+                  <div style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center', transition: 'transform 0.2s' }} className="w-full h-full">
+                    <iframe
+                      srcDoc={doc.htmlContent || doc.bodyHtml}
+                      sandbox="allow-same-origin"
+                      title={doc.title || 'HTML Preview'}
+                      className="w-full h-full min-h-[500px] border border-slate-200 rounded shadow-sm bg-white"
+                      data-testid="document-preview-html-iframe"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : isImage && blobUrl ? (
               <div className="w-full h-full flex items-center justify-center p-4 bg-slate-900/5 overflow-auto">
                 <img
                   src={blobUrl}
                   alt={doc.title || doc.originalName}
+                  style={{ transform: `scale(${zoomLevel / 100})`, transition: 'transform 0.2s' }}
                   className="max-h-full max-w-full object-contain rounded shadow border border-slate-200"
                   data-testid="document-preview-image"
                 />
               </div>
-            ) : isPdf ? (
+            ) : isPdf && blobUrl ? (
               <iframe
                 src={`${blobUrl}#toolbar=0`}
                 title={`Preview of ${doc.title || doc.originalName}`}
@@ -149,7 +210,7 @@ export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
               <div className="text-center p-6 space-y-3">
                 <FileText className="h-12 w-12 text-primary-600 mx-auto" />
                 <p className="text-base font-semibold text-slate-900">{doc.originalName || doc.title}</p>
-                <p className="text-xs text-slate-500">Preview is optimized for PDF and Image files. Download to inspect this format.</p>
+                <p className="text-xs text-slate-500">Preview is optimized for PDF, HTML and Image files. Download to inspect this format.</p>
                 <Button size="sm" variant="primary" icon={Download} onClick={handleDownload}>
                   Download Document
                 </Button>

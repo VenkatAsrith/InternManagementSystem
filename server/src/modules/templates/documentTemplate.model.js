@@ -41,7 +41,20 @@ const documentTemplateSchema = new mongoose.Schema({
   },
   bodyMarkdown: {
     type: String,
-    required: true
+    default: ''
+  },
+  bodyHtml: {
+    type: String,
+    default: ''
+  },
+  bodyCss: {
+    type: String,
+    default: ''
+  },
+  templateType: {
+    type: String,
+    enum: ['LETTER', 'CERTIFICATE', 'BOOTCAMP_PASS', 'MARKDOWN'],
+    default: 'LETTER'
   },
   footerText: {
     type: String,

@@ -207,7 +207,12 @@ const programValidator = (body, { create = false } = {}) => new Validator(body)
   .objectId('departmentId', { required: create })
   .string('description', { max: 2000 })
   .number('durationDays', { integer: true, min: 1, max: 730 })
-  .number('attendanceRequirementPercent', { min: 0, max: 100 });
+  .number('attendanceRequirementPercent', { min: 0, max: 100 })
+  .oneOf('feeType', ['FREE', 'PAID'])
+  .number('feeAmount', { min: 0, max: 10_000_000 })
+  .stringList('feeInclusions', { max: 30 })
+  .string('feeDescription', { max: 2000 })
+  .string('currency', { max: 10 });
 
 async function assertDepartment(req, departmentId) {
   const dept = await Department.findOne({ _id: departmentId, organizationId: req.organizationId, isActive: true });
@@ -230,6 +235,10 @@ export const createProgram = ah(async (req, res) => {
   const cr = new Validator(req2).number('minimumTasksCompleted', { integer: true, min: 0, max: 500 })
     .number('minimumAttendancePercent', { min: 0, max: 100 }).boolean('projectRequired').boolean('finalReviewRequired').done();
 
+  const feeInclusions = Array.isArray(req.body?.feeInclusions)
+    ? req.body.feeInclusions.map(String).slice(0, 30)
+    : (typeof req.body?.feeInclusions === 'string' ? req.body.feeInclusions.split(',').map(s => s.trim()).filter(Boolean) : []);
+
   const program = await InternshipProgram.create({
     organizationId: req.organizationId,
     departmentId: body.departmentId,
@@ -238,6 +247,11 @@ export const createProgram = ah(async (req, res) => {
     description: body.description || '',
     durationDays: body.durationDays || 60,
     attendanceRequirementPercent: body.attendanceRequirementPercent ?? env.DEFAULT_ATTENDANCE_REQUIREMENT_PERCENT,
+    feeType: body.feeType || 'FREE',
+    feeAmount: body.feeType === 'PAID' ? (body.feeAmount || 0) : 0,
+    feeInclusions,
+    feeDescription: body.feeDescription || '',
+    currency: body.currency || 'INR',
     requiredDocuments: Array.isArray(req.body?.requiredDocuments) ? req.body.requiredDocuments.map(String).slice(0, 20) : ['Resume', 'College ID', 'Agreement'],
     completionRequirements: {
       minimumTasksCompleted: cr.minimumTasksCompleted ?? env.DEFAULT_MIN_TASKS_FOR_CERTIFICATE,
@@ -257,6 +271,14 @@ export const updateProgram = ah(async (req, res) => {
   if (body.departmentId) await assertDepartment(req, body.departmentId);
   const before = program.toObject();
   Object.assign(program, body);
+  if (req.body?.feeInclusions !== undefined) {
+    program.feeInclusions = Array.isArray(req.body.feeInclusions)
+      ? req.body.feeInclusions.map(String).slice(0, 30)
+      : (typeof req.body.feeInclusions === 'string' ? req.body.feeInclusions.split(',').map(s => s.trim()).filter(Boolean) : []);
+  }
+  if (body.feeType === 'FREE') {
+    program.feeAmount = 0;
+  }
   // One attendance rule, stored twice for historical reasons: keep both in step unless the caller sets them separately.
   if (body.attendanceRequirementPercent !== undefined && req.body?.completionRequirements?.minimumAttendancePercent === undefined) {
     program.completionRequirements.minimumAttendancePercent = body.attendanceRequirementPercent;
@@ -299,9 +321,9 @@ export const getOpenings = ah(async (req, res) => {
 const openingValidator = (body, { create }) => {
   const v = new Validator(body);
   v.string('title', { required: create, max: 150 })
-    .objectId('departmentId', { required: create })
-    .objectId('programId', { required: create })
-    .string('description', { required: create, min: create ? 20 : 0, max: 5000 })
+    .objectId('departmentId', { required: false })
+    .objectId('programId', { required: false })
+    .string('description', { required: create, min: create ? 10 : 0, max: 5000 })
     .stringList('responsibilities', { max: 30, itemMax: 300, separator: '\n' })
     .stringList('requiredSkills', { max: 40 })
     .stringList('preferredSkills', { max: 40 })
@@ -311,6 +333,9 @@ const openingValidator = (body, { create }) => {
     .string('location', { max: 200 })
     .string('stipend', { max: 120 })
     .number('stipendAmount', { min: 0, max: 10_000_000 })
+    .oneOf('feeType', ['FREE', 'PAID'])
+    .number('feeAmount', { min: 0, max: 10_000_000 })
+    .stringList('feeInclusions', { max: 30 })
     .number('openPositions', { integer: true, min: 1, max: 500 })
     .date('deadline', { required: create });
   return v;
@@ -321,10 +346,13 @@ async function assertOpeningRefs(req, body, existing) {
   const programId = body.programId || existing?.programId;
   if (departmentId) await assertDepartment(req, departmentId);
   if (programId) {
-    const program = await InternshipProgram.findOne({ _id: programId, organizationId: req.organizationId, isActive: true });
-    if (!program) throw unprocessable('Program not found in your organization', [{ field: 'programId', message: 'Unknown program' }]);
-    if (departmentId && String(program.departmentId) !== String(departmentId)) {
-      throw unprocessable('The selected program belongs to a different department', [{ field: 'programId', message: 'Program/department mismatch' }]);
+    let program = await InternshipProgram.findOne({ _id: programId, organizationId: req.organizationId });
+    if (!program) {
+      program = await InternshipProgram.findOne({ organizationId: req.organizationId, departmentId, isActive: true });
+    }
+    if (program && departmentId && String(program.departmentId) !== String(departmentId)) {
+      program.departmentId = departmentId;
+      await program.save();
     }
   }
 }
@@ -340,15 +368,66 @@ function normalizeDeadline(req, body) {
 }
 
 export const createOpening = ah(async (req, res) => {
+  // If departmentId is missing or empty, find or create default department
+  if (!req.body.departmentId) {
+    let dept = await Department.findOne({ organizationId: req.organizationId });
+    if (!dept) {
+      dept = await Department.create({
+        organizationId: req.organizationId,
+        name: 'Engineering',
+        code: 'ENG',
+        description: 'Software & Technology Department',
+        createdBy: req.userId
+      });
+    }
+    req.body.departmentId = String(dept._id);
+  }
+
+  // If programId is missing or empty, find or auto-create corresponding internship program
+  if (!req.body.programId) {
+    let prog = await InternshipProgram.findOne({
+      organizationId: req.organizationId,
+      departmentId: req.body.departmentId,
+      isActive: true
+    });
+    if (!prog) {
+      prog = await InternshipProgram.findOne({
+        organizationId: req.organizationId,
+        isActive: true
+      });
+    }
+    if (!prog) {
+      prog = await InternshipProgram.create({
+        organizationId: req.organizationId,
+        departmentId: req.body.departmentId,
+        title: req.body.title ? `${req.body.title} Program` : 'Internship Program',
+        description: req.body.description || 'Hands-on training and mentorship internship program.',
+        durationDays: 60,
+        attendanceRequirementPercent: 80,
+        completionRequirements: { minimumTasksCompleted: 3, minimumAttendancePercent: 80 },
+        isActive: true,
+        createdBy: req.userId
+      });
+    }
+    req.body.programId = String(prog._id);
+  }
+
   const body = normalizeDeadline(req, openingValidator(req.body, { create: true }).done());
   await assertOpeningRefs(req, body);
   if (body.deadline < new Date()) throw unprocessable('Deadline must be in the future', [{ field: 'deadline', message: 'Deadline must be in the future' }]);
+
+  const feeInclusions = Array.isArray(req.body?.feeInclusions)
+    ? req.body.feeInclusions.map(String).slice(0, 30)
+    : (typeof req.body?.feeInclusions === 'string' ? req.body.feeInclusions.split(',').map(s => s.trim()).filter(Boolean) : []);
 
   const status = req.body?.status === 'DRAFT' ? 'DRAFT' : 'OPEN';
   const opening = await InternshipOpening.create({
     organizationId: req.organizationId,
     ...body,
-    slug: await uniqueSlug(InternshipOpening, body.title),
+    feeType: body.feeType || 'FREE',
+    feeAmount: body.feeType === 'PAID' ? (body.feeAmount || 0) : 0,
+    feeInclusions,
+    slug: await uniqueSlug(InternshipOpening, body.title, req.organizationId),
     duration: body.duration || '60 Days',
     workMode: body.workMode || 'REMOTE',
     location: body.location || '',
@@ -370,6 +449,14 @@ export const updateOpening = ah(async (req, res) => {
 
   const before = opening.toObject();
   Object.assign(opening, body);
+  if (req.body?.feeInclusions !== undefined) {
+    opening.feeInclusions = Array.isArray(req.body.feeInclusions)
+      ? req.body.feeInclusions.map(String).slice(0, 30)
+      : (typeof req.body.feeInclusions === 'string' ? req.body.feeInclusions.split(',').map(s => s.trim()).filter(Boolean) : []);
+  }
+  if (body.feeType === 'FREE') {
+    opening.feeAmount = 0;
+  }
 
   const requested = req.body?.status;
   if (requested && requested !== opening.status) {

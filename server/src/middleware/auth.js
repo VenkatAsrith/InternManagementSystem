@@ -72,7 +72,19 @@ async function attachUser(req, token) {
   req.userRole = user.role;
   req.organizationId = orgId;
   req.timezone = req.timezone || env.ORG_TIMEZONE;
-  req.permissions = await resolvePermissions(user);
+
+  // Controlled role preview: ONLY a genuine SUPER_ADMIN may preview subordinate roles.
+  // Never allows privilege escalation; requests from non-admins ignore the preview header.
+  const previewHeader = req.headers['x-preview-role'];
+  if (isSuper && previewHeader && Object.values(ROLES).includes(previewHeader) && previewHeader !== ROLES.SUPER_ADMIN) {
+    req.userRole = previewHeader;
+    req.isPreviewMode = true;
+    req.originalUserRole = ROLES.SUPER_ADMIN;
+    req.permissions = await resolvePermissions({ role: previewHeader, organizationId: orgId });
+  } else {
+    req.permissions = await resolvePermissions(user);
+  }
+
   req.can = (perm) => hasGranted(req.permissions, perm);
   return { user };
 }

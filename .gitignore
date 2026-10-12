@@ -1,1 +1,103 @@
-node_modules
+# ==========================================
+# Dependencies
+# ==========================================
+node_modules/
+.pnp
+.pnp.js
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+.env
+.env.qa
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+**/.env
+**/.env.*
+!**/.env.example
+
+# ==========================================
+# Build Outputs
+# ==========================================
+dist/
+dist-ssr/
+build/
+client/dist/
+.vite/
+
+# ==========================================
+# Logs & Process Outputs
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+qa-artifacts/*.log
+
+# ==========================================
+# Uploads, Media & User Generated Files
+# ==========================================
+uploads/**
+!uploads/.gitkeep
+server/uploads/**
+!server/uploads/.gitkeep
+**/uploads/**
+!**/uploads/.gitkeep
+
+# ==========================================
+# Database Dumps & Backups
+# ==========================================
+server/src/database/backups/
+*.dump
+*.sql
+*.sqlite
+
+# ==========================================
+# Testing & QA Artifacts
+# ==========================================
+coverage/
+.nyc_output/
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+qa-artifacts/cypress/
+qa-artifacts/uploads/
+server/qa-artifacts/uploads/
+
+# ==========================================
+# Editor & IDE Settings
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# Temporary & Cache Files
+# ==========================================
+*.tmp
+*.temp
+.cache/
+.eslintcache
+.stylelintcache

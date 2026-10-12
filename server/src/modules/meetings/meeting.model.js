@@ -15,6 +15,9 @@ const meetingSchema = new mongoose.Schema({
   organizerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', index: true },
   programId: { type: mongoose.Schema.Types.ObjectId, ref: 'TrainingProgram', index: true },
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'TrainingProgram', index: true },
+  bootcampId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bootcamp', index: true },
+  externalAttendees: [{ type: String, trim: true, lowercase: true }],
   description: { type: String, default: '' },
   scheduledDate: { type: Date, required: true },
   startTime: { type: String, required: true },
@@ -59,7 +62,7 @@ const meetingSchema = new mongoose.Schema({
   reminders: [{
     type: { type: String, enum: ['24_HOURS', '15_MINUTES', 'CUSTOM'], default: '24_HOURS' },
     offsetMinutes: { type: Number, default: 1440 },
-    status: { type: String, enum: ['SCHEDULED', 'SENT', 'FAILED'], default: 'SCHEDULED' },
+    status: { type: String, enum: ['SCHEDULED', 'SENT', 'FAILED', 'CANCELLED'], default: 'SCHEDULED' },
     scheduledFor: { type: Date },
     sentAt: { type: Date }
   }],

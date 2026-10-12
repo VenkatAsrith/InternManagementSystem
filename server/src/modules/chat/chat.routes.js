@@ -8,7 +8,8 @@ import {
   markAsRead,
   getAvailableUsers,
   uploadAttachment,
-  getAttachment
+  getAttachment,
+  getOnlineUsers
 } from './chat.controller.js';
 import { authenticate, requireOrgContext } from '../../middleware/auth.js';
 import { uploadSingle } from '../../middleware/upload.js';
@@ -26,6 +27,7 @@ router.post('/conversations/:id/messages', uploadSingle('attachment'), ah(sendMe
 router.post('/conversations/:id/read', ah(markAsRead));
 router.get('/peers', ah(getAvailableUsers));
 router.get('/users', ah(getAvailableUsers));
+router.get('/online-users', ah(getOnlineUsers));
 router.post('/upload', uploadSingle('file'), ah(uploadAttachment));
 router.get('/attachment/:fileName', ah(getAttachment));
 

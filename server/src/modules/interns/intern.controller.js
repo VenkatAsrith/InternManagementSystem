@@ -21,10 +21,16 @@ import { ah } from '../../utils/asyncHandler.js';
 import { notFound, conflict, unprocessable } from '../../utils/errors.js';
 import { Validator, escapeRegex, parsePagination, isObjectId } from '../../utils/validate.js';
 import { startOfDay, toDay } from '../../utils/time.js';
-import { Department } from '../organizations/organization.model.js';
+import { Department, Organization } from '../organizations/organization.model.js';
 import { InternshipProgram } from '../recruitment/recruitment.model.js';
+import { Project } from '../projects/project.model.js';
+import { Document } from '../documents/document.model.js';
+import { DocumentRequirementTemplate } from '../documents/documentRequirementTemplate.model.js';
+import { InternDocumentRequirement } from '../documents/internDocumentRequirement.model.js';
+import { sendOnboardingCredentialsEmail } from '../email/email.service.js';
 import { generateId, generateSecretToken, hashToken } from '../../utils/idGenerator.js';
 import { env } from '../../config/env.js';
+import { logger } from '../../config/logger.js';
 
 const MENTOR_ROLES = [ROLES.MENTOR, ROLES.TEAM_LEAD, ROLES.PROGRAM_MANAGER];
 const MS_DAY = 86400000;
@@ -54,15 +60,34 @@ export const getInterns = ah(async (req, res) => {
     }
   }
 
-  const [interns, total] = await Promise.all([
+  const [internsList, total] = await Promise.all([
     Intern.find(query)
-      .populate('userId', 'firstName lastName email phone avatarUrl')
+      .populate('userId', 'firstName lastName email phone avatarUrl role')
       .populate('departmentId', 'name code').populate('programId', 'title durationDays')
       .populate('mentorId', 'firstName lastName email')
       .populate('referral.referredById', 'firstName lastName email')
-      .sort({ createdAt: -1 }).skip(skip).limit(limit),
+      .sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     Intern.countDocuments(query)
   ]);
+
+  const userIds = internsList.map(i => i.userId?._id).filter(Boolean);
+  const internIds = internsList.map(i => i._id);
+
+  const [projects, docs] = await Promise.all([
+    Project.find({ organizationId: req.organizationId, members: { $in: userIds } }, 'name code members').lean(),
+    Document.find({ organizationId: req.organizationId, $or: [{ internId: { $in: internIds } }, { ownerId: { $in: userIds } }] }, 'status type internId ownerId originalName title').lean()
+  ]);
+
+  const interns = internsList.map(i => {
+    const assignedProjects = projects.filter(p => p.members?.some(m => String(m) === String(i.userId?._id)));
+    const internDocs = docs.filter(d => String(d.internId) === String(i._id) || String(d.ownerId) === String(i.userId?._id));
+    return {
+      ...i,
+      projects: assignedProjects,
+      documents: internDocs
+    };
+  });
+
   return paginatedResponse(res, interns, { page, limit, total });
 });
 
@@ -187,66 +212,210 @@ export const getInternById = ah(async (req, res) => {
 });
 
 export const createIntern = ah(async (req, res) => {
-  const v = new Validator(req.body)
+  const input = { ...req.body };
+  if (input.compensation && typeof input.compensation === 'object') {
+    input.compensationType = input.compensationType || input.compensation.type;
+    input.stipendAmount = input.stipendAmount ?? input.compensation.amount;
+    input.currency = input.currency || input.compensation.currency;
+    input.stipendFrequency = input.stipendFrequency || input.compensation.frequency;
+    input.stipendStartDate = input.stipendStartDate || input.compensation.startDate;
+  }
+  if (input.referral && typeof input.referral === 'object') {
+    input.referredById = input.referredById || input.referral.referredById;
+    input.referralName = input.referralName || input.referral.referralName;
+    input.referralEmail = input.referralEmail || input.referral.referralEmail;
+    input.relationship = input.relationship || input.referral.relationship;
+    input.referralNotes = input.referralNotes || input.referral.notes;
+    input.referralDate = input.referralDate || input.referral.date;
+  }
+  if (input.templateId && !input.documentTemplateId) {
+    input.documentTemplateId = input.templateId;
+  }
+
+  const v = new Validator(input)
     .string('firstName', { required: true, max: 100 })
     .string('lastName', { required: true, max: 100 })
     .email('email', { required: true })
     .phone('phone')
-    .objectId('departmentId', { required: true })
-    .objectId('programId', { required: true })
+    .objectId('departmentId')
+    .objectId('programId')
     .objectId('mentorId')
     .objectId('managerId')
-    .string('startDate', { required: true })
-    .string('expectedEndDate', { required: true })
+    .objectId('projectId')
+    .string('startDate')
+    .string('expectedEndDate')
     .oneOf('workMode', ['REMOTE', 'HYBRID', 'ON_SITE'], { defaultValue: 'REMOTE' })
+    .oneOf('role', ['INTERN', 'INTERN_TRAINEE'], { defaultValue: 'INTERN' })
     .oneOf('source', ['APPLICATION', 'REFERRAL', 'CAMPUS', 'WALK_IN', 'PARTNER', 'INTERNAL_TRANSFER', 'OTHER'], { defaultValue: 'APPLICATION' })
     .objectId('applicationId')
     .objectId('referredById')
     .string('referralName', { max: 150 })
     .string('referralEmail', { max: 150 })
-    .string('relationship', { max: 100 });
+    .string('relationship', { max: 100 })
+    .string('referralNotes', { max: 1000 })
+    .string('referralDate')
+    .string('institution', { max: 200 })
+    .string('degree', { max: 150 })
+    .string('graduationYear', { max: 50 })
+    .string('location', { max: 150 })
+    .string('internalNotes', { max: 2000 })
+    .oneOf('compensationType', ['PAID', 'UNPAID'], { defaultValue: 'UNPAID' })
+    .number('stipendAmount', { min: 0 })
+    .string('currency', { defaultValue: 'INR' })
+    .oneOf('stipendFrequency', ['MONTHLY', 'WEEKLY', 'ONE_TIME'], { defaultValue: 'MONTHLY' })
+    .string('stipendStartDate')
+    .objectId('documentTemplateId');
   const body = v.done();
 
-  // Validate department & program in org
-  const [dept, program] = await Promise.all([
-    Department.findOne({ _id: body.departmentId, organizationId: req.organizationId, isActive: true }),
-    InternshipProgram.findOne({ _id: body.programId, organizationId: req.organizationId, isActive: true })
-  ]);
-  if (!dept) throw unprocessable('Department not found in your organization', [{ field: 'departmentId', message: 'Unknown department' }]);
-  if (!program) throw unprocessable('Internship Program not found in your organization', [{ field: 'programId', message: 'Unknown program' }]);
+  // Validate or auto-fallback department & program in org
+  let dept = body.departmentId ? await Department.findOne({ _id: body.departmentId, organizationId: req.organizationId }) : null;
+  if (!dept) {
+    dept = await Department.findOne({ organizationId: req.organizationId }) || await Department.create({ organizationId: req.organizationId, name: 'Engineering & Technology', code: 'ENG' });
+  }
 
-  const start = toDay(body.startDate, req.timezone);
-  const end = toDay(body.expectedEndDate, req.timezone);
-  if (!start) throw unprocessable('Invalid start date', [{ field: 'startDate', message: 'Valid date required' }]);
-  if (!end || end <= start) throw unprocessable('End date must be after start date', [{ field: 'expectedEndDate', message: 'Must be after start date' }]);
+  let program = body.programId ? await InternshipProgram.findOne({ _id: body.programId, organizationId: req.organizationId }) : null;
+  if (!program) {
+    program = await InternshipProgram.findOne({ organizationId: req.organizationId }) || await InternshipProgram.create({ organizationId: req.organizationId, title: 'Technical Internship Track', durationWeeks: 12, mode: 'REMOTE' });
+  }
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const futureStr = new Date(Date.now() + 86400000 * 90).toISOString().slice(0, 10);
+  const start = toDay(body.startDate || todayStr, req.timezone);
+  const end = toDay(body.expectedEndDate || futureStr, req.timezone);
+
+  const userRole = body.role === 'INTERN_TRAINEE' ? ROLES.INTERN_TRAINEE : ROLES.INTERN;
+  const rawPassword = req.body.password || `Tmt@${Math.floor(100000 + Math.random() * 900000)}`;
+
+  const compensationObj = {
+    type: body.compensationType === 'PAID' ? 'PAID' : 'UNPAID',
+    amount: body.compensationType === 'PAID' ? (body.stipendAmount || 0) : 0,
+    currency: body.currency || 'INR',
+    frequency: body.stipendFrequency || 'MONTHLY',
+    startDate: body.stipendStartDate ? toDay(body.stipendStartDate, req.timezone) : start,
+    approvedBy: req.userId
+  };
+
+  const referralObj = body.source === 'REFERRAL' ? {
+    referredById: body.referredById || undefined,
+    referralName: body.referralName || '',
+    referralEmail: body.referralEmail ? body.referralEmail.toLowerCase().trim() : '',
+    relationship: body.relationship || '',
+    notes: body.referralNotes || '',
+    date: body.referralDate ? new Date(body.referralDate) : new Date()
+  } : undefined;
 
   // Check user by email
   let user = await User.findOne({ email: body.email.toLowerCase().trim() });
   if (user) {
     if (String(user.organizationId) !== String(req.organizationId)) {
-      throw conflict('This email belongs to an account in another organization.', 'EMAIL_IN_OTHER_ORG');
+      user.organizationId = req.organizationId;
     }
+    user.role = userRole;
+    user.firstName = body.firstName.trim();
+    user.lastName = body.lastName.trim();
+    if (body.phone) user.phone = body.phone;
+    user.password = rawPassword;
+    user.mustChangePassword = true;
+    user.isActive = true;
+    await user.save();
+
     const existingIntern = await Intern.findOne({ userId: user._id });
     if (existingIntern) {
-      throw conflict('An intern record already exists for this person.', 'ALREADY_INTERN', { internId: existingIntern.internId });
+      if (dept) existingIntern.departmentId = dept._id;
+      if (program) existingIntern.programId = program._id;
+      if (body.mentorId) existingIntern.mentorId = body.mentorId;
+      if (body.workMode) existingIntern.workMode = body.workMode;
+      if (start) existingIntern.startDate = start;
+      if (end) existingIntern.expectedEndDate = end;
+      if (body.institution) existingIntern.institution = body.institution;
+      if (body.degree) existingIntern.degree = body.degree;
+      if (body.graduationYear) existingIntern.graduationYear = body.graduationYear;
+      if (body.location) existingIntern.location = body.location;
+      if (body.internalNotes) existingIntern.internalNotes = body.internalNotes;
+      existingIntern.compensation = compensationObj;
+      if (referralObj) existingIntern.referral = referralObj;
+      if (['COMPLETED', 'TERMINATED', 'CANCELLED'].includes(existingIntern.status)) {
+        existingIntern.status = INTERN_STATUS.PRE_ONBOARDING;
+      }
+      await existingIntern.save();
+
+      if (body.projectId) {
+        await Project.updateOne(
+          { _id: body.projectId, organizationId: req.organizationId },
+          { $addToSet: { members: user._id } }
+        );
+      }
+
+      // Re-ensure Onboarding Plan exists
+      let plan = await OnboardingPlan.findOne({ internId: existingIntern._id });
+      if (!plan) {
+        plan = await OnboardingPlan.create({
+          organizationId: req.organizationId,
+          internId: existingIntern._id,
+          status: ONBOARDING_STATUS.IN_PROGRESS,
+          progress: 0
+        });
+        await OnboardingTask.insertMany([
+          { organizationId: req.organizationId, onboardingPlanId: plan._id, title: 'Government ID & Address Proof', description: 'Upload national identity document (Aadhaar / Passport / Driver License).' },
+          { organizationId: req.organizationId, onboardingPlanId: plan._id, title: 'College ID or Bonafide Certificate', description: 'Upload official university identity card or enrollment proof.' },
+          { organizationId: req.organizationId, onboardingPlanId: plan._id, title: 'Signed Internship Agreement / NDA', description: 'Review, acknowledge and upload your signed copy.' }
+        ]);
+      }
+
+      // Dispatch Welcome Email with Credentials
+      const org = await Organization.findById(req.organizationId);
+      const proto = req.protocol || 'http';
+      const host = req.get('host') || 'localhost:3000';
+      sendOnboardingCredentialsEmail({
+        to: user.email,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        password: rawPassword,
+        role: userRole,
+        orgName: org?.name || 'TechMecha Torque',
+        loginUrl: `${proto}://${host}/login`,
+        organizationId: req.organizationId
+      }).catch(err => logger.warn(`Async credentials reset email dispatch: ${err.message}`));
+
+      await recordAuditLog({
+        action: 'INTERN_CREDENTIALS_RESET',
+        entityType: 'Intern',
+        entityId: existingIntern._id,
+        after: { internId: existingIntern.internId, name: `${user.firstName} ${user.lastName}`, role: userRole },
+        req
+      });
+
+      return successResponse(res, {
+        ...existingIntern.toObject(),
+        tempPassword: rawPassword,
+        user: { _id: user._id, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role }
+      }, 'Intern profile updated and credentials re-issued successfully.', 200);
     }
   } else {
-    const setupToken = generateSecretToken();
     user = await User.create({
       organizationId: req.organizationId,
       departmentId: dept._id,
       firstName: body.firstName.trim(),
       lastName: body.lastName.trim(),
       email: body.email.toLowerCase().trim(),
-      role: ROLES.INTERN,
+      role: userRole,
       phone: body.phone || '',
-      password: generateSecretToken(24),
+      password: rawPassword,
       mustChangePassword: true,
-      passwordSetupTokenHash: hashToken(setupToken),
-      passwordSetupExpiresAt: new Date(Date.now() + (env.PASSWORD_SETUP_TTL_HOURS || 72) * 3600 * 1000),
       isActive: true
     });
   }
+
+  const candidatePaymentObj = {
+    feeType: req.body?.candidatePayment?.feeType || req.body?.feeType || 'FREE',
+    feeAmount: Number(req.body?.candidatePayment?.feeAmount || req.body?.feeAmount || 0),
+    amountPaid: Number(req.body?.candidatePayment?.amountPaid || req.body?.amountPaid || 0),
+    paymentStatus: req.body?.candidatePayment?.paymentStatus || req.body?.paymentStatus || 'PENDING',
+    paymentMethod: req.body?.candidatePayment?.paymentMethod || req.body?.paymentMethod || '',
+    paymentReference: req.body?.candidatePayment?.paymentReference || req.body?.paymentReference || '',
+    paidAt: req.body?.candidatePayment?.paidAt ? new Date(req.body.candidatePayment.paidAt) : (req.body?.paidAt ? new Date(req.body.paidAt) : undefined),
+    notes: req.body?.candidatePayment?.notes || req.body?.paymentNotes || ''
+  };
 
   const internId = await generateId('INT');
   const intern = await Intern.create({
@@ -263,31 +432,104 @@ export const createIntern = ah(async (req, res) => {
     expectedEndDate: end,
     status: INTERN_STATUS.PRE_ONBOARDING,
     source: body.source,
-    referral: body.source === 'REFERRAL' ? {
-      referredById: body.referredById || undefined,
-      referralName: body.referralName || '',
-      referralEmail: body.referralEmail ? body.referralEmail.toLowerCase().trim() : '',
-      relationship: body.relationship || ''
-    } : undefined
+    institution: body.institution || '',
+    degree: body.degree || '',
+    graduationYear: body.graduationYear || '',
+    location: body.location || '',
+    internalNotes: body.internalNotes || '',
+    compensation: compensationObj,
+    candidatePayment: candidatePaymentObj,
+    referral: referralObj
   });
 
+  // Assign project if requested
+  if (body.projectId) {
+    await Project.updateOne(
+      { _id: body.projectId, organizationId: req.organizationId },
+      { $addToSet: { members: user._id } }
+    );
+  }
+
   // Create Onboarding Plan
-  await OnboardingPlan.create({
+  const plan = await OnboardingPlan.create({
     organizationId: req.organizationId,
     internId: intern._id,
     status: ONBOARDING_STATUS.IN_PROGRESS,
     progress: 0
   });
 
+  // Assign document requirements template if selected
+  let templateAssigned = false;
+  if (body.documentTemplateId) {
+    const docTpl = await DocumentRequirementTemplate.findOne({
+      _id: body.documentTemplateId,
+      organizationId: req.organizationId
+    });
+    if (docTpl && docTpl.requiredDocuments?.length > 0) {
+      templateAssigned = true;
+      for (const d of docTpl.requiredDocuments) {
+        await InternDocumentRequirement.create({
+          organizationId: req.organizationId,
+          internId: intern._id,
+          userId: user._id,
+          templateId: docTpl._id,
+          category: d.category || 'OTHER',
+          title: d.title,
+          description: d.description || '',
+          mandatory: d.mandatory !== false,
+          instructions: d.instructions || '',
+          sampleTemplateUrl: d.sampleTemplateUrl || '',
+          sampleTemplateName: d.sampleTemplateName || '',
+          status: 'REQUIRED'
+        });
+        await OnboardingTask.create({
+          organizationId: req.organizationId,
+          onboardingPlanId: plan._id,
+          title: d.title,
+          required: d.mandatory !== false,
+          description: d.description || d.instructions || `Submit required document: ${d.title}`
+        });
+      }
+    }
+  }
+
+  if (!templateAssigned) {
+    // Automatically assign essential onboarding document tasks
+    await OnboardingTask.insertMany([
+      { organizationId: req.organizationId, onboardingPlanId: plan._id, title: 'Government ID & Address Proof', description: 'Upload national identity document (Aadhaar / Passport / Driver License).' },
+      { organizationId: req.organizationId, onboardingPlanId: plan._id, title: 'College ID or Bonafide Certificate', description: 'Upload official university identity card or enrollment proof.' },
+      { organizationId: req.organizationId, onboardingPlanId: plan._id, title: 'Signed Internship Agreement / NDA', description: 'Review, acknowledge and upload your signed copy.' }
+    ]);
+  }
+
+  // Dispatch Welcome Email with Credentials
+  const org = await Organization.findById(req.organizationId);
+  const proto = req.protocol || 'http';
+  const host = req.get('host') || 'localhost:3000';
+  sendOnboardingCredentialsEmail({
+    to: user.email,
+    name: `${user.firstName} ${user.lastName}`,
+    email: user.email,
+    password: rawPassword,
+    role: userRole,
+    orgName: org?.name || 'TechMecha Torque',
+    loginUrl: `${proto}://${host}/login`,
+    organizationId: req.organizationId
+  }).catch(err => logger.warn(`Async credentials email dispatch: ${err.message}`));
+
   await recordAuditLog({
     action: 'INTERN_CREATED',
     entityType: 'Intern',
     entityId: intern._id,
-    after: { internId, source: body.source, name: `${user.firstName} ${user.lastName}` },
+    after: { internId, source: body.source, name: `${user.firstName} ${user.lastName}`, role: userRole },
     req
   });
 
-  return successResponse(res, intern, 'Intern created successfully', 201);
+  return successResponse(res, {
+    ...intern.toObject(),
+    tempPassword: rawPassword,
+    user: { _id: user._id, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role }
+  }, 'Intern created successfully and login credentials dispatched', 201);
 });
 
 /**
@@ -338,6 +580,28 @@ export const updateIntern = ah(async (req, res) => {
     intern.status = body.status;
     changes.status = body.status;
   }
+
+  if (req.body.candidatePayment && typeof req.body.candidatePayment === 'object') {
+    const cp = req.body.candidatePayment;
+    intern.candidatePayment = {
+      feeType: cp.feeType || intern.candidatePayment?.feeType || 'FREE',
+      feeAmount: cp.feeAmount !== undefined ? Number(cp.feeAmount) : (intern.candidatePayment?.feeAmount || 0),
+      amountPaid: cp.amountPaid !== undefined ? Number(cp.amountPaid) : (intern.candidatePayment?.amountPaid || 0),
+      paymentStatus: cp.paymentStatus || intern.candidatePayment?.paymentStatus || 'PENDING',
+      paymentMethod: cp.paymentMethod !== undefined ? cp.paymentMethod : (intern.candidatePayment?.paymentMethod || ''),
+      paymentReference: cp.paymentReference !== undefined ? cp.paymentReference : (intern.candidatePayment?.paymentReference || ''),
+      paidAt: cp.paidAt ? new Date(cp.paidAt) : (intern.candidatePayment?.paidAt || undefined),
+      notes: cp.notes !== undefined ? cp.notes : (intern.candidatePayment?.notes || '')
+    };
+    changes.candidatePayment = intern.candidatePayment;
+  }
+
+  ['institution', 'degree', 'graduationYear', 'location', 'internalNotes'].forEach((f) => {
+    if (req.body[f] !== undefined) {
+      intern[f] = String(req.body[f]).trim();
+      changes[f] = intern[f];
+    }
+  });
 
   if (!Object.keys(changes).length) throw unprocessable('No changes were supplied', [{ field: 'body', message: 'Nothing to update' }]);
   await intern.save();
@@ -396,5 +660,108 @@ export const getInternWorkRecord = ah(async (req, res) => {
     activities,
     raw: { tasks, journals, attendance, meetings, reviews }
   });
+});
+
+export const resetInternPassword = ah(async (req, res) => {
+  const intern = await Intern.findOne({ _id: req.params.id, organizationId: req.organizationId }).populate('userId');
+  if (!intern) throw notFound('Intern not found');
+  if (!intern.userId) throw notFound('User account not found for this intern');
+
+  const newPassword = `Tmt@${Math.floor(100000 + Math.random() * 900000)}`;
+  const user = await User.findById(intern.userId._id);
+  user.password = newPassword;
+  user.mustChangePassword = true;
+  await user.save();
+
+  const org = await Organization.findById(req.organizationId);
+  try {
+    const proto = req.protocol || 'http';
+    const host = req.get('host') || 'localhost:3000';
+    await sendOnboardingCredentialsEmail({
+      to: user.email,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      password: newPassword,
+      role: user.role,
+      orgName: org?.name || 'TechMecha Torque',
+      loginUrl: `${proto}://${host}/login`,
+      organizationId: req.organizationId
+    });
+  } catch (err) {
+    logger.warn(`Failed to dispatch reset email: ${err.message}`);
+  }
+
+  await recordAuditLog({
+    action: 'INTERN_PASSWORD_RESET',
+    entityType: 'Intern',
+    entityId: intern._id,
+    after: { email: user.email, resetBy: req.userId },
+    req
+  });
+
+  return successResponse(res, { newPassword, email: user.email }, 'Password reset successfully and email dispatched');
+});
+
+export const assignInternProject = ah(async (req, res) => {
+  const { projectId } = req.body || {};
+  if (!projectId) throw unprocessable('Project ID is required', [{ field: 'projectId', message: 'Required' }]);
+
+  const intern = await Intern.findOne({ _id: req.params.id, organizationId: req.organizationId }).populate('userId');
+  if (!intern) throw notFound('Intern not found');
+
+  const project = await Project.findOne({ _id: projectId, organizationId: req.organizationId });
+  if (!project) throw notFound('Project not found');
+
+  await Project.updateOne(
+    { _id: project._id },
+    { $addToSet: { members: intern.userId._id } }
+  );
+
+  await createNotification({
+    organizationId: req.organizationId,
+    recipientId: intern.userId._id,
+    type: 'PROJECT_ASSIGNED',
+    title: 'Project Assigned',
+    message: `You have been assigned to project ${project.name}.`,
+    entityType: 'Project',
+    entityId: project._id
+  });
+
+  return successResponse(res, { project, intern }, `Project ${project.name} assigned to intern`);
+});
+
+export const assignInternDocumentTask = ah(async (req, res) => {
+  const { title, type, description } = req.body || {};
+  if (!title) throw unprocessable('Document title is required', [{ field: 'title', message: 'Required' }]);
+
+  const intern = await Intern.findOne({ _id: req.params.id, organizationId: req.organizationId }).populate('userId');
+  if (!intern) throw notFound('Intern not found');
+
+  let plan = await OnboardingPlan.findOne({ internId: intern._id, organizationId: req.organizationId });
+  if (!plan) {
+    plan = await OnboardingPlan.create({ organizationId: req.organizationId, internId: intern._id });
+  }
+
+  const task = await OnboardingTask.create({
+    onboardingPlanId: plan._id,
+    title: title.trim(),
+    type: type || 'DOCUMENT',
+    description: description || `Please upload ${title.trim()} document.`,
+    status: ONBOARDING_STATUS.PENDING
+  });
+
+  return successResponse(res, task, `Document requirement assigned to intern`, 201);
+});
+
+export const getInternDocumentsList = ah(async (req, res) => {
+  const intern = await Intern.findOne({ _id: req.params.id, organizationId: req.organizationId });
+  if (!intern) throw notFound('Intern not found');
+
+  const docs = await Document.find({
+    organizationId: req.organizationId,
+    $or: [{ internId: intern._id }, { ownerId: intern.userId }]
+  }).sort({ createdAt: -1 });
+
+  return successResponse(res, docs);
 });
 

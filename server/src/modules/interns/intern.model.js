@@ -38,12 +38,48 @@ const internSchema = new mongoose.Schema({
     default: 'APPLICATION',
     index: true
   },
+  institution: { type: String, trim: true, default: '' },
+  degree: { type: String, trim: true, default: '' },
+  graduationYear: { type: String, trim: true, default: '' },
+  location: { type: String, trim: true, default: '' },
+  internalNotes: { type: String, trim: true, default: '' },
   referral: {
     referredById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     referralName: { type: String, trim: true, default: '' },
     referralEmail: { type: String, trim: true, lowercase: true, default: '' },
-    relationship: { type: String, trim: true, default: '' }
+    relationship: { type: String, trim: true, default: '' },
+    notes: { type: String, trim: true, default: '' },
+    date: { type: Date }
   },
+  compensation: {
+    type: { type: String, enum: ['PAID', 'UNPAID'], default: 'UNPAID' },
+    amount: { type: Number, default: 0 },
+    currency: { type: String, default: 'INR' },
+    frequency: { type: String, enum: ['MONTHLY', 'WEEKLY', 'ONE_TIME'], default: 'MONTHLY' },
+    startDate: { type: Date },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  },
+  candidatePayment: {
+    feeType: { type: String, enum: ['FREE', 'PAID'], default: 'FREE' },
+    feeAmount: { type: Number, default: 0, min: 0 },
+    amountPaid: { type: Number, default: 0, min: 0 },
+    paymentStatus: { type: String, enum: ['PENDING', 'PARTIAL', 'PAID', 'WAIVED'], default: 'PENDING' },
+    paymentMethod: { type: String, default: '' },
+    paymentReference: { type: String, default: '' },
+    paidAt: { type: Date },
+    notes: { type: String, default: '' }
+  },
+  concessions: [{
+    concessionType: { type: String, trim: true },
+    description: { type: String, trim: true },
+    amountOrPercentage: { type: String, trim: true },
+    reason: { type: String, trim: true },
+    effectiveDate: { type: Date, default: Date.now },
+    approvalStatus: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    approvedAt: { type: Date },
+    internalRemarks: { type: String, trim: true }
+  }],
   completionDetails: {
     tasksCompletedCount: { type: Number, default: 0 },
     attendancePercent: { type: Number, default: 0 },

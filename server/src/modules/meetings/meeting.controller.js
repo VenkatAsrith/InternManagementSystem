@@ -51,22 +51,40 @@ async function meetingScope(req) {
 
 export const getMeetings = ah(async (req, res) => {
   const meetings = await Meeting.find(await meetingScope(req))
-    .populate('participants', 'firstName lastName email avatarUrl')
+    .populate('participants', 'firstName lastName email avatarUrl role')
     .populate('mentorId', 'firstName lastName email')
     .populate('organizerId', 'firstName lastName email')
     .populate('projectId', 'title code')
+    .populate('programId', 'title code')
+    .populate('bootcampId', 'title')
     .populate('actionItems.assigneeId', 'firstName lastName')
     .sort({ scheduledDate: 1, startTime: 1 });
   return successResponse(res, meetings);
 });
 
+export const getMeetingById = ah(async (req, res) => {
+  const meeting = await Meeting.findOne({ _id: req.params.id, organizationId: req.organizationId })
+    .populate('participants', 'firstName lastName email avatarUrl role')
+    .populate('mentorId', 'firstName lastName email')
+    .populate('organizerId', 'firstName lastName email')
+    .populate('projectId', 'title code')
+    .populate('programId', 'title code')
+    .populate('bootcampId', 'title')
+    .populate('actionItems.assigneeId', 'firstName lastName');
+
+  if (!meeting) throw notFound('Meeting not found');
+  return successResponse(res, meeting);
+});
+
 export const createMeeting = ah(async (req, res) => {
   const v = new Validator(req.body)
     .string('title', { required: true, max: 150 }).oneOf('type', MEETING_TYPE, { defaultValue: MEETING_TYPE.MENTOR_1ON1 })
-    .objectIdList('participants', { max: 30 }).objectIdList('internIds', { max: 30 })
+    .objectIdList('participants', { max: 50 }).objectIdList('internIds', { max: 50 })
     .string('scheduledDate', { required: true, max: 30 }).string('startTime', { required: true, max: 8 }).string('endTime', { required: true, max: 8 })
+    .string('timezone', { defaultValue: req.timezone || 'Asia/Kolkata' })
     .url('meetingLink').string('agenda', { max: 2000 }).string('description', { max: 2000 })
-    .string('meetingProvider', { max: 50 }).objectId('projectId').objectId('programId')
+    .string('meetingProvider', { max: 50 })
+    .objectId('projectId').objectId('programId').objectId('courseId').objectId('bootcampId')
     .string('idempotencyKey', { max: 100 });
   const body = v.done();
   const when = slot(req, body);
@@ -87,10 +105,27 @@ export const createMeeting = ah(async (req, res) => {
     if (recentDuplicate) return successResponse(res, recentDuplicate, 'Meeting scheduled successfully', 200);
   }
 
-  // Participants must be people in this organisation; mentors can only invite their own mentees.
+  // Parse external attendee email addresses
+  let externalAttendees = [];
+  if (req.body.externalAttendees) {
+    if (Array.isArray(req.body.externalAttendees)) {
+      externalAttendees = req.body.externalAttendees.map(e => String(e).toLowerCase().trim()).filter(Boolean);
+    } else if (typeof req.body.externalAttendees === 'string') {
+      externalAttendees = req.body.externalAttendees.split(/[,;\s]+/).map(e => e.toLowerCase().trim()).filter(Boolean);
+    }
+    // Validate emails
+    for (const email of externalAttendees) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw unprocessable(`Invalid external attendee email: ${email}`, [{ field: 'externalAttendees', message: `Invalid email address "${email}"` }]);
+      }
+    }
+  }
+
+  // Participants must be registered people in this organisation
   const participants = [...new Set([String(req.userId), ...(body.participants || [])])];
   const found = await User.countDocuments({ _id: { $in: participants }, organizationId: req.organizationId, isActive: true });
-  if (found !== participants.length) throw unprocessable('All participants must be active users in your organization.', [{ field: 'participants', message: 'Unknown participant' }]);
+  if (found !== participants.length) throw unprocessable('All participants must be active users in your organization.', [{ field: 'participants', message: 'Unknown or inactive participant' }]);
+
   let internIds = body.internIds || [];
   if (internIds.length) {
     const scoped = await Intern.find({ _id: { $in: internIds }, ...internScope(req) }).select('_id userId');
@@ -106,7 +141,8 @@ export const createMeeting = ah(async (req, res) => {
 
   if (meetingProvider === 'GOOGLE_MEET') {
     const attendeeUsers = await User.find({ _id: { $in: participants } }).select('email');
-    const attendeeEmails = attendeeUsers.map(u => u.email).filter(Boolean);
+    const registeredAttendeeEmails = attendeeUsers.map(u => u.email).filter(Boolean);
+    const allAttendees = [...new Set([...registeredAttendeeEmails, ...externalAttendees])];
 
     const gcal = await GoogleIntegrationService.createCalendarAndMeetEvent({
       organizationId: req.organizationId,
@@ -115,8 +151,9 @@ export const createMeeting = ah(async (req, res) => {
       scheduledDate: when.scheduledDate,
       startTime: when.startTime,
       endTime: when.endTime,
-      timezone: req.timezone || 'Asia/Kolkata',
-      attendees: attendeeEmails
+      timezone: body.timezone || req.timezone || 'Asia/Kolkata',
+      attendees: allAttendees,
+      requestId: body.idempotencyKey
     });
 
     googleCalendarEventId = gcal.eventId;
@@ -124,10 +161,10 @@ export const createMeeting = ah(async (req, res) => {
     googleMeetLink = gcal.meetLink;
     finalMeetingLink = gcal.meetLink;
   } else if (!finalMeetingLink && meetingProvider !== 'IN_PERSON') {
-    finalMeetingLink = `https://meet.jit.si/TMT-Meeting-${crypto.randomBytes(6).toString('hex')}`;
+    finalMeetingLink = `https://meet.jit.si/IMS-Meeting-${crypto.randomBytes(6).toString('hex')}`;
   }
 
-  // Calculate 2 reminders: 24 hours before (1440 min) and 15 minutes before (15 min)
+  // Calculate 2 default reminders: 24 hours before (1440 min) and 15 minutes before (15 min)
   const [startHour, startMin] = when.startTime.split(':').map(Number);
   const meetingStartTime = new Date(when.scheduledDate);
   meetingStartTime.setHours(startHour, startMin, 0, 0);
@@ -153,9 +190,11 @@ export const createMeeting = ah(async (req, res) => {
     type: body.type,
     participants,
     internIds,
+    externalAttendees,
     mentorId: req.userId,
     organizerId: req.userId,
     ...when,
+    timezone: body.timezone || req.timezone || 'Asia/Kolkata',
     meetingProvider,
     meetingLink: finalMeetingLink,
     googleCalendarEventId,
@@ -166,13 +205,15 @@ export const createMeeting = ah(async (req, res) => {
     agenda: body.agenda || body.description || '',
     description: body.description || body.agenda || '',
     projectId: body.projectId || undefined,
-    programId: body.programId || undefined
+    programId: body.programId || body.courseId || undefined,
+    bootcampId: body.bootcampId || undefined
   });
 
   await Promise.all(participants.filter(id => id !== String(req.userId)).map(id => createNotification({
     organizationId: req.organizationId, recipientId: id, type: 'MEETING_SCHEDULED', title: 'New Meeting Scheduled',
     message: `Meeting "${meeting.title}" on ${formatDateLong(when.scheduledDate, req.timezone)} at ${when.startTime}.`, entityType: 'Meeting', entityId: meeting._id
   })));
+
   await recordAuditLog({ action: 'MEETING_SCHEDULED', entityType: 'Meeting', entityId: meeting._id, after: { title: meeting.title, ...when, googleMeetLink }, req });
   return successResponse(res, meeting, 'Meeting scheduled successfully', 201);
 });
@@ -186,14 +227,18 @@ async function ownMeeting(req) {
 }
 
 export const rescheduleMeeting = ah(async (req, res) => {
-  const v = new Validator(req.body).string('scheduledDate', { required: true, max: 30 }).string('startTime', { required: true, max: 8 }).string('endTime', { required: true, max: 8 }).string('reason', { required: true, min: 3, max: 300 });
+  const v = new Validator(req.body)
+    .string('scheduledDate', { required: true, max: 30 })
+    .string('startTime', { required: true, max: 8 })
+    .string('endTime', { required: true, max: 8 })
+    .string('reason', { required: true, min: 3, max: 300 });
   const body = v.done();
   const meeting = await ownMeeting(req);
   if (!OPEN.includes(meeting.status)) throw conflict(`A ${meeting.status} meeting cannot be rescheduled.`, 'INVALID_TRANSITION');
   const when = slot(req, body);
   meeting.rescheduleHistory.push({ previousDate: meeting.scheduledDate, newDate: when.scheduledDate, reason: body.reason, changedBy: req.userId });
 
-  // Update Google Calendar event if connected
+  // Update Google Calendar event if synchronized
   if (meeting.googleCalendarEventId) {
     await GoogleIntegrationService.updateCalendarEvent({
       organizationId: req.organizationId,
@@ -201,11 +246,11 @@ export const rescheduleMeeting = ah(async (req, res) => {
       scheduledDate: when.scheduledDate,
       startTime: when.startTime,
       endTime: when.endTime,
-      timezone: req.timezone || 'Asia/Kolkata'
+      timezone: meeting.timezone || req.timezone || 'Asia/Kolkata'
     }).catch(err => console.error('Failed to update Google Calendar event on reschedule:', err));
   }
 
-  // Recalculate reminders
+  // Recalculate reminders with new time
   const [startHour, startMin] = when.startTime.split(':').map(Number);
   const meetingStartTime = new Date(when.scheduledDate);
   meetingStartTime.setHours(startHour, startMin, 0, 0);
@@ -217,10 +262,12 @@ export const rescheduleMeeting = ah(async (req, res) => {
 
   Object.assign(meeting, when, { status: 'RESCHEDULED' });
   await meeting.save();
+
   await Promise.all(meeting.participants.filter(id => String(id) !== String(req.userId)).map(id => createNotification({
     organizationId: req.organizationId, recipientId: id, type: 'MEETING_RESCHEDULED', title: 'Meeting Rescheduled',
     message: `Meeting "${meeting.title}" moved to ${formatDateLong(when.scheduledDate, req.timezone)} at ${when.startTime}.`, entityType: 'Meeting', entityId: meeting._id
   })));
+
   await recordAuditLog({ action: 'MEETING_RESCHEDULED', entityType: 'Meeting', entityId: meeting._id, after: { ...when, reason: body.reason }, req });
   return successResponse(res, meeting, 'Meeting rescheduled successfully');
 });
@@ -233,7 +280,7 @@ export const updateMeetingStatus = ah(async (req, res) => {
     if (!MEETING_TRANSITIONS[meeting.status]?.includes(body.status)) throw conflict(`Meeting cannot move from ${meeting.status} to ${body.status}.`, 'INVALID_TRANSITION');
     meeting.status = body.status;
 
-    // If cancelled, notify participants and update Google Calendar
+    // If cancelled, cancel Google Calendar event and cancel pending reminders
     if (body.status === 'CANCELLED') {
       if (meeting.googleCalendarEventId) {
         await GoogleIntegrationService.cancelCalendarEvent({
@@ -241,6 +288,11 @@ export const updateMeetingStatus = ah(async (req, res) => {
           eventId: meeting.googleCalendarEventId
         }).catch(err => console.error('Failed to cancel Google Calendar event:', err));
       }
+
+      meeting.reminders.forEach(r => {
+        if (r.status === 'SCHEDULED') r.status = 'CANCELLED';
+      });
+
       await Promise.all(meeting.participants.filter(id => String(id) !== String(req.userId)).map(id => createNotification({
         organizationId: req.organizationId, recipientId: id, type: 'MEETING_CANCELLED', title: 'Meeting Cancelled',
         message: `Meeting "${meeting.title}" has been cancelled.`, entityType: 'Meeting', entityId: meeting._id

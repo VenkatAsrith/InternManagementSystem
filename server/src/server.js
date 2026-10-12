@@ -5,6 +5,7 @@ import { connectDB, disconnectDB } from './config/db.js';
 import { logger } from './config/logger.js';
 import { expireStaleOffers } from './modules/offers/offer.provisioning.js';
 import { initChatSocket } from './modules/chat/chat.service.js';
+import { MeetingReminderService } from './modules/meetings/meetingReminder.service.js';
 
 async function startServer() {
   await connectDB();
@@ -25,6 +26,9 @@ async function startServer() {
   const sweep = setInterval(() => expireStaleOffers().catch(err => logger.error(`Offer expiry sweep failed: ${err.message}`)), 10 * 60 * 1000);
   sweep.unref();
   expireStaleOffers().catch(err => logger.error(`Initial offer expiry sweep failed: ${err.message}`));
+
+  // Automated meeting reminders worker (24h and 15m notifications)
+  MeetingReminderService.startWorker();
 
   const shutdown = async (signal) => {
     logger.info(`${signal} received. Initiating graceful shutdown...`);

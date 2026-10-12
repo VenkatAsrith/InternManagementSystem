@@ -1,0 +1,112 @@
+{
+  "timestamp": "2026-10-10T14:25:36.432Z",
+  "environment": "development",
+  "counts": {
+    "testUsers": 19,
+    "interns": 19,
+    "meetings": 7,
+    "bootcamps": 2,
+    "passes": 6,
+    "trainingPrograms": 15,
+    "courses": 0,
+    "trainingBatches": 0,
+    "trainingEngagements": 6,
+    "traineeTasks": 2,
+    "traineeAttendances": 2,
+    "traineeActivities": 17,
+    "traineeAssessments": 2,
+    "certificates": 2,
+    "onboardingPlans": 18,
+    "onboardingTasks": 30,
+    "applications": 0,
+    "candidates": 0,
+    "interviews": 0,
+    "offers": 0,
+    "projects": 0,
+    "tasks": 0,
+    "submissions": 0,
+    "attendance": 0,
+    "journals": 0,
+    "reviews": 0,
+    "feedbacks": 0,
+    "leaves": 0,
+    "assets": 0,
+    "exits": 0,
+    "payments": 0,
+    "googleIntegrations": 2,
+    "conversations": 6,
+    "chatMessages": 4
+  },
+  "demoUserEmails": [
+    "paid.intern.1791632059350@example.com",
+    "paid.intern.1791632332555@example.com",
+    "paid.intern.1791632563947@example.com",
+    "paid.intern.1791632751634@example.com",
+    "paid.intern.1791632822486@example.com",
+    "paid.intern.1791632850644@example.com",
+    "paid.intern.1791632909186@example.com",
+    "paid.intern.1791633019690@example.com",
+    "ref.intern.1791632059461@example.com",
+    "ref.intern.1791632332674@example.com",
+    "ref.intern.1791632564070@example.com",
+    "ref.intern.1791632822612@example.com",
+    "ref.intern.1791632850752@example.com",
+    "ref.intern.1791632909312@example.com",
+    "ref.intern.1791633019815@example.com",
+    "rohan.debug@example.com",
+    "test.debug@example.com",
+    "test.intern@techmecha.com",
+    "venkatasrith29@gmail.com"
+  ],
+  "meetings": [
+    {
+      "title": "Sprint Kickoff & Architecture Review",
+      "link": "https://meet.google.com/ork-apkf-ozl"
+    },
+    {
+      "title": "Sprint Kickoff & Architecture Review",
+      "link": "https://meet.google.com/fsn-kfsg-fmt"
+    },
+    {
+      "title": "Sprint Kickoff & Architecture Review",
+      "link": "https://meet.google.com/opt-vaps-spm"
+    },
+    {
+      "title": "Sprint Kickoff & Architecture Review",
+      "link": "https://meet.google.com/pqb-qsxp-vdo"
+    },
+    {
+      "title": "Sprint Kickoff & Architecture Review",
+      "link": "https://meet.google.com/uve-hlxl-cld"
+    },
+    {
+      "title": "Instant Google Meet Sync",
+      "link": "https://meet.google.com/faa-vcka-zbn"
+    },
+    {
+      "title": "Instant Google Meet Sync",
+      "link": "https://meet.google.com/kgb-xpxy-daw"
+    }
+  ],
+  "bootcamps": [
+    "Full Stack Web Development Bootcamp 2026",
+    "thebsnksl"
+  ],
+  "programs": [
+    "Full Stack Cloud Mastery 1790609063044",
+    "Full Stack Cloud Mastery 1790609123216",
+    "Full Stack Cloud Mastery 1790609146990",
+    "C program",
+    "cxzgd",
+    "FSW",
+    "tyui",
+    "cvj",
+    "Full Stack MERN Mastery",
+    "Full Stack MERN Mastery",
+    "Full Stack MERN Mastery",
+    "Full Stack MERN Mastery",
+    "Full Stack MERN Mastery",
+    "Full Stack MERN Mastery",
+    "Full Stack MERN Mastery"
+  ]
+}

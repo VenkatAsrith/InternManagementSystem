@@ -1,476 +1,476 @@
-2026-09-27 11:52:14 [[32minfo[39m]: MongoDB Connected: 127.0.0.1/tmt_qa
-2026-09-27 11:52:14 [[32minfo[39m]: ========================================================
-2026-09-27 11:52:14 [[32minfo[39m]: IMS Backend Server running on http://localhost:5100
-2026-09-27 11:52:14 [[32minfo[39m]: Environment: qa
-2026-09-27 11:52:14 [[32minfo[39m]: Health check: http://localhost:5100/health
-2026-09-27 11:52:14 [[32minfo[39m]: API Base URL: http://localhost:5100/api/v1
-2026-09-27 11:52:14 [[32minfo[39m]: ========================================================
-[0mGET /health [32m200[0m 2.402 ms - 96[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/auth/login -> 401 INVALID_CREDENTIALS
-[0mPOST /api/v1/auth/login [33m401[0m 34.802 ms - 148[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/auth/login -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/auth/login [33m422[0m 1.977 ms - 235[0m
-[0mGET /api/v1/recruitment/applications?token=abc [33m401[0m 0.515 ms - 105[0m
-[0mPOST /api/v1/auth/login [32m200[0m 31.277 ms - 1956[0m
-[0mPOST /api/v1/auth/login [32m200[0m 19.127 ms - 1587[0m
-[0mPOST /api/v1/auth/login [32m200[0m 19.576 ms - 1512[0m
-[0mPOST /api/v1/auth/login [32m200[0m 16.520 ms - 1621[0m
-[0mPOST /api/v1/auth/login [32m200[0m 19.170 ms - 1526[0m
-[0mPOST /api/v1/auth/login [32m200[0m 17.912 ms - 1949[0m
-[0mPOST /api/v1/auth/login [32m200[0m 14.213 ms - 1907[0m
-[0mGET /api/v1/recruitment/applications?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YWI4YjYxNTc0NGY3ZmU4MjcwZDRjNDciLCJlbWFpbCI6InFhLmhyYWRtaW5AdG10LXFhLnRlc3QiLCJyb2xlIjoiSFJfQURNSU4iLCJvcmdhbml6YXRpb25JZCI6IjZhYjhiNjE1NzQ0ZjdmZTgyNzBkNGMzOSIsImlhdCI6MTc5MDQ5MDEzNSwiZXhwIjoxNzkwNDk3MzM1fQ.Wev8SNMqTgo88LW27VB_Zo8PylJaJvTOAppwyfnzIFk [33m401[0m 1.092 ms - 105[0m
-[0mGET /api/v1/auth/me [32m200[0m 9.324 ms - 1362[0m
-[0mGET /api/v1/recruitment/applications [33m403[0m 6.217 ms - 117[0m
-[0mGET /api/v1/recruitment/applications [32m200[0m 28.505 ms - 3938[0m
-[0mPOST /api/v1/auth/login [32m200[0m 11.638 ms - 1635[0m
-[0mGET /api/v1/recruitment/applications [32m200[0m 12.064 ms - 3938[0m
-[0mPOST /api/v1/auth/login [32m200[0m 12.692 ms - 1635[0m
-[0mGET /api/v1/audit-logs [32m200[0m 8.705 ms - 4368[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/users -> 403 ROLE_NOT_ASSIGNABLE
-[0mPOST /api/v1/users [33m403[0m 5.371 ms - 177[0m
-[0mGET /api/v1/offers [33m403[0m 10.672 ms - 111[0m
-[0mPOST /api/v1/auth/login [32m200[0m 18.581 ms - 1504[0m
-[0mGET /api/v1/finance/payments [32m200[0m 9.166 ms - 228[0m
-[0mPOST /api/v1/auth/login [32m200[0m 11.065 ms - 1504[0m
-[0mPOST /api/v1/finance/generate-cycle [33m403[0m 4.794 ms - 114[0m
-[0mPOST /api/v1/recruitment/applications/public [32m201[0m 36.345 ms - 226[0m
-2026-09-27 11:52:15 [[32minfo[39m]: [Email (Simulated)] To: qa.golden.1790490135645@tmt-qa.test | Subject: "We received your application (APP-2026-000007)" | MsgID: simulated-1790490135685-u5wvq0p
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/recruitment/applications/public -> 409 DUPLICATE_APPLICATION
-[0mPOST /api/v1/recruitment/applications/public [33m409[0m 7.367 ms - 245[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/recruitment/applications/public -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/recruitment/applications/public [33m422[0m 1.568 ms - 245[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/recruitment/applications/public -> 409 OPENING_CLOSED
-[0mPOST /api/v1/recruitment/applications/public [33m409[0m 2.843 ms - 187[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/recruitment/applications/public -> 415 FILE_CONTENT_MISMATCH
-[0mPOST /api/v1/recruitment/applications/public [33m415[0m 1.246 ms - 194[0m
-[0mGET /api/v1/recruitment/applications/public/status/APP-2026-000007 [32m200[0m 5.232 ms - 466[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: GET /api/v1/recruitment/applications/public/status/APP-1-1 -> 404 APPLICATION_NOT_FOUND
-[0mGET /api/v1/recruitment/applications/public/status/APP-1-1 [33m404[0m 1.043 ms - 172[0m
-[0mGET /api/v1/recruitment/applications?search=Golden [32m200[0m 15.634 ms - 1222[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: PATCH /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda/stage -> 409 INVALID_TRANSITION
-[0mPATCH /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda/stage [33m409[0m 7.891 ms - 371[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: PATCH /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda/stage -> 409 INVALID_TRANSITION
-[0mPATCH /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda/stage [33m409[0m 7.136 ms - 377[0m
-[0mPATCH /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda/stage [32m200[0m 14.710 ms - 2117[0m
-[0mPATCH /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda/stage [32m200[0m 11.382 ms - 2315[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: PATCH /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda/stage -> 409 SCORECARD_REQUIRED
-[0mPATCH /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda/stage [33m409[0m 10.354 ms - 197[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/interviews [33m422[0m 28.371 ms - 251[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/interviews [33m422[0m 11.975 ms - 249[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/interviews [33m422[0m 3.686 ms - 248[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/interviews [33m422[0m 9.722 ms - 225[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/interviews [33m422[0m 3.633 ms - 248[0m
-[0mPOST /api/v1/interviews [32m201[0m 25.183 ms - 787[0m
-2026-09-27 11:52:15 [[32minfo[39m]: [Email (Simulated)] To: qa.golden.1790490135645@tmt-qa.test | Subject: "Interview scheduled: QA Software Engineering Intern" | MsgID: simulated-1790490135888-15si0ps
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/interviews -> 409 INVALID_APPLICATION_STATE
-[0mPOST /api/v1/interviews [33m409[0m 7.268 ms - 234[0m
-[0mGET /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda [32m200[0m 14.362 ms - 4610[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/interviews/6ab8b6177eab8c0a85767d4d/feedback -> 403 NOT_ON_PANEL
-[0mPOST /api/v1/interviews/6ab8b6177eab8c0a85767d4d/feedback [33m403[0m 6.279 ms - 181[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/interviews/6ab8b6177eab8c0a85767d4d/feedback -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/interviews/6ab8b6177eab8c0a85767d4d/feedback [33m422[0m 4.360 ms - 267[0m
-2026-09-27 11:52:15 [[34mdebug[39m]: POST /api/v1/interviews/6ab8b6177eab8c0a85767d4d/feedback -> 409 FEEDBACK_ALREADY_SUBMITTED
-[0mPOST /api/v1/interviews/6ab8b6177eab8c0a85767d4d/feedback [33m409[0m 14.272 ms - 185[0m
-[0mPOST /api/v1/interviews/6ab8b6177eab8c0a85767d4d/feedback [32m200[0m 27.607 ms - 1337[0m
-[0mGET /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda [32m200[0m 17.107 ms - 4236[0m
-[0mPATCH /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda/stage [32m200[0m 14.233 ms - 2965[0m
-[0mGET /api/v1/users?role=MENTOR [32m200[0m 12.527 ms - 809[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/offers -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/offers [33m422[0m 13.538 ms - 292[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/offers -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/offers [33m422[0m 4.346 ms - 257[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/offers -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/offers [33m422[0m 13.948 ms - 264[0m
-[0mPOST /api/v1/offers [32m201[0m 32.139 ms - 984[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/offers -> 409 INVALID_APPLICATION_STATE
-[0mPOST /api/v1/offers [33m409[0m 9.087 ms - 205[0m
-[0mGET /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda [32m200[0m 13.504 ms - 6300[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/offers/6ab8b6187eab8c0a85767dd8/accept -> 409 OFFER_NOT_SENT
-[0mPOST /api/v1/offers/6ab8b6187eab8c0a85767dd8/accept [33m409[0m 10.585 ms - 165[0m
-[0mPOST /api/v1/offers/6ab8b6187eab8c0a85767dd8/send [32m200[0m 19.018 ms - 1141[0m
-2026-09-27 11:52:16 [[32minfo[39m]: [Email (Simulated)] To: qa.golden.1790490135645@tmt-qa.test | Subject: "Your internship offer: QA Software Engineering Intern Internship Offer" | MsgID: simulated-1790490136140-209fzo3
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/offers/6ab8b6187eab8c0a85767dd8/send -> 409 OFFER_NOT_DRAFT
-[0mPOST /api/v1/offers/6ab8b6187eab8c0a85767dd8/send [33m409[0m 10.759 ms - 162[0m
-[0mGET /api/v1/offers [33m403[0m 4.939 ms - 111[0m
-[0mPOST /api/v1/offers/6ab8b6187eab8c0a85767dd8/accept [33m403[0m 3.714 ms - 113[0m
-[0mGET /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg [32m200[0m 14.681 ms - 667[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: GET /api/v1/offers/public/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx -> 404 OFFER_LINK_INVALID
-[0mGET /api/v1/offers/public/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx [33m404[0m 2.130 ms - 171[0m
-2026-09-27 11:52:16 [[33mwarn[39m]: Offer acceptance failed for OFFER-2026-000001 (QA fault injected after step 'onboarding'). Rolling back 5 step(s).
-2026-09-27 11:52:16 [[31merror[39m]: POST /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg/accept - Error: QA fault injected after step 'onboarding'
+2026-10-09 13:34:13 [[32minfo[39m]: MongoDB Connected: 127.0.0.1/tmt_qa
+2026-10-09 13:34:14 [[32minfo[39m]: ========================================================
+2026-10-09 13:34:14 [[32minfo[39m]: IMS Backend Server running on http://localhost:5100
+2026-10-09 13:34:14 [[32minfo[39m]: Environment: qa
+2026-10-09 13:34:14 [[32minfo[39m]: Health check: http://localhost:5100/health
+2026-10-09 13:34:14 [[32minfo[39m]: API Base URL: http://localhost:5100/api/v1
+2026-10-09 13:34:14 [[32minfo[39m]: ========================================================
+[0mGET /health [32m200[0m 2.767 ms - 96[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: POST /api/v1/auth/login -> 401 INVALID_CREDENTIALS
+[0mPOST /api/v1/auth/login [33m401[0m 64.369 ms - 148[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: POST /api/v1/auth/login -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/auth/login [33m422[0m 3.051 ms - 235[0m
+[0mGET /api/v1/recruitment/applications?token=abc [33m401[0m 0.700 ms - 105[0m
+[0mPOST /api/v1/auth/login [32m200[0m 29.314 ms - 1970[0m
+[0mPOST /api/v1/auth/login [32m200[0m 17.328 ms - 1587[0m
+[0mPOST /api/v1/auth/login [32m200[0m 15.370 ms - 1512[0m
+[0mPOST /api/v1/auth/login [32m200[0m 18.345 ms - 1621[0m
+[0mPOST /api/v1/auth/login [32m200[0m 14.505 ms - 1526[0m
+[0mPOST /api/v1/auth/login [32m200[0m 10.398 ms - 1989[0m
+[0mPOST /api/v1/auth/login [32m200[0m 11.713 ms - 1907[0m
+[0mGET /api/v1/recruitment/applications?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YWM4OWZmYzIwNzRiYzg2MGQ5MmM2M2IiLCJlbWFpbCI6InFhLmhyYWRtaW5AdG10LXFhLnRlc3QiLCJyb2xlIjoiSFJfQURNSU4iLCJvcmdhbml6YXRpb25JZCI6IjZhYzg5ZmZjMjA3NGJjODYwZDkyYzYyZCIsImlhdCI6MTc5MTUzMzA1NCwiZXhwIjoxNzkxNTQwMjU0fQ.XHwh1lIrzw_yzi9nnuzpS61dp2n8kSuoLWbsCow8oYE [33m401[0m 0.380 ms - 105[0m
+[0mGET /api/v1/auth/me [32m200[0m 8.994 ms - 1422[0m
+[0mGET /api/v1/recruitment/applications [33m403[0m 5.397 ms - 117[0m
+[0mGET /api/v1/recruitment/applications [32m200[0m 16.375 ms - 3938[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.451 ms - 1635[0m
+[0mGET /api/v1/recruitment/applications [32m200[0m 13.111 ms - 3938[0m
+[0mPOST /api/v1/auth/login [32m200[0m 16.944 ms - 1635[0m
+[0mGET /api/v1/audit-logs [32m200[0m 7.198 ms - 4368[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: POST /api/v1/users -> 403 ROLE_NOT_ASSIGNABLE
+[0mPOST /api/v1/users [33m403[0m 6.449 ms - 177[0m
+[0mGET /api/v1/offers [33m403[0m 4.412 ms - 111[0m
+[0mPOST /api/v1/auth/login [32m200[0m 11.968 ms - 1504[0m
+[0mGET /api/v1/finance/payments [32m200[0m 10.457 ms - 228[0m
+[0mPOST /api/v1/auth/login [32m200[0m 11.213 ms - 1504[0m
+[0mPOST /api/v1/finance/generate-cycle [33m403[0m 4.620 ms - 114[0m
+[0mPOST /api/v1/recruitment/applications/public [32m201[0m 41.226 ms - 226[0m
+2026-10-09 13:34:14 [[32minfo[39m]: [Email (Simulated)] To: qa.golden.1791533054783@tmt-qa.test | Subject: "We received your application (APP-2026-000007)" | MsgID: simulated-1791533054829-lnfru97
+2026-10-09 13:34:14 [[34mdebug[39m]: POST /api/v1/recruitment/applications/public -> 409 DUPLICATE_APPLICATION
+[0mPOST /api/v1/recruitment/applications/public [33m409[0m 9.422 ms - 245[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: POST /api/v1/recruitment/applications/public -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/recruitment/applications/public [33m422[0m 1.537 ms - 245[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: POST /api/v1/recruitment/applications/public -> 409 OPENING_CLOSED
+[0mPOST /api/v1/recruitment/applications/public [33m409[0m 3.087 ms - 187[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: POST /api/v1/recruitment/applications/public -> 415 FILE_CONTENT_MISMATCH
+[0mPOST /api/v1/recruitment/applications/public [33m415[0m 1.718 ms - 194[0m
+[0mGET /api/v1/recruitment/applications/public/status/APP-2026-000007 [32m200[0m 5.912 ms - 466[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: GET /api/v1/recruitment/applications/public/status/APP-1-1 -> 404 APPLICATION_NOT_FOUND
+[0mGET /api/v1/recruitment/applications/public/status/APP-1-1 [33m404[0m 1.003 ms - 172[0m
+[0mGET /api/v1/recruitment/applications?search=Golden [32m200[0m 22.103 ms - 1222[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: PATCH /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f/stage -> 409 INVALID_TRANSITION
+[0mPATCH /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f/stage [33m409[0m 10.205 ms - 371[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: PATCH /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f/stage -> 409 INVALID_TRANSITION
+[0mPATCH /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f/stage [33m409[0m 9.255 ms - 377[0m
+[0mPATCH /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f/stage [32m200[0m 19.579 ms - 2117[0m
+[0mPATCH /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f/stage [32m200[0m 18.037 ms - 2315[0m
+2026-10-09 13:34:14 [[34mdebug[39m]: PATCH /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f/stage -> 409 SCORECARD_REQUIRED
+[0mPATCH /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f/stage [33m409[0m 18.066 ms - 197[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/interviews [33m422[0m 35.456 ms - 251[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/interviews [33m422[0m 13.862 ms - 249[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/interviews [33m422[0m 6.418 ms - 248[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/interviews [33m422[0m 10.916 ms - 225[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/interviews -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/interviews [33m422[0m 4.247 ms - 248[0m
+[0mPOST /api/v1/interviews [32m201[0m 30.981 ms - 787[0m
+2026-10-09 13:34:15 [[32minfo[39m]: [Email (Simulated)] To: qa.golden.1791533054783@tmt-qa.test | Subject: "Interview scheduled: QA Software Engineering Intern" | MsgID: simulated-1791533055093-qa0pk10
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/interviews -> 409 INVALID_APPLICATION_STATE
+[0mPOST /api/v1/interviews [33m409[0m 10.580 ms - 234[0m
+[0mGET /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f [32m200[0m 19.565 ms - 4608[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/interviews/6ac89fffb7a160b22c8aa4b2/feedback -> 403 NOT_ON_PANEL
+[0mPOST /api/v1/interviews/6ac89fffb7a160b22c8aa4b2/feedback [33m403[0m 6.538 ms - 181[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/interviews/6ac89fffb7a160b22c8aa4b2/feedback -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/interviews/6ac89fffb7a160b22c8aa4b2/feedback [33m422[0m 5.106 ms - 267[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/interviews/6ac89fffb7a160b22c8aa4b2/feedback -> 409 FEEDBACK_ALREADY_SUBMITTED
+[0mPOST /api/v1/interviews/6ac89fffb7a160b22c8aa4b2/feedback [33m409[0m 15.990 ms - 185[0m
+[0mPOST /api/v1/interviews/6ac89fffb7a160b22c8aa4b2/feedback [32m200[0m 29.939 ms - 1337[0m
+[0mGET /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f [32m200[0m 16.040 ms - 4234[0m
+[0mPATCH /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f/stage [32m200[0m 14.724 ms - 2963[0m
+[0mGET /api/v1/users?role=MENTOR [32m200[0m 17.363 ms - 809[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/offers -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/offers [33m422[0m 17.075 ms - 292[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/offers -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/offers [33m422[0m 5.358 ms - 257[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/offers -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/offers [33m422[0m 11.212 ms - 264[0m
+[0mPOST /api/v1/offers [32m201[0m 39.698 ms - 984[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/offers -> 409 INVALID_APPLICATION_STATE
+[0mPOST /api/v1/offers [33m409[0m 8.873 ms - 205[0m
+[0mGET /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f [32m200[0m 14.595 ms - 6298[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/offers/6ac89fffb7a160b22c8aa53d/accept -> 409 OFFER_NOT_SENT
+[0mPOST /api/v1/offers/6ac89fffb7a160b22c8aa53d/accept [33m409[0m 10.626 ms - 165[0m
+[0mPOST /api/v1/offers/6ac89fffb7a160b22c8aa53d/send [32m200[0m 18.485 ms - 1141[0m
+2026-10-09 13:34:15 [[32minfo[39m]: [Email (Simulated)] To: qa.golden.1791533054783@tmt-qa.test | Subject: "Your internship offer: QA Software Engineering Intern Internship Offer" | MsgID: simulated-1791533055378-ne0xbf1
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/offers/6ac89fffb7a160b22c8aa53d/send -> 409 OFFER_NOT_DRAFT
+[0mPOST /api/v1/offers/6ac89fffb7a160b22c8aa53d/send [33m409[0m 8.085 ms - 162[0m
+[0mGET /api/v1/offers [33m403[0m 4.370 ms - 111[0m
+[0mPOST /api/v1/offers/6ac89fffb7a160b22c8aa53d/accept [33m403[0m 3.926 ms - 113[0m
+[0mGET /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08 [32m200[0m 17.871 ms - 667[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: GET /api/v1/offers/public/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx -> 404 OFFER_LINK_INVALID
+[0mGET /api/v1/offers/public/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx [33m404[0m 3.050 ms - 171[0m
+2026-10-09 13:34:15 [[33mwarn[39m]: Offer acceptance failed for OFFER-2026-000001 (QA fault injected after step 'onboarding'). Rolling back 5 step(s).
+2026-10-09 13:34:15 [[31merror[39m]: POST /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08/accept - Error: QA fault injected after step 'onboarding'
     at maybeInjectFault (file:///D:/SeptClaude2026/InternManagementSystem/server/src/modules/offers/offer.provisioning.js:48:11)
     at acceptOfferAtomically (file:///D:/SeptClaude2026/InternManagementSystem/server/src/modules/offers/offer.provisioning.js:186:5)
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
     at async file:///D:/SeptClaude2026/InternManagementSystem/server/src/modules/offers/offer.controller.js:269:18
-[0mPOST /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg/accept [31m500[0m 38.872 ms - 188[0m
-[0mGET /api/v1/offers/6ab8b6187eab8c0a85767dd8 [32m200[0m 12.065 ms - 2457[0m
-[0mGET /api/v1/recruitment/applications/6ab8b6177eab8c0a85767cda [32m200[0m 15.124 ms - 5063[0m
-[0mGET /api/v1/interns?search=qa.golden.1790490135645 [32m200[0m 11.388 ms - 126[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/auth/login -> 401 INVALID_CREDENTIALS
-[0mPOST /api/v1/auth/login [33m401[0m 66.949 ms - 148[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg/accept -> 409 OFFER_ALREADY_ACCEPTED
-[0mPOST /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg/accept [33m409[0m 11.559 ms - 173[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg/accept -> 409 OFFER_ALREADY_ACCEPTED
-[0mPOST /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg/accept [33m409[0m 12.020 ms - 173[0m
-[0mPOST /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg/accept [32m200[0m 39.703 ms - 296[0m
-2026-09-27 11:52:16 [[32minfo[39m]: [Email (Simulated)] To: qa.golden.1790490135645@tmt-qa.test | Subject: "Welcome to QA Engineering Internship" | MsgID: simulated-1790490136383-d4vehd1
-[0mGET /api/v1/interns?search=qa.golden.1790490135645 [32m200[0m 12.219 ms - 1215[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg/accept -> 404 OFFER_LINK_INVALID
-[0mPOST /api/v1/offers/public/W6NBfsis5UDkuIEDvFIZg0ClxetHUQZBFgCRTXgJmmg/accept [33m404[0m 2.135 ms - 171[0m
-[0mGET /api/v1/onboarding [32m200[0m 9.604 ms - 880[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/auth/setup-password -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/auth/setup-password [33m422[0m 0.793 ms - 239[0m
-[0mPOST /api/v1/auth/setup-password [32m200[0m 18.216 ms - 2026[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/auth/setup-password -> 400 SETUP_TOKEN_INVALID
-[0mPOST /api/v1/auth/setup-password [33m400[0m 2.124 ms - 200[0m
-[0mPOST /api/v1/auth/login [32m200[0m 12.052 ms - 1956[0m
-[0mPOST /api/v1/auth/login [32m200[0m 13.592 ms - 1621[0m
-[0mPOST /api/v1/auth/login [32m200[0m 13.302 ms - 1526[0m
-[0mPOST /api/v1/auth/login [32m200[0m 13.315 ms - 1541[0m
-[0mPOST /api/v1/auth/login [32m200[0m 12.678 ms - 1907[0m
-[0mPOST /api/v1/auth/login [32m200[0m 12.201 ms - 1546[0m
-[0mPOST /api/v1/auth/login [32m200[0m 13.459 ms - 1504[0m
-[0mPOST /api/v1/auth/login [32m200[0m 13.789 ms - 2024[0m
-[0mGET /api/v1/onboarding/my-plan [32m200[0m 10.819 ms - 5258[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: PATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767eaf -> 403 FORBIDDEN
-[0mPATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767eaf [33m403[0m 8.158 ms - 160[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: PATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767ea9 -> 403 FORBIDDEN
-[0mPATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767ea9 [33m403[0m 7.625 ms - 160[0m
-[0mGET /api/v1/onboarding [33m403[0m 4.197 ms - 115[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/documents/upload -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/documents/upload [33m422[0m 9.435 ms - 214[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: POST /api/v1/documents/upload -> 415 FILE_CONTENT_MISMATCH
-[0mPOST /api/v1/documents/upload [33m415[0m 5.251 ms - 194[0m
-[0mPOST /api/v1/documents/upload [32m201[0m 24.349 ms - 892[0m
-[0mPOST /api/v1/documents/upload [32m201[0m 24.363 ms - 894[0m
-[0mPOST /api/v1/documents/upload [32m201[0m 21.319 ms - 889[0m
-[0mPOST /api/v1/documents/upload [32m201[0m 22.068 ms - 893[0m
-[0mPOST /api/v1/documents/upload [32m201[0m 20.103 ms - 887[0m
-[0mGET /api/v1/interns/6ab8b6187eab8c0a85767ea5 [32m200[0m 17.301 ms - 2207[0m
-[0mGET /api/v1/documents/6ab8b6187eab8c0a85767f3d/download [33m403[0m 5.132 ms - 122[0m
-[0mPOST /api/v1/auth/login [32m200[0m 13.880 ms - 1949[0m
-2026-09-27 11:52:16 [[34mdebug[39m]: GET /api/v1/documents/6ab8b6187eab8c0a85767f3d/download -> 404 NOT_FOUND
-[0mGET /api/v1/documents/6ab8b6187eab8c0a85767f3d/download [33m404[0m 8.338 ms - 128[0m
-[0mGET /api/v1/documents/6ab8b6187eab8c0a85767f3d/download [32m200[0m 18.551 ms - -[0m
-[0mPOST /api/v1/documents/6ab8b6187eab8c0a85767f3d/approve [33m403[0m 6.130 ms - 117[0m
-[0mPOST /api/v1/documents/upload [32m201[0m 36.608 ms - 889[0m
-[0mPOST /api/v1/documents/6ab8b6187eab8c0a85767f7b/reject [32m200[0m 27.880 ms - 931[0m
-[0mGET /api/v1/onboarding/my-plan [32m200[0m 20.994 ms - 6017[0m
-[0mPOST /api/v1/documents/upload [32m201[0m 45.636 ms - 887[0m
-[0mPOST /api/v1/documents/6ab8b6187eab8c0a85767f3d/approve [32m200[0m 28.655 ms - 959[0m
-[0mPOST /api/v1/documents/6ab8b6187eab8c0a85767f4e/approve [32m200[0m 19.247 ms - 961[0m
-[0mPOST /api/v1/documents/6ab8b6187eab8c0a85767fab/approve [32m200[0m 17.473 ms - 956[0m
-[0mPOST /api/v1/documents/6ab8b6187eab8c0a85767f6c/approve [32m200[0m 16.054 ms - 960[0m
-[0mPOST /api/v1/documents/6ab8b6197eab8c0a85767fcd/approve [32m200[0m 14.430 ms - 954[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/documents/6ab8b6197eab8c0a85767fcd/approve -> 409 INVALID_TRANSITION
-[0mPOST /api/v1/documents/6ab8b6197eab8c0a85767fcd/approve [33m409[0m 8.521 ms - 158[0m
-[0mPATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767eae [32m200[0m 15.182 ms - 660[0m
-[0mGET /api/v1/interns/6ab8b6187eab8c0a85767ea5 [32m200[0m 14.165 ms - 2208[0m
-[0mPATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767eaf [32m200[0m 16.617 ms - 655[0m
-[0mPATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767eb0 [32m200[0m 17.879 ms - 662[0m
-[0mPATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767eb1 [32m200[0m 17.629 ms - 661[0m
-[0mPATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767eb2 [32m200[0m 20.577 ms - 658[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: PATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767eaf -> 409 ONBOARDING_LOCKED
-[0mPATCH /api/v1/onboarding/tasks/6ab8b6187eab8c0a85767eaf [33m409[0m 7.619 ms - 173[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/attendance/check-in -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/attendance/check-in [33m422[0m 6.641 ms - 260[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/attendance/check-out -> 409 NOT_CHECKED_IN
-[0mPOST /api/v1/attendance/check-out [33m409[0m 8.341 ms - 166[0m
-[0mPOST /api/v1/attendance/check-in [32m201[0m 16.611 ms - 500[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/attendance/check-in -> 409 ALREADY_CHECKED_IN
-[0mPOST /api/v1/attendance/check-in [33m409[0m 15.200 ms - 153[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/attendance/check-out -> 409 ALREADY_CHECKED_OUT
-[0mPOST /api/v1/attendance/check-out [33m409[0m 12.907 ms - 155[0m
-[0mPOST /api/v1/attendance/check-out [32m200[0m 15.970 ms - 545[0m
-[0mGET /api/v1/attendance/today [32m200[0m 8.507 ms - 537[0m
-[0mPATCH /api/v1/attendance/6ab8b6197eab8c0a85768078 [33m403[0m 4.745 ms - 117[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: PATCH /api/v1/attendance/6ab8b6197eab8c0a85768078 -> 422 VALIDATION_ERROR
-[0mPATCH /api/v1/attendance/6ab8b6197eab8c0a85768078 [33m422[0m 4.822 ms - 236[0m
-[0mPATCH /api/v1/attendance/6ab8b6197eab8c0a85768078 [32m200[0m 8.947 ms - 639[0m
-[0mGET /api/v1/attendance/summary [32m200[0m 8.792 ms - 263[0m
-[0mPOST /api/v1/attendance/check-in [33m403[0m 4.672 ms - 119[0m
-[0mGET /api/v1/auth/me [32m200[0m 7.922 ms - 1416[0m
-[0mPOST /api/v1/tasks [33m403[0m 4.098 ms - 112[0m
-[0mPOST /api/v1/tasks [32m201[0m 22.669 ms - 510[0m
-[0mPOST /api/v1/auth/login [32m200[0m 14.651 ms - 1627[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/tasks -> 403 NOT_YOUR_MENTEE
-[0mPOST /api/v1/tasks [33m403[0m 11.364 ms - 167[0m
-[0mPATCH /api/v1/tasks/6ab8b6197eab8c0a857680ac [33m403[0m 4.636 ms - 112[0m
-[0mPATCH /api/v1/tasks/6ab8b6197eab8c0a857680ac [32m200[0m 14.072 ms - 513[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/tasks/6ab8b6197eab8c0a857680ac/submit -> 409 INVALID_TRANSITION
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/submit [33m409[0m 10.449 ms - 177[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/tasks/6ab8b6197eab8c0a857680ac/status -> 409 INVALID_TRANSITION
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/status [33m409[0m 8.230 ms - 277[0m
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/status [32m200[0m 10.106 ms - 520[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/tasks/6ab8b6197eab8c0a857680ac/submit -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/submit [33m422[0m 5.768 ms - 204[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/tasks/6ab8b6197eab8c0a857680ac/submit -> 409 ALREADY_SUBMITTED
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/submit [33m409[0m 10.791 ms - 150[0m
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/submit [32m201[0m 20.372 ms - 967[0m
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/review [33m403[0m 4.965 ms - 112[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/tasks/6ab8b6197eab8c0a857680ac/review -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/review [33m422[0m 11.662 ms - 250[0m
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/review [32m200[0m 16.076 ms - 1075[0m
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/status [32m200[0m 10.381 ms - 520[0m
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/submit [32m201[0m 13.663 ms - 877[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/tasks/6ab8b6197eab8c0a857680ac/review -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/review [33m422[0m 12.253 ms - 250[0m
-[0mGET /api/v1/tasks/6ab8b6197eab8c0a857680ac [32m200[0m 19.008 ms - 1968[0m
-[0mPOST /api/v1/tasks/6ab8b6197eab8c0a857680ac/review [32m200[0m 26.539 ms - 995[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: GET /api/v1/tasks/6ab8b615744f7fe8270d4ccb -> 404 NOT_FOUND
-[0mGET /api/v1/tasks/6ab8b615744f7fe8270d4ccb [33m404[0m 10.153 ms - 124[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/journals -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/journals [33m422[0m 4.759 ms - 253[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/journals -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/journals [33m422[0m 4.098 ms - 246[0m
-[0mPOST /api/v1/journals [32m201[0m 13.554 ms - 595[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/journals -> 409 JOURNAL_EXISTS
-[0mPOST /api/v1/journals [33m409[0m 8.829 ms - 208[0m
-[0mPOST /api/v1/journals/6ab8b6197eab8c0a8576813b/review [33m403[0m 4.366 ms - 115[0m
-[0mPOST /api/v1/journals/6ab8b6197eab8c0a8576813b/review [32m200[0m 13.489 ms - 682[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/journals/6ab8b6197eab8c0a8576813b/review -> 409 ALREADY_REVIEWED
-[0mPOST /api/v1/journals/6ab8b6197eab8c0a8576813b/review [33m409[0m 10.188 ms - 156[0m
-[0mPOST /api/v1/performance/reviews [33m403[0m 4.846 ms - 118[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/performance/reviews -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/performance/reviews [33m422[0m 6.215 ms - 239[0m
-[0mPOST /api/v1/performance/reviews [32m201[0m 17.023 ms - 1571[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/performance/reviews -> 409 REVIEW_ALREADY_OPEN
-[0mPOST /api/v1/performance/reviews [33m409[0m 8.130 ms - 172[0m
-[0mGET /api/v1/interns/6ab8b6187eab8c0a85767ea5 [32m200[0m 13.933 ms - 2753[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/mentor-assessment -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/mentor-assessment [33m422[0m 4.769 ms - 259[0m
-[0mPOST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/self-assessment [32m200[0m 15.182 ms - 2075[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/self-assessment -> 409 INVALID_TRANSITION
-[0mPOST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/self-assessment [33m409[0m 10.841 ms - 188[0m
-[0mGET /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f [32m200[0m 12.590 ms - 2283[0m
-[0mGET /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f [32m200[0m 11.758 ms - 2815[0m
-2026-09-27 11:52:17 [[34mdebug[39m]: POST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/mentor-assessment -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/mentor-assessment [33m422[0m 10.196 ms - 787[0m
-[0mPOST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/mentor-assessment [32m200[0m 15.514 ms - 3701[0m
-[0mPOST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/finalize [33m403[0m 3.793 ms - 118[0m
-[0mPOST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/finalize [32m200[0m 20.149 ms - 3839[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/self-assessment -> 409 INVALID_TRANSITION
-[0mPOST /api/v1/performance/reviews/6ab8b6197eab8c0a8576815f/self-assessment [33m409[0m 11.982 ms - 172[0m
-[0mGET /api/v1/interns/6ab8b6187eab8c0a85767ea5 [32m200[0m 15.611 ms - 2741[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/certificates/generate -> 409 WRONG_LIFECYCLE_STAGE
-[0mPOST /api/v1/certificates/generate [33m409[0m 9.480 ms - 220[0m
-[0mPOST /api/v1/finance/generate-cycle [33m403[0m 4.479 ms - 114[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/finance/generate-cycle -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/finance/generate-cycle [33m422[0m 5.292 ms - 245[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/finance/generate-cycle -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/finance/generate-cycle [33m422[0m 5.261 ms - 215[0m
-[0mPOST /api/v1/finance/generate-cycle [32m200[0m 23.174 ms - 777[0m
-[0mPOST /api/v1/finance/generate-cycle [32m200[0m 11.639 ms - 198[0m
-[0mGET /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2 [32m200[0m 12.146 ms - 1462[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: GET /api/v1/finance/payments/6ab8b615744f7fe8270d4ccb -> 404 NOT_FOUND
-[0mGET /api/v1/finance/payments/6ab8b615744f7fe8270d4ccb [33m404[0m 5.608 ms - 134[0m
-[0mPOST /api/v1/auth/login [32m200[0m 11.724 ms - 1949[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: GET /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2 -> 404 NOT_FOUND
-[0mGET /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2 [33m404[0m 8.637 ms - 134[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/adjustments -> 422 NEGATIVE_NET
-[0mPOST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/adjustments [33m422[0m 24.533 ms - 246[0m
-[0mPOST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/adjustments [32m200[0m 14.478 ms - 1092[0m
-[0mPOST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/adjustments [33m403[0m 5.377 ms - 114[0m
-[0mPOST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/process [33m403[0m 5.701 ms - 115[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/process -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/process [33m422[0m 5.608 ms - 256[0m
-[0mPOST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/process [32m200[0m 16.138 ms - 863[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/process -> 409 ALREADY_PAID
-[0mPOST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/process [33m409[0m 23.643 ms - 148[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/adjustments -> 409 PAYMENT_LOCKED
-[0mPOST /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/adjustments [33m409[0m 17.083 ms - 149[0m
-[0mGET /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2/payslip [32m200[0m 47.563 ms - -[0m
-[0mGET /api/v1/finance/summary?cycle=2026-09 [32m200[0m 11.889 ms - 168[0m
-[0mPOST /api/v1/auth/login [32m200[0m 10.997 ms - 1956[0m
-[0mPOST /api/v1/auth/login [32m200[0m 12.136 ms - 1621[0m
-[0mPOST /api/v1/auth/login [32m200[0m 11.746 ms - 1627[0m
-[0mPOST /api/v1/auth/login [32m200[0m 12.013 ms - 1526[0m
-[0mPOST /api/v1/auth/login [32m200[0m 12.422 ms - 1541[0m
-[0mPOST /api/v1/auth/login [32m200[0m 12.501 ms - 1907[0m
-[0mPOST /api/v1/auth/login [32m200[0m 10.785 ms - 1635[0m
-[0mPOST /api/v1/auth/login [32m200[0m 10.314 ms - 1125[0m
-[0mPOST /api/v1/auth/login [32m200[0m 10.476 ms - 2024[0m
-[0mPOST /api/v1/assets/6ab8b615744f7fe8270d4cd8/assign [32m200[0m 11.724 ms - 702[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/assets/6ab8b615744f7fe8270d4cd8/assign -> 409 ASSET_NOT_AVAILABLE
-[0mPOST /api/v1/assets/6ab8b615744f7fe8270d4cd8/assign [33m409[0m 9.085 ms - 166[0m
-[0mGET /api/v1/assets/me [32m200[0m 13.031 ms - 758[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/assets/6ab8b615744f7fe8270d4cd8/return -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/assets/6ab8b615744f7fe8270d4cd8/return [33m422[0m 6.288 ms - 252[0m
-[0mPOST /api/v1/exits/initiate [33m403[0m 3.982 ms - 113[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/exits/initiate -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/exits/initiate [33m422[0m 9.762 ms - 229[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/exits/initiate -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/exits/initiate [33m422[0m 4.154 ms - 418[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/exits/initiate -> 409 EXIT_ALREADY_OPEN
-[0mPOST /api/v1/exits/initiate [33m409[0m 23.650 ms - 174[0m
-[0mPOST /api/v1/exits/initiate [32m201[0m 30.903 ms - 3257[0m
-[0mGET /api/v1/exits/6ab8b61a7eab8c0a857683a5 [32m200[0m 28.145 ms - 5543[0m
-[0mGET /api/v1/interns/6ab8b6187eab8c0a85767ea5 [32m200[0m 21.163 ms - 2749[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance -> 403 STAGE_NOT_YOURS
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [33m403[0m 8.412 ms - 199[0m
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [32m200[0m 33.893 ms - 5818[0m
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [32m200[0m 32.369 ms - 6316[0m
-[0mGET /api/v1/interns/6ab8b6187eab8c0a85767ea5 [32m200[0m 15.581 ms - 2750[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/certificates/generate -> 409 WRONG_LIFECYCLE_STAGE
-[0mPOST /api/v1/certificates/generate [33m409[0m 11.830 ms - 229[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance -> 409 STAGE_BLOCKED
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [33m409[0m 11.718 ms - 337[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [33m422[0m 13.450 ms - 247[0m
-[0mPOST /api/v1/assets/6ab8b615744f7fe8270d4cd8/return [32m200[0m 13.650 ms - 940[0m
-[0mPOST /api/v1/assets/6ab8b615744f7fe8270d4cd8/assign [32m200[0m 11.621 ms - 1063[0m
-[0mPOST /api/v1/assets/6ab8b615744f7fe8270d4cd8/return [32m200[0m 10.968 ms - 1217[0m
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [32m200[0m 36.456 ms - 6288[0m
-2026-09-27 11:52:18 [[34mdebug[39m]: POST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance -> 403 STAGE_NOT_YOURS
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [33m403[0m 6.548 ms - 206[0m
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [32m200[0m 44.168 ms - 7781[0m
-[0mGET /api/v1/interns/6ab8b6187eab8c0a85767ea5 [32m200[0m 14.121 ms - 2748[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance -> 409 STAGE_BLOCKED
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [33m409[0m 16.445 ms - 459[0m
-[0mGET /api/v1/certificates/readiness/6ab8b6187eab8c0a85767ea5 [32m200[0m 20.781 ms - 1187[0m
-[0mPOST /api/v1/certificates/generate [33m403[0m 10.054 ms - 118[0m
-[0mPOST /api/v1/certificates/generate [32m201[0m 55.105 ms - 1877[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/certificates/generate -> 409 CERTIFICATE_EXISTS
-[0mPOST /api/v1/certificates/generate [33m409[0m 18.166 ms - 208[0m
-[0mGET /api/v1/certificates/6ab8b61b7eab8c0a8576850e/download [32m200[0m 8.519 ms - -[0m
-[0mPOST /api/v1/auth/login [32m200[0m 17.852 ms - 1949[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/certificates/6ab8b61b7eab8c0a8576850e/download -> 404 NOT_FOUND
-[0mGET /api/v1/certificates/6ab8b61b7eab8c0a8576850e/download [33m404[0m 12.965 ms - 131[0m
-[0mPOST /api/v1/documents/generate [32m201[0m 56.798 ms - 1072[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/documents/generate -> 422 VALIDATION_ERROR
-[0mPOST /api/v1/documents/generate [33m422[0m 11.970 ms - 269[0m
-[0mPOST /api/v1/documents/generate [32m201[0m 48.560 ms - 1034[0m
-[0mPOST /api/v1/documents/generate [32m201[0m 38.649 ms - 1072[0m
-[0mGET /api/v1/documents/verify/DOC-2026-056730 [32m200[0m 3.674 ms - 421[0m
-[0mGET /api/v1/documents/verify/DOC-2026-051088 [32m200[0m 3.032 ms - 415[0m
-[0mGET /api/v1/documents/6ab8b61b7eab8c0a8576857e/download?inline=1 [32m200[0m 10.296 ms - -[0m
-[0mPOST /api/v1/exits/6ab8b61a7eab8c0a857683a5/advance [32m200[0m 49.903 ms - 7868[0m
-[0mGET /api/v1/interns/6ab8b6187eab8c0a85767ea5 [32m200[0m 24.733 ms - 2901[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/auth/login -> 403 ACCOUNT_INACTIVE
-[0mPOST /api/v1/auth/login [33m403[0m 7.058 ms - 193[0m
-[0mGET /api/v1/auth/me [33m401[0m 7.789 ms - 108[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/exits/initiate -> 409 INTERN_NOT_ACTIVE
-[0mPOST /api/v1/exits/initiate [33m409[0m 14.611 ms - 185[0m
-[0mGET /api/v1/certificates/verify/CERT-2026-449972 [32m200[0m 3.844 ms - 350[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/certificates/verify/CERT-INVALID -> 404 CERTIFICATE_NOT_FOUND
-[0mGET /api/v1/certificates/verify/CERT-INVALID [33m404[0m 0.995 ms - 180[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/certificates/verify/CERT-2026-999999 -> 404 CERTIFICATE_NOT_FOUND
-[0mGET /api/v1/certificates/verify/CERT-2026-999999 [33m404[0m 2.424 ms - 180[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/certificates/verify/%20 -> 404 CERTIFICATE_NOT_FOUND
-[0mGET /api/v1/certificates/verify/%20 [33m404[0m 0.957 ms - 180[0m
-[0mPOST /api/v1/certificates/6ab8b61b7eab8c0a8576850e/revoke [32m200[0m 12.603 ms - 1904[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/certificates/verify/CERT-2026-449972 -> 410 CERTIFICATE_REVOKED
-[0mGET /api/v1/certificates/verify/CERT-2026-449972 [33m410[0m 2.944 ms - 182[0m
-[0mGET /api/v1/audit-logs?limit=200 [32m200[0m 26.417 ms - 50672[0m
-[0mPOST /api/v1/auth/login [32m200[0m 16.744 ms - 1948[0m
-[0mPOST /api/v1/auth/login [32m200[0m 13.249 ms - 1904[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/recruitment/applications/6ab8b615744f7fe8270d4c9a -> 404 NOT_FOUND
-[0mGET /api/v1/recruitment/applications/6ab8b615744f7fe8270d4c9a [33m404[0m 6.889 ms - 131[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: PATCH /api/v1/recruitment/applications/6ab8b615744f7fe8270d4c9a/stage -> 404 NOT_FOUND
-[0mPATCH /api/v1/recruitment/applications/6ab8b615744f7fe8270d4c9a/stage [33m404[0m 5.405 ms - 131[0m
-[0mGET /api/v1/recruitment/applications [32m200[0m 11.177 ms - 1977[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/interns/6ab8b615744f7fe8270d4cb6 -> 404 NOT_FOUND
-[0mGET /api/v1/interns/6ab8b615744f7fe8270d4cb6 [33m404[0m 9.807 ms - 133[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/tasks/6ab8b615744f7fe8270d4cc7 -> 404 NOT_FOUND
-[0mGET /api/v1/tasks/6ab8b615744f7fe8270d4cc7 [33m404[0m 6.252 ms - 124[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2 -> 404 NOT_FOUND
-[0mGET /api/v1/finance/payments/6ab8b61a7eab8c0a857682d2 [33m404[0m 7.884 ms - 134[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/documents/6ab8b61b7eab8c0a85768557/download -> 404 NOT_FOUND
-[0mGET /api/v1/documents/6ab8b61b7eab8c0a85768557/download [33m404[0m 7.308 ms - 128[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/roles/assign -> 404 NOT_FOUND
-[0mPOST /api/v1/roles/assign [33m404[0m 64.335 ms - 124[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: GET /api/v1/roles/users/6ab8b615744f7fe8270d4c4d/history -> 404 NOT_FOUND
-[0mGET /api/v1/roles/users/6ab8b615744f7fe8270d4c4d/history [33m404[0m 15.231 ms - 124[0m
-[0mGET /api/v1/users [32m200[0m 11.088 ms - 1462[0m
-[0mGET /api/v1/recruitment/applications [33m400[0m 3.954 ms - 165[0m
-[0mGET /api/v1/recruitment/applications [32m200[0m 11.694 ms - 1977[0m
-[0mPATCH /api/v1/global-admin/organizations/6ab8b615744f7fe8270d4c3b/status [33m403[0m 7.453 ms - 127[0m
-[0mPATCH /api/v1/global-admin/organizations/6ab8b615744f7fe8270d4c3b/status [32m200[0m 12.801 ms - 462[0m
-[0mGET /api/v1/recruitment/applications [33m403[0m 8.437 ms - 137[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/auth/login -> 403 ORG_SUSPENDED
-[0mPOST /api/v1/auth/login [33m403[0m 6.546 ms - 188[0m
-[0mPATCH /api/v1/global-admin/organizations/6ab8b615744f7fe8270d4c3b/status [32m200[0m 13.727 ms - 456[0m
-[0mPOST /api/v1/auth/login [32m200[0m 21.567 ms - 1948[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/roles/assign -> 403 SELF_ROLE_CHANGE
-[0mPOST /api/v1/roles/assign [33m403[0m 8.604 ms - 149[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/roles/assign -> 403 ROLE_NOT_ASSIGNABLE
-[0mPOST /api/v1/roles/assign [33m403[0m 8.976 ms - 184[0m
-2026-09-27 11:52:19 [[34mdebug[39m]: POST /api/v1/roles/assign -> 403 PRIVILEGE_ESCALATION
-[0mPOST /api/v1/roles/assign [33m403[0m 11.445 ms - 181[0m
-[0mPOST /api/v1/auth/login [32m200[0m 20.164 ms - 1949[0m
-[0mPOST /api/v1/roles/assign [33m403[0m 6.889 ms - 112[0m
-[0mPOST /api/v1/auth/login [32m200[0m 19.782 ms - 1507[0m
-[0mPOST /api/v1/roles/assign [33m403[0m 7.181 ms - 112[0m
-[0mPOST /api/v1/auth/login [32m200[0m 19.085 ms - 1504[0m
-[0mPOST /api/v1/roles/assign [33m403[0m 7.621 ms - 112[0m
-[0mPOST /api/v1/roles/assign [33m403[0m 7.311 ms - 112[0m
-2026-09-27 11:52:20 [[34mdebug[39m]: POST /api/v1/roles -> 403 WILDCARD_FORBIDDEN
-[0mPOST /api/v1/roles [33m403[0m 4.652 ms - 184[0m
-2026-09-27 11:52:20 [[34mdebug[39m]: POST /api/v1/roles -> 409 RESERVED_ROLE_KEY
-[0mPOST /api/v1/roles [33m409[0m 5.624 ms - 161[0m
-[0mPOST /api/v1/roles [33m403[0m 4.072 ms - 112[0m
-[0mPOST /api/v1/roles [32m201[0m 9.842 ms - 606[0m
-[0mPOST /api/v1/users [32m201[0m 17.066 ms - 755[0m
-2026-09-27 11:52:20 [[32minfo[39m]: [Email (Simulated)] To: qa.reviewer@tmt-qa.test | Subject: "Your TechMecha Torque IMS account invitation" | MsgID: simulated-1790490140121-0r31uw4
-[0mPOST /api/v1/auth/setup-password [32m200[0m 19.607 ms - 1333[0m
-[0mGET /api/v1/recruitment/applications [32m200[0m 13.581 ms - 6754[0m
-[0mGET /api/v1/offers [33m403[0m 3.848 ms - 111[0m
-[0mPATCH /api/v1/roles/6ab8b61c7eab8c0a8576869f [32m200[0m 14.315 ms - 613[0m
-[0mGET /api/v1/offers [32m200[0m 14.970 ms - 1824[0m
-[0mPOST /api/v1/roles/assign [32m200[0m 23.685 ms - 357[0m
-[0mGET /api/v1/offers [33m403[0m 2.931 ms - 111[0m
-[0mPOST /api/v1/roles/6ab8b61c7eab8c0a8576869f/archive [32m200[0m 13.829 ms - 85[0m
-2026-09-27 11:52:20 [[34mdebug[39m]: DELETE /api/v1/roles/6ab8b61c7eab8c0a8576869f -> 409 ROLE_HAS_HISTORY
-[0mDELETE /api/v1/roles/6ab8b61c7eab8c0a8576869f [33m409[0m 8.379 ms - 225[0m
-[0mPOST /api/v1/auth/login [32m200[0m 13.547 ms - 1949[0m
-[0mGET /api/v1/audit-logs [33m401[0m 1.241 ms - 92[0m
-[0mGET /api/v1/audit-logs [33m401[0m 0.537 ms - 92[0m
-[0mGET /api/v1/interns [32m200[0m 8.988 ms - 126[0m
-2026-09-27 11:52:20 [[34mdebug[39m]: GET /api/v1/interns/6ab8b615744f7fe8270d4cb6 -> 404 NOT_FOUND
-[0mGET /api/v1/interns/6ab8b615744f7fe8270d4cb6 [33m404[0m 23.070 ms - 133[0m
-[0mPOST /api/v1/auth/login [32m200[0m 10.004 ms - 1907[0m
-[0mPOST /api/v1/auth/login [32m200[0m 8.473 ms - 1125[0m
-[0mPOST /api/v1/auth/login [32m200[0m 11.113 ms - 1956[0m
-[0mPOST /api/v1/auth/login [32m200[0m 11.105 ms - 1621[0m
-[0mPOST /api/v1/auth/login [32m200[0m 12.075 ms - 1949[0m
-[0mPOST /api/v1/people [32m201[0m 9.017 ms - 632[0m
-[0mPOST /api/v1/people [33m409[0m 8.769 ms - 193[0m
-[0mPOST /api/v1/people [32m201[0m 7.659 ms - 628[0m
-[0mPOST /api/v1/people/6ab8b61c7eab8c0a8576873a/merge [32m200[0m 13.723 ms - 1746[0m
-[0mGET /api/v1/people/6ab8b61c7eab8c0a85768732/timeline [32m200[0m 7.393 ms - 595[0m
-[0mPOST /api/v1/growth/leads [32m201[0m 9.508 ms - 525[0m
-[0mPOST /api/v1/growth/leads/6ab8b61c7eab8c0a8576874c/calls [32m201[0m 8.521 ms - 431[0m
-[0mGET /api/v1/growth/leads/6ab8b61c7eab8c0a8576874c [32m200[0m 7.127 ms - 910[0m
-[0mPOST /api/v1/growth/bootcamps [32m201[0m 7.566 ms - 601[0m
-[0mPOST /api/v1/growth/bootcamps/6ab8b61c7eab8c0a8576875a/register [32m201[0m 13.183 ms - 757[0m
-[0mPOST /api/v1/growth/passes/check-in [32m200[0m 12.393 ms - 856[0m
-[0mPOST /api/v1/growth/passes/check-in [33m409[0m 5.175 ms - 248[0m
-[0mPOST /api/v1/growth/demos [32m201[0m 7.778 ms - 513[0m
-[0mPOST /api/v1/growth/demos/6ab8b61c7eab8c0a8576876f/outcome [32m200[0m 10.373 ms - 542[0m
-[0mPOST /api/v1/training/programs [32m201[0m 11.063 ms - 884[0m
-[0mPOST /api/v1/training/batches [32m201[0m 8.739 ms - 523[0m
-[0mPOST /api/v1/training/enroll [32m201[0m 18.629 ms - 726[0m
-[0mPOST /api/v1/training/engagements/6ab8b61c7eab8c0a85768789/checkpoints/1/evaluate [32m200[0m 12.748 ms - 855[0m
-[0mPOST /api/v1/training/engagements/6ab8b61c7eab8c0a85768789/checkpoints/2/evaluate [32m200[0m 12.129 ms - 1045[0m
-[0mPOST /api/v1/tasks [32m201[0m 9.127 ms - 510[0m
-[0mGET /api/v1/tasks/6ab8b61c7eab8c0a8576879c [32m200[0m 12.280 ms - 657[0m
-2026-09-27 11:52:20 [[34mdebug[39m]: GET /api/v1/tasks/6ab8b61c7eab8c0a8576879c -> 403 FORBIDDEN
-[0mGET /api/v1/tasks/6ab8b61c7eab8c0a8576879c [33m403[0m 7.154 ms - 146[0m
-2026-09-27 11:52:20 [[34mdebug[39m]: GET /api/v1/tasks/6ab8b61c7eab8c0a8576879c -> 403 FORBIDDEN
-[0mGET /api/v1/tasks/6ab8b61c7eab8c0a8576879c [33m403[0m 8.311 ms - 146[0m
-2026-09-27 11:52:20 [[34mdebug[39m]: GET /api/v1/tasks/6ab8b61c7eab8c0a8576879c -> 403 FORBIDDEN
-[0mGET /api/v1/tasks/6ab8b61c7eab8c0a8576879c [33m403[0m 8.149 ms - 146[0m
-[0mPOST /api/v1/mailboxes [32m201[0m 11.176 ms - 404[0m
-2026-09-27 11:52:20 [[34mdebug[39m]: GET /api/v1/mailboxes/6ab8b61c7eab8c0a857687b0/messages -> 403 FORBIDDEN
-[0mGET /api/v1/mailboxes/6ab8b61c7eab8c0a857687b0/messages [33m403[0m 9.466 ms - 154[0m
-[0mPOST /api/v1/mailboxes/6ab8b61c7eab8c0a857687b0/grants [32m200[0m 15.822 ms - 358[0m
-[0mPOST /api/v1/mailboxes/6ab8b61c7eab8c0a857687b0/messages/send [32m201[0m 9.130 ms - 559[0m
-2026-09-27 11:52:20 [[34mdebug[39m]: GET /api/v1/mailboxes/6ab8b61c7eab8c0a857687b0/messages -> 403 FORBIDDEN
-[0mGET /api/v1/mailboxes/6ab8b61c7eab8c0a857687b0/messages [33m403[0m 5.030 ms - 154[0m
-[0mPOST /api/v1/finance/payments/webhook [32m200[0m 4.012 ms - 464[0m
-[0mPOST /api/v1/finance/payments/webhook [32m200[0m 2.347 ms - 460[0m
+[0mPOST /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08/accept [31m500[0m 45.736 ms - 188[0m
+[0mGET /api/v1/offers/6ac89fffb7a160b22c8aa53d [32m200[0m 13.411 ms - 2457[0m
+[0mGET /api/v1/recruitment/applications/6ac89ffeb7a160b22c8aa43f [32m200[0m 15.766 ms - 5062[0m
+[0mGET /api/v1/interns?search=qa.golden.1791533054783 [32m200[0m 10.720 ms - 126[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/auth/login -> 401 INVALID_CREDENTIALS
+[0mPOST /api/v1/auth/login [33m401[0m 72.128 ms - 148[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08/accept -> 409 OFFER_ALREADY_ACCEPTED
+[0mPOST /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08/accept [33m409[0m 11.716 ms - 173[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08/accept -> 409 OFFER_ALREADY_ACCEPTED
+[0mPOST /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08/accept [33m409[0m 12.921 ms - 173[0m
+[0mPOST /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08/accept [32m200[0m 43.657 ms - 296[0m
+2026-10-09 13:34:15 [[32minfo[39m]: [Email (Simulated)] To: qa.golden.1791533054783@tmt-qa.test | Subject: "Welcome to QA Engineering Internship" | MsgID: simulated-1791533055642-l3yurwu
+[0mGET /api/v1/interns?search=qa.golden.1791533054783 [32m200[0m 13.301 ms - 1306[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08/accept -> 404 OFFER_LINK_INVALID
+[0mPOST /api/v1/offers/public/Y27QVphKsx7rVFY_59SKIUkKxv0_6dCVdteFlw7Wn08/accept [33m404[0m 2.045 ms - 171[0m
+[0mGET /api/v1/onboarding [32m200[0m 9.957 ms - 880[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/auth/setup-password -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/auth/setup-password [33m422[0m 0.967 ms - 239[0m
+[0mPOST /api/v1/auth/setup-password [32m200[0m 19.135 ms - 2066[0m
+2026-10-09 13:34:15 [[34mdebug[39m]: POST /api/v1/auth/setup-password -> 400 SETUP_TOKEN_INVALID
+[0mPOST /api/v1/auth/setup-password [33m400[0m 1.904 ms - 200[0m
+[0mPOST /api/v1/auth/login [32m200[0m 11.357 ms - 1970[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.658 ms - 1621[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.689 ms - 1526[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.987 ms - 1541[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.562 ms - 1907[0m
+[0mPOST /api/v1/auth/login [32m200[0m 13.267 ms - 1546[0m
+[0mPOST /api/v1/auth/login [32m200[0m 10.449 ms - 1504[0m
+[0mPOST /api/v1/auth/login [32m200[0m 11.017 ms - 2064[0m
+[0mGET /api/v1/onboarding/my-plan [32m200[0m 12.671 ms - 5258[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: PATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa614 -> 403 FORBIDDEN
+[0mPATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa614 [33m403[0m 17.877 ms - 160[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: PATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa60e -> 403 FORBIDDEN
+[0mPATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa60e [33m403[0m 9.637 ms - 160[0m
+[0mGET /api/v1/onboarding [33m403[0m 4.912 ms - 115[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/documents/upload -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/documents/upload [33m422[0m 10.841 ms - 214[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/documents/upload -> 415 FILE_CONTENT_MISMATCH
+[0mPOST /api/v1/documents/upload [33m415[0m 7.780 ms - 194[0m
+[0mPOST /api/v1/documents/upload [32m201[0m 44.336 ms - 892[0m
+[0mPOST /api/v1/documents/upload [32m201[0m 34.934 ms - 894[0m
+[0mPOST /api/v1/documents/upload [32m201[0m 30.324 ms - 889[0m
+[0mPOST /api/v1/documents/upload [32m201[0m 48.815 ms - 893[0m
+[0mPOST /api/v1/documents/upload [32m201[0m 32.354 ms - 887[0m
+[0mGET /api/v1/interns/6ac89fffb7a160b22c8aa60a [32m200[0m 25.185 ms - 4790[0m
+[0mGET /api/v1/documents/6ac8a000b7a160b22c8aa6a2/download [33m403[0m 3.947 ms - 122[0m
+[0mPOST /api/v1/auth/login [32m200[0m 11.632 ms - 1989[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: GET /api/v1/documents/6ac8a000b7a160b22c8aa6a2/download -> 404 NOT_FOUND
+[0mGET /api/v1/documents/6ac8a000b7a160b22c8aa6a2/download [33m404[0m 7.168 ms - 128[0m
+[0mGET /api/v1/documents/6ac8a000b7a160b22c8aa6a2/download [32m200[0m 11.643 ms - -[0m
+[0mPOST /api/v1/documents/6ac8a000b7a160b22c8aa6a2/approve [33m403[0m 4.608 ms - 117[0m
+[0mPOST /api/v1/documents/upload [32m201[0m 21.342 ms - 889[0m
+[0mPOST /api/v1/documents/6ac8a000b7a160b22c8aa6e0/reject [32m200[0m 13.639 ms - 931[0m
+[0mGET /api/v1/onboarding/my-plan [32m200[0m 12.554 ms - 6017[0m
+[0mPOST /api/v1/documents/upload [32m201[0m 25.909 ms - 887[0m
+[0mPOST /api/v1/documents/6ac8a000b7a160b22c8aa6a2/approve [32m200[0m 14.116 ms - 959[0m
+[0mPOST /api/v1/documents/6ac8a000b7a160b22c8aa6b3/approve [32m200[0m 16.369 ms - 961[0m
+[0mPOST /api/v1/documents/6ac8a000b7a160b22c8aa71a/approve [32m200[0m 13.689 ms - 956[0m
+[0mPOST /api/v1/documents/6ac8a000b7a160b22c8aa6d1/approve [32m200[0m 18.404 ms - 960[0m
+[0mPOST /api/v1/documents/6ac8a000b7a160b22c8aa73c/approve [32m200[0m 18.746 ms - 954[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/documents/6ac8a000b7a160b22c8aa73c/approve -> 409 INVALID_TRANSITION
+[0mPOST /api/v1/documents/6ac8a000b7a160b22c8aa73c/approve [33m409[0m 8.045 ms - 158[0m
+[0mPATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa613 [32m200[0m 18.890 ms - 660[0m
+[0mGET /api/v1/interns/6ac89fffb7a160b22c8aa60a [32m200[0m 16.156 ms - 4791[0m
+[0mPATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa614 [32m200[0m 16.284 ms - 655[0m
+[0mPATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa615 [32m200[0m 15.771 ms - 662[0m
+[0mPATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa616 [32m200[0m 15.448 ms - 661[0m
+[0mPATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa617 [32m200[0m 21.300 ms - 658[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: PATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa614 -> 409 ONBOARDING_LOCKED
+[0mPATCH /api/v1/onboarding/tasks/6ac89fffb7a160b22c8aa614 [33m409[0m 6.962 ms - 173[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/attendance/check-in -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/attendance/check-in [33m422[0m 3.749 ms - 260[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/attendance/check-out -> 409 NOT_CHECKED_IN
+[0mPOST /api/v1/attendance/check-out [33m409[0m 7.942 ms - 166[0m
+[0mPOST /api/v1/attendance/check-in [32m201[0m 16.531 ms - 500[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/attendance/check-in -> 409 ALREADY_CHECKED_IN
+[0mPOST /api/v1/attendance/check-in [33m409[0m 15.871 ms - 153[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/attendance/check-out -> 409 ALREADY_CHECKED_OUT
+[0mPOST /api/v1/attendance/check-out [33m409[0m 11.749 ms - 155[0m
+[0mPOST /api/v1/attendance/check-out [32m200[0m 16.595 ms - 545[0m
+[0mGET /api/v1/attendance/today [32m200[0m 7.352 ms - 537[0m
+[0mPATCH /api/v1/attendance/6ac8a000b7a160b22c8aa7f1 [33m403[0m 4.314 ms - 117[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: PATCH /api/v1/attendance/6ac8a000b7a160b22c8aa7f1 -> 422 VALIDATION_ERROR
+[0mPATCH /api/v1/attendance/6ac8a000b7a160b22c8aa7f1 [33m422[0m 4.877 ms - 236[0m
+[0mPATCH /api/v1/attendance/6ac8a000b7a160b22c8aa7f1 [32m200[0m 8.505 ms - 639[0m
+[0mGET /api/v1/attendance/summary [32m200[0m 8.446 ms - 263[0m
+[0mPOST /api/v1/attendance/check-in [33m403[0m 4.230 ms - 119[0m
+[0mGET /api/v1/auth/me [32m200[0m 6.962 ms - 1500[0m
+[0mPOST /api/v1/tasks [33m403[0m 6.132 ms - 112[0m
+[0mPOST /api/v1/tasks [32m201[0m 15.644 ms - 510[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.654 ms - 1627[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/tasks -> 403 NOT_YOUR_MENTEE
+[0mPOST /api/v1/tasks [33m403[0m 9.990 ms - 167[0m
+[0mPATCH /api/v1/tasks/6ac8a000b7a160b22c8aa825 [33m403[0m 4.278 ms - 112[0m
+[0mPATCH /api/v1/tasks/6ac8a000b7a160b22c8aa825 [32m200[0m 14.163 ms - 513[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/tasks/6ac8a000b7a160b22c8aa825/submit -> 409 INVALID_TRANSITION
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/submit [33m409[0m 6.834 ms - 177[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/tasks/6ac8a000b7a160b22c8aa825/status -> 409 INVALID_TRANSITION
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/status [33m409[0m 7.556 ms - 277[0m
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/status [32m200[0m 10.582 ms - 520[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/tasks/6ac8a000b7a160b22c8aa825/submit -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/submit [33m422[0m 6.927 ms - 204[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/tasks/6ac8a000b7a160b22c8aa825/submit -> 409 ALREADY_SUBMITTED
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/submit [33m409[0m 8.685 ms - 150[0m
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/submit [32m201[0m 16.466 ms - 967[0m
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/review [33m403[0m 4.445 ms - 112[0m
+2026-10-09 13:34:16 [[34mdebug[39m]: POST /api/v1/tasks/6ac8a000b7a160b22c8aa825/review -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/review [33m422[0m 13.095 ms - 250[0m
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/review [32m200[0m 18.990 ms - 1075[0m
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/status [32m200[0m 13.399 ms - 520[0m
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/submit [32m201[0m 15.960 ms - 877[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/tasks/6ac8a000b7a160b22c8aa825/review -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/review [33m422[0m 8.986 ms - 250[0m
+[0mGET /api/v1/tasks/6ac8a000b7a160b22c8aa825 [32m200[0m 16.162 ms - 1968[0m
+[0mPOST /api/v1/tasks/6ac8a000b7a160b22c8aa825/review [32m200[0m 15.736 ms - 995[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: GET /api/v1/tasks/6ac89ffc2074bc860d92c6bf -> 404 NOT_FOUND
+[0mGET /api/v1/tasks/6ac89ffc2074bc860d92c6bf [33m404[0m 9.488 ms - 124[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/journals -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/journals [33m422[0m 4.482 ms - 253[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/journals -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/journals [33m422[0m 4.367 ms - 246[0m
+[0mPOST /api/v1/journals [32m201[0m 12.454 ms - 595[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/journals -> 409 JOURNAL_EXISTS
+[0mPOST /api/v1/journals [33m409[0m 8.548 ms - 208[0m
+[0mPOST /api/v1/journals/6ac8a001b7a160b22c8aa8b4/review [33m403[0m 4.526 ms - 115[0m
+[0mPOST /api/v1/journals/6ac8a001b7a160b22c8aa8b4/review [32m200[0m 13.249 ms - 682[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/journals/6ac8a001b7a160b22c8aa8b4/review -> 409 ALREADY_REVIEWED
+[0mPOST /api/v1/journals/6ac8a001b7a160b22c8aa8b4/review [33m409[0m 9.118 ms - 156[0m
+[0mPOST /api/v1/performance/reviews [33m403[0m 3.531 ms - 118[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/performance/reviews -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/performance/reviews [33m422[0m 8.572 ms - 239[0m
+[0mPOST /api/v1/performance/reviews [32m201[0m 17.484 ms - 1571[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/performance/reviews -> 409 REVIEW_ALREADY_OPEN
+[0mPOST /api/v1/performance/reviews [33m409[0m 8.099 ms - 172[0m
+[0mGET /api/v1/interns/6ac89fffb7a160b22c8aa60a [32m200[0m 16.343 ms - 5339[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/mentor-assessment -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/mentor-assessment [33m422[0m 4.517 ms - 259[0m
+[0mPOST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/self-assessment [32m200[0m 13.782 ms - 2075[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/self-assessment -> 409 INVALID_TRANSITION
+[0mPOST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/self-assessment [33m409[0m 10.208 ms - 188[0m
+[0mGET /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8 [32m200[0m 11.516 ms - 2283[0m
+[0mGET /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8 [32m200[0m 10.703 ms - 2815[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/mentor-assessment -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/mentor-assessment [33m422[0m 7.651 ms - 787[0m
+[0mPOST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/mentor-assessment [32m200[0m 13.196 ms - 3701[0m
+[0mPOST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/finalize [33m403[0m 4.657 ms - 118[0m
+[0mPOST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/finalize [32m200[0m 16.517 ms - 3839[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/self-assessment -> 409 INVALID_TRANSITION
+[0mPOST /api/v1/performance/reviews/6ac8a001b7a160b22c8aa8d8/self-assessment [33m409[0m 18.923 ms - 172[0m
+[0mGET /api/v1/interns/6ac89fffb7a160b22c8aa60a [32m200[0m 14.793 ms - 5327[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/certificates/generate -> 409 WRONG_LIFECYCLE_STAGE
+[0mPOST /api/v1/certificates/generate [33m409[0m 8.742 ms - 220[0m
+[0mPOST /api/v1/finance/generate-cycle [33m403[0m 4.187 ms - 114[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/finance/generate-cycle -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/finance/generate-cycle [33m422[0m 5.144 ms - 245[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/finance/generate-cycle -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/finance/generate-cycle [33m422[0m 4.715 ms - 215[0m
+[0mPOST /api/v1/finance/generate-cycle [32m200[0m 23.180 ms - 781[0m
+[0mPOST /api/v1/finance/generate-cycle [32m200[0m 10.203 ms - 198[0m
+[0mGET /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f [32m200[0m 14.794 ms - 1468[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: GET /api/v1/finance/payments/6ac89ffc2074bc860d92c6bf -> 404 NOT_FOUND
+[0mGET /api/v1/finance/payments/6ac89ffc2074bc860d92c6bf [33m404[0m 6.085 ms - 134[0m
+[0mPOST /api/v1/auth/login [32m200[0m 13.857 ms - 1989[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: GET /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f -> 404 NOT_FOUND
+[0mGET /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f [33m404[0m 8.568 ms - 134[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/adjustments -> 422 NEGATIVE_NET
+[0mPOST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/adjustments [33m422[0m 17.559 ms - 246[0m
+[0mPOST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/adjustments [32m200[0m 9.037 ms - 1096[0m
+[0mPOST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/adjustments [33m403[0m 4.364 ms - 114[0m
+[0mPOST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/process [33m403[0m 4.218 ms - 115[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/process -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/process [33m422[0m 4.530 ms - 256[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/process -> 409 ALREADY_PAID
+[0mPOST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/process [33m409[0m 10.035 ms - 148[0m
+[0mPOST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/process [32m200[0m 13.936 ms - 868[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/adjustments -> 409 PAYMENT_LOCKED
+[0mPOST /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/adjustments [33m409[0m 10.292 ms - 149[0m
+[0mGET /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f/payslip [32m200[0m 37.415 ms - -[0m
+[0mGET /api/v1/finance/summary?cycle=2026-10 [32m200[0m 6.827 ms - 171[0m
+[0mPOST /api/v1/auth/login [32m200[0m 10.747 ms - 1970[0m
+[0mPOST /api/v1/auth/login [32m200[0m 13.328 ms - 1621[0m
+[0mPOST /api/v1/auth/login [32m200[0m 13.968 ms - 1627[0m
+[0mPOST /api/v1/auth/login [32m200[0m 11.959 ms - 1526[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.592 ms - 1541[0m
+[0mPOST /api/v1/auth/login [32m200[0m 11.377 ms - 1907[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.990 ms - 1635[0m
+[0mPOST /api/v1/auth/login [32m200[0m 8.391 ms - 1125[0m
+[0mPOST /api/v1/auth/login [32m200[0m 10.258 ms - 2064[0m
+[0mPOST /api/v1/assets/6ac89ffc2074bc860d92c6cc/assign [32m200[0m 12.960 ms - 702[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/assets/6ac89ffc2074bc860d92c6cc/assign -> 409 ASSET_NOT_AVAILABLE
+[0mPOST /api/v1/assets/6ac89ffc2074bc860d92c6cc/assign [33m409[0m 10.306 ms - 166[0m
+[0mGET /api/v1/assets/me [32m200[0m 8.578 ms - 758[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/assets/6ac89ffc2074bc860d92c6cc/return -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/assets/6ac89ffc2074bc860d92c6cc/return [33m422[0m 4.628 ms - 252[0m
+[0mPOST /api/v1/exits/initiate [33m403[0m 3.772 ms - 113[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/exits/initiate -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/exits/initiate [33m422[0m 9.969 ms - 229[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/exits/initiate -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/exits/initiate [33m422[0m 6.580 ms - 418[0m
+2026-10-09 13:34:17 [[34mdebug[39m]: POST /api/v1/exits/initiate -> 409 EXIT_ALREADY_OPEN
+[0mPOST /api/v1/exits/initiate [33m409[0m 23.035 ms - 174[0m
+[0mPOST /api/v1/exits/initiate [32m201[0m 30.228 ms - 3257[0m
+[0mGET /api/v1/exits/6ac8a001b7a160b22c8aab32 [32m200[0m 18.340 ms - 5636[0m
+[0mGET /api/v1/interns/6ac89fffb7a160b22c8aa60a [32m200[0m 16.649 ms - 5335[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance -> 403 STAGE_NOT_YOURS
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [33m403[0m 8.184 ms - 199[0m
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [32m200[0m 32.874 ms - 5911[0m
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [32m200[0m 30.143 ms - 6409[0m
+[0mGET /api/v1/interns/6ac89fffb7a160b22c8aa60a [32m200[0m 16.247 ms - 5336[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/certificates/generate -> 409 WRONG_LIFECYCLE_STAGE
+[0mPOST /api/v1/certificates/generate [33m409[0m 14.260 ms - 229[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance -> 409 STAGE_BLOCKED
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [33m409[0m 14.535 ms - 337[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [33m422[0m 10.679 ms - 247[0m
+[0mPOST /api/v1/assets/6ac89ffc2074bc860d92c6cc/return [32m200[0m 14.867 ms - 940[0m
+[0mPOST /api/v1/assets/6ac89ffc2074bc860d92c6cc/assign [32m200[0m 12.019 ms - 1063[0m
+[0mPOST /api/v1/assets/6ac89ffc2074bc860d92c6cc/return [32m200[0m 9.945 ms - 1217[0m
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [32m200[0m 32.152 ms - 6381[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance -> 403 STAGE_NOT_YOURS
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [33m403[0m 5.627 ms - 206[0m
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [32m200[0m 39.534 ms - 7875[0m
+[0mGET /api/v1/interns/6ac89fffb7a160b22c8aa60a [32m200[0m 14.711 ms - 5334[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance -> 409 STAGE_BLOCKED
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [33m409[0m 15.242 ms - 459[0m
+[0mGET /api/v1/certificates/readiness/6ac89fffb7a160b22c8aa60a [32m200[0m 19.110 ms - 1187[0m
+[0mPOST /api/v1/certificates/generate [33m403[0m 3.478 ms - 118[0m
+[0mPOST /api/v1/certificates/generate [32m201[0m 141.765 ms - 1868[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/certificates/generate -> 409 CERTIFICATE_EXISTS
+[0mPOST /api/v1/certificates/generate [33m409[0m 23.293 ms - 208[0m
+[0mGET /api/v1/certificates/6ac8a002b7a160b22c8aacb9/download [32m200[0m 11.124 ms - -[0m
+[0mPOST /api/v1/auth/login [32m200[0m 17.028 ms - 1989[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: GET /api/v1/certificates/6ac8a002b7a160b22c8aacb9/download -> 404 NOT_FOUND
+[0mGET /api/v1/certificates/6ac8a002b7a160b22c8aacb9/download [33m404[0m 8.321 ms - 131[0m
+[0mPOST /api/v1/documents/generate [32m201[0m 49.605 ms - 1072[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/documents/generate -> 422 VALIDATION_ERROR
+[0mPOST /api/v1/documents/generate [33m422[0m 13.968 ms - 269[0m
+[0mPOST /api/v1/documents/generate [32m201[0m 37.105 ms - 1034[0m
+[0mPOST /api/v1/documents/generate [32m201[0m 39.168 ms - 1072[0m
+[0mGET /api/v1/documents/verify/DOC-2026-452821 [32m200[0m 4.074 ms - 418[0m
+[0mGET /api/v1/documents/verify/DOC-2026-497905 [32m200[0m 4.809 ms - 412[0m
+[0mGET /api/v1/documents/6ac8a002b7a160b22c8aad29/download?inline=1 [32m200[0m 7.976 ms - -[0m
+[0mPOST /api/v1/exits/6ac8a001b7a160b22c8aab32/advance [32m200[0m 43.223 ms - 7962[0m
+[0mGET /api/v1/interns/6ac89fffb7a160b22c8aa60a [32m200[0m 17.354 ms - 5487[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/auth/login -> 403 ACCOUNT_INACTIVE
+[0mPOST /api/v1/auth/login [33m403[0m 7.736 ms - 193[0m
+[0mGET /api/v1/auth/me [33m401[0m 4.115 ms - 108[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: POST /api/v1/exits/initiate -> 409 INTERN_NOT_ACTIVE
+[0mPOST /api/v1/exits/initiate [33m409[0m 8.687 ms - 185[0m
+[0mGET /api/v1/certificates/verify/CERT-2026-988661 [32m200[0m 2.377 ms - 347[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: GET /api/v1/certificates/verify/CERT-INVALID -> 404 CERTIFICATE_NOT_FOUND
+[0mGET /api/v1/certificates/verify/CERT-INVALID [33m404[0m 0.792 ms - 180[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: GET /api/v1/certificates/verify/CERT-2026-999999 -> 404 CERTIFICATE_NOT_FOUND
+[0mGET /api/v1/certificates/verify/CERT-2026-999999 [33m404[0m 2.260 ms - 180[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: GET /api/v1/certificates/verify/%20 -> 404 CERTIFICATE_NOT_FOUND
+[0mGET /api/v1/certificates/verify/%20 [33m404[0m 0.531 ms - 180[0m
+[0mPOST /api/v1/certificates/6ac8a002b7a160b22c8aacb9/revoke [32m200[0m 10.774 ms - 1895[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: GET /api/v1/certificates/verify/CERT-2026-988661 -> 410 CERTIFICATE_REVOKED
+[0mGET /api/v1/certificates/verify/CERT-2026-988661 [33m410[0m 2.653 ms - 182[0m
+[0mGET /api/v1/audit-logs?limit=200 [32m200[0m 23.819 ms - 50673[0m
+[0mPOST /api/v1/auth/login [32m200[0m 18.018 ms - 1962[0m
+[0mPOST /api/v1/auth/login [32m200[0m 15.593 ms - 1904[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: GET /api/v1/recruitment/applications/6ac89ffc2074bc860d92c68e -> 404 NOT_FOUND
+[0mGET /api/v1/recruitment/applications/6ac89ffc2074bc860d92c68e [33m404[0m 10.170 ms - 131[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: PATCH /api/v1/recruitment/applications/6ac89ffc2074bc860d92c68e/stage -> 404 NOT_FOUND
+[0mPATCH /api/v1/recruitment/applications/6ac89ffc2074bc860d92c68e/stage [33m404[0m 10.628 ms - 131[0m
+[0mGET /api/v1/recruitment/applications [32m200[0m 19.527 ms - 1977[0m
+2026-10-09 13:34:18 [[34mdebug[39m]: GET /api/v1/interns/6ac89ffc2074bc860d92c6aa -> 404 NOT_FOUND
+[0mGET /api/v1/interns/6ac89ffc2074bc860d92c6aa [33m404[0m 11.592 ms - 133[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: GET /api/v1/tasks/6ac89ffc2074bc860d92c6bb -> 404 NOT_FOUND
+[0mGET /api/v1/tasks/6ac89ffc2074bc860d92c6bb [33m404[0m 9.587 ms - 124[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: GET /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f -> 404 NOT_FOUND
+[0mGET /api/v1/finance/payments/6ac8a001b7a160b22c8aaa5f [33m404[0m 9.080 ms - 134[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: GET /api/v1/documents/6ac8a002b7a160b22c8aad02/download -> 404 NOT_FOUND
+[0mGET /api/v1/documents/6ac8a002b7a160b22c8aad02/download [33m404[0m 9.371 ms - 128[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: POST /api/v1/roles/assign -> 404 NOT_FOUND
+[0mPOST /api/v1/roles/assign [33m404[0m 54.225 ms - 124[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: GET /api/v1/roles/users/6ac89ffc2074bc860d92c641/history -> 404 NOT_FOUND
+[0mGET /api/v1/roles/users/6ac89ffc2074bc860d92c641/history [33m404[0m 9.368 ms - 124[0m
+[0mGET /api/v1/users [32m200[0m 13.531 ms - 1462[0m
+[0mGET /api/v1/recruitment/applications [33m400[0m 4.059 ms - 165[0m
+[0mGET /api/v1/recruitment/applications [32m200[0m 11.809 ms - 1977[0m
+[0mPATCH /api/v1/global-admin/organizations/6ac89ffc2074bc860d92c62f/status [33m403[0m 6.748 ms - 127[0m
+[0mPATCH /api/v1/global-admin/organizations/6ac89ffc2074bc860d92c62f/status [32m200[0m 14.270 ms - 462[0m
+[0mGET /api/v1/recruitment/applications [33m403[0m 5.056 ms - 137[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: POST /api/v1/auth/login -> 403 ORG_SUSPENDED
+[0mPOST /api/v1/auth/login [33m403[0m 6.985 ms - 188[0m
+[0mPATCH /api/v1/global-admin/organizations/6ac89ffc2074bc860d92c62f/status [32m200[0m 9.354 ms - 456[0m
+[0mPOST /api/v1/auth/login [32m200[0m 17.759 ms - 1962[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: POST /api/v1/roles/assign -> 403 SELF_ROLE_CHANGE
+[0mPOST /api/v1/roles/assign [33m403[0m 14.060 ms - 149[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: POST /api/v1/roles/assign -> 403 ROLE_NOT_ASSIGNABLE
+[0mPOST /api/v1/roles/assign [33m403[0m 8.500 ms - 184[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: POST /api/v1/roles/assign -> 403 PRIVILEGE_ESCALATION
+[0mPOST /api/v1/roles/assign [33m403[0m 6.564 ms - 181[0m
+[0mPOST /api/v1/auth/login [32m200[0m 13.514 ms - 1989[0m
+[0mPOST /api/v1/roles/assign [33m403[0m 3.994 ms - 112[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.320 ms - 1507[0m
+[0mPOST /api/v1/roles/assign [33m403[0m 5.878 ms - 112[0m
+[0mPOST /api/v1/auth/login [32m200[0m 12.277 ms - 1504[0m
+[0mPOST /api/v1/roles/assign [33m403[0m 4.203 ms - 112[0m
+[0mPOST /api/v1/roles/assign [33m403[0m 3.793 ms - 112[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: POST /api/v1/roles -> 403 WILDCARD_FORBIDDEN
+[0mPOST /api/v1/roles [33m403[0m 5.053 ms - 184[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: POST /api/v1/roles -> 409 RESERVED_ROLE_KEY
+[0mPOST /api/v1/roles [33m409[0m 5.022 ms - 161[0m
+[0mPOST /api/v1/roles [33m403[0m 4.580 ms - 112[0m
+[0mPOST /api/v1/roles [32m201[0m 11.906 ms - 606[0m
+[0mPOST /api/v1/users [32m201[0m 20.322 ms - 755[0m
+2026-10-09 13:34:19 [[32minfo[39m]: [Email (Simulated)] To: qa.reviewer@tmt-qa.test | Subject: "Your TechMecha Torque IMS account invitation" | MsgID: simulated-1791533059383-m4qoydl
+[0mPOST /api/v1/auth/setup-password [32m200[0m 28.660 ms - 1333[0m
+[0mGET /api/v1/recruitment/applications [32m200[0m 13.511 ms - 6753[0m
+[0mGET /api/v1/offers [33m403[0m 3.058 ms - 111[0m
+[0mPATCH /api/v1/roles/6ac8a003b7a160b22c8aae54 [32m200[0m 9.479 ms - 613[0m
+[0mGET /api/v1/offers [32m200[0m 15.277 ms - 1824[0m
+[0mPOST /api/v1/roles/assign [32m200[0m 27.072 ms - 357[0m
+[0mGET /api/v1/offers [33m403[0m 7.253 ms - 111[0m
+[0mPOST /api/v1/roles/6ac8a003b7a160b22c8aae54/archive [32m200[0m 17.538 ms - 85[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: DELETE /api/v1/roles/6ac8a003b7a160b22c8aae54 -> 409 ROLE_HAS_HISTORY
+[0mDELETE /api/v1/roles/6ac8a003b7a160b22c8aae54 [33m409[0m 13.764 ms - 225[0m
+[0mPOST /api/v1/auth/login [32m200[0m 13.740 ms - 1989[0m
+[0mGET /api/v1/audit-logs [33m401[0m 1.470 ms - 92[0m
+[0mGET /api/v1/audit-logs [33m401[0m 0.752 ms - 92[0m
+[0mGET /api/v1/interns [32m200[0m 12.089 ms - 126[0m
+2026-10-09 13:34:19 [[34mdebug[39m]: GET /api/v1/interns/6ac89ffc2074bc860d92c6aa -> 404 NOT_FOUND
+[0mGET /api/v1/interns/6ac89ffc2074bc860d92c6aa [33m404[0m 9.088 ms - 133[0m
+[0mPOST /api/v1/auth/login [32m200[0m 20.000 ms - 1907[0m
+[0mPOST /api/v1/auth/login [32m200[0m 18.157 ms - 1125[0m
+[0mPOST /api/v1/auth/login [32m200[0m 20.693 ms - 1970[0m
+[0mPOST /api/v1/auth/login [32m200[0m 17.127 ms - 1621[0m
+[0mPOST /api/v1/auth/login [32m200[0m 18.250 ms - 1989[0m
+[0mPOST /api/v1/people [32m201[0m 17.131 ms - 632[0m
+[0mPOST /api/v1/people [33m409[0m 13.169 ms - 193[0m
+[0mPOST /api/v1/people [32m201[0m 12.582 ms - 628[0m
+[0mPOST /api/v1/people/6ac8a003b7a160b22c8aaeef/merge [32m200[0m 22.009 ms - 1746[0m
+[0mGET /api/v1/people/6ac8a003b7a160b22c8aaee7/timeline [32m200[0m 10.321 ms - 595[0m
+[0mPOST /api/v1/growth/leads [32m201[0m 12.805 ms - 525[0m
+[0mPOST /api/v1/growth/leads/6ac8a004b7a160b22c8aaf01/calls [32m201[0m 10.971 ms - 431[0m
+[0mGET /api/v1/growth/leads/6ac8a004b7a160b22c8aaf01 [32m200[0m 6.097 ms - 910[0m
+[0mPOST /api/v1/growth/bootcamps [32m201[0m 8.035 ms - 909[0m
+[0mPOST /api/v1/growth/bootcamps/6ac8a004b7a160b22c8aaf0f/register [32m201[0m 16.097 ms - 815[0m
+[0mPOST /api/v1/growth/passes/check-in [32m200[0m 11.595 ms - 914[0m
+[0mPOST /api/v1/growth/passes/check-in [33m409[0m 6.493 ms - 248[0m
+[0mPOST /api/v1/growth/demos [32m201[0m 9.851 ms - 513[0m
+[0mPOST /api/v1/growth/demos/6ac8a004b7a160b22c8aaf24/outcome [32m200[0m 10.146 ms - 542[0m
+[0mPOST /api/v1/training/programs [32m201[0m 8.590 ms - 933[0m
+[0mPOST /api/v1/training/batches [32m201[0m 7.674 ms - 523[0m
+[0mPOST /api/v1/training/enroll [32m201[0m 17.134 ms - 1028[0m
+[0mPOST /api/v1/training/engagements/6ac8a004b7a160b22c8aaf3e/checkpoints/1/evaluate [32m200[0m 11.182 ms - 1157[0m
+[0mPOST /api/v1/training/engagements/6ac8a004b7a160b22c8aaf3e/checkpoints/2/evaluate [32m200[0m 17.286 ms - 1347[0m
+[0mPOST /api/v1/tasks [32m201[0m 11.163 ms - 510[0m
+[0mGET /api/v1/tasks/6ac8a004b7a160b22c8aaf51 [32m200[0m 10.854 ms - 657[0m
+2026-10-09 13:34:20 [[34mdebug[39m]: GET /api/v1/tasks/6ac8a004b7a160b22c8aaf51 -> 403 FORBIDDEN
+[0mGET /api/v1/tasks/6ac8a004b7a160b22c8aaf51 [33m403[0m 7.301 ms - 146[0m
+2026-10-09 13:34:20 [[34mdebug[39m]: GET /api/v1/tasks/6ac8a004b7a160b22c8aaf51 -> 403 FORBIDDEN
+[0mGET /api/v1/tasks/6ac8a004b7a160b22c8aaf51 [33m403[0m 8.647 ms - 146[0m
+2026-10-09 13:34:20 [[34mdebug[39m]: GET /api/v1/tasks/6ac8a004b7a160b22c8aaf51 -> 403 FORBIDDEN
+[0mGET /api/v1/tasks/6ac8a004b7a160b22c8aaf51 [33m403[0m 7.494 ms - 146[0m
+[0mPOST /api/v1/mailboxes [32m201[0m 7.312 ms - 404[0m
+2026-10-09 13:34:20 [[34mdebug[39m]: GET /api/v1/mailboxes/6ac8a004b7a160b22c8aaf65/messages -> 403 FORBIDDEN
+[0mGET /api/v1/mailboxes/6ac8a004b7a160b22c8aaf65/messages [33m403[0m 7.540 ms - 154[0m
+[0mPOST /api/v1/mailboxes/6ac8a004b7a160b22c8aaf65/grants [32m200[0m 9.860 ms - 358[0m
+[0mPOST /api/v1/mailboxes/6ac8a004b7a160b22c8aaf65/messages/send [32m201[0m 9.150 ms - 559[0m
+2026-10-09 13:34:20 [[34mdebug[39m]: GET /api/v1/mailboxes/6ac8a004b7a160b22c8aaf65/messages -> 403 FORBIDDEN
+[0mGET /api/v1/mailboxes/6ac8a004b7a160b22c8aaf65/messages [33m403[0m 5.922 ms - 154[0m
+[0mPOST /api/v1/finance/payments/webhook [32m200[0m 4.143 ms - 464[0m
+[0mPOST /api/v1/finance/payments/webhook [32m200[0m 2.202 ms - 460[0m

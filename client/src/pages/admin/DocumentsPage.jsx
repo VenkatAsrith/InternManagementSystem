@@ -8,7 +8,7 @@ import { useList } from '../../hooks/useList';
 import { useAction, useForm, rules } from '../../hooks/useForm';
 import { fmtDateTime, fullName, humanize } from '../../lib/format';
 import { DOCUMENT_CATEGORY, DOCUMENT_STATUS } from '@shared/constants.js';
-import { Button, DataTable, FilterBar, FormGrid, FormModal, PageHeader, Pagination, SelectField, StatusBadge, Tabs, TabPanel, TextAreaField, TextField, useConfirm } from '../../components/ui';
+import { Button, DataTable, FilterBar, FormGrid, FormModal, Modal, PageHeader, Pagination, SelectField, StatusBadge, Tabs, TabPanel, TextAreaField, TextField, useConfirm } from '../../components/ui';
 import { DocumentPreviewModal } from '../../components/domain/DocumentPreviewModal';
 import { SendDocumentModal } from '../../components/domain/SendDocumentModal';
 

@@ -102,9 +102,65 @@ export const createLearningPath = ah(async (req, res) => {
   if (body.programId && !(await InternshipProgram.exists({ _id: body.programId, organizationId: req.organizationId }))) {
     throw unprocessable('Program not found in your organization', [{ field: 'programId', message: 'Unknown program' }]);
   }
-  const path = await LearningPath.create({ organizationId: req.organizationId, ...body, targetRole: body.targetRole || 'Intern' });
+  const dueDate = req.body?.dueDate ? new Date(req.body.dueDate) : undefined;
+  const reminder = req.body?.reminder ? {
+    enabled: Boolean(req.body.reminder.enabled),
+    daysBefore: Number(req.body.reminder.daysBefore) || 2,
+    reminderDate: req.body.reminder.reminderDate ? new Date(req.body.reminder.reminderDate) : (dueDate ? new Date(dueDate.getTime() - (Number(req.body.reminder.daysBefore) || 2) * 86400000) : undefined),
+    note: String(req.body.reminder.note || '')
+  } : undefined;
+
+  const path = await LearningPath.create({
+    organizationId: req.organizationId,
+    ...body,
+    dueDate,
+    reminder,
+    targetRole: body.targetRole || 'Intern'
+  });
   await recordAuditLog({ action: 'LEARNING_PATH_CREATED', entityType: 'LearningPath', entityId: path._id, after: { title: path.title }, req });
   return successResponse(res, path, 'Learning path created', 201);
+});
+
+export const updateLearningPath = ah(async (req, res) => {
+  const path = await LearningPath.findOne({ _id: req.params.id, organizationId: req.organizationId });
+  if (!path) throw notFound('Learning path not found');
+
+  if (req.body.title) path.title = String(req.body.title).trim();
+  if (req.body.description !== undefined) path.description = String(req.body.description).trim();
+  if (req.body.targetRole !== undefined) path.targetRole = String(req.body.targetRole).trim();
+  if (req.body.programId !== undefined) path.programId = req.body.programId || undefined;
+  if (req.body.dueDate !== undefined) path.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : undefined;
+  if (req.body.reminder !== undefined) {
+    path.reminder = {
+      enabled: Boolean(req.body.reminder.enabled),
+      daysBefore: Number(req.body.reminder.daysBefore) || 2,
+      reminderDate: req.body.reminder.reminderDate ? new Date(req.body.reminder.reminderDate) : (path.dueDate ? new Date(path.dueDate.getTime() - (Number(req.body.reminder.daysBefore) || 2) * 86400000) : undefined),
+      note: String(req.body.reminder.note || '')
+    };
+  }
+
+  await path.save();
+  return successResponse(res, path, 'Learning path updated');
+});
+
+export const addPathDocument = ah(async (req, res) => {
+  const path = await LearningPath.findOne({ _id: req.params.id, organizationId: req.organizationId });
+  if (!path) throw notFound('Learning path not found');
+
+  const { title, description, url, fileType } = req.body;
+  if (!title) throw badRequest('Document title is required');
+
+  const doc = {
+    title: String(title).trim(),
+    description: String(description || '').trim(),
+    url: String(url || '').trim(),
+    fileType: fileType || 'DOCUMENT',
+    addedAt: new Date()
+  };
+
+  path.documents.push(doc);
+  await path.save();
+  return successResponse(res, path, 'Document added to learning path', 201);
 });
 
 export const createModule = ah(async (req, res) => {
@@ -112,8 +168,64 @@ export const createModule = ah(async (req, res) => {
   if (!path) throw notFound('Learning path not found');
   const body = new Validator(req.body).string('title', { required: true, max: 150 }).string('description', { max: 1000 }).done();
   const order = (await LearningModule.countDocuments({ pathId: path._id })) + 1;
-  const module = await LearningModule.create({ pathId: path._id, organizationId: req.organizationId, ...body, order });
+
+  const dueDate = req.body?.dueDate ? new Date(req.body.dueDate) : undefined;
+  const reminder = req.body?.reminder ? {
+    enabled: Boolean(req.body.reminder.enabled),
+    daysBefore: Number(req.body.reminder.daysBefore) || 2,
+    reminderDate: req.body.reminder.reminderDate ? new Date(req.body.reminder.reminderDate) : (dueDate ? new Date(dueDate.getTime() - (Number(req.body.reminder.daysBefore) || 2) * 86400000) : undefined),
+    note: String(req.body.reminder.note || '')
+  } : undefined;
+
+  const module = await LearningModule.create({
+    pathId: path._id,
+    organizationId: req.organizationId,
+    ...body,
+    dueDate,
+    reminder,
+    order
+  });
   return successResponse(res, module, 'Module created', 201);
+});
+
+export const updateModule = ah(async (req, res) => {
+  const module = await LearningModule.findOne({ _id: req.params.moduleId, organizationId: req.organizationId });
+  if (!module) throw notFound('Module not found');
+
+  if (req.body.title) module.title = String(req.body.title).trim();
+  if (req.body.description !== undefined) module.description = String(req.body.description).trim();
+  if (req.body.dueDate !== undefined) module.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : undefined;
+  if (req.body.reminder !== undefined) {
+    module.reminder = {
+      enabled: Boolean(req.body.reminder.enabled),
+      daysBefore: Number(req.body.reminder.daysBefore) || 2,
+      reminderDate: req.body.reminder.reminderDate ? new Date(req.body.reminder.reminderDate) : (module.dueDate ? new Date(module.dueDate.getTime() - (Number(req.body.reminder.daysBefore) || 2) * 86400000) : undefined),
+      note: String(req.body.reminder.note || '')
+    };
+  }
+
+  await module.save();
+  return successResponse(res, module, 'Module updated');
+});
+
+export const addModuleDocument = ah(async (req, res) => {
+  const module = await LearningModule.findOne({ _id: req.params.moduleId, organizationId: req.organizationId });
+  if (!module) throw notFound('Module not found');
+
+  const { title, description, url, fileType } = req.body;
+  if (!title) throw badRequest('Document title is required');
+
+  const doc = {
+    title: String(title).trim(),
+    description: String(description || '').trim(),
+    url: String(url || '').trim(),
+    fileType: fileType || 'DOCUMENT',
+    addedAt: new Date()
+  };
+
+  module.documents.push(doc);
+  await module.save();
+  return successResponse(res, module, 'Document added to module', 201);
 });
 
 export const createLesson = ah(async (req, res) => {
@@ -123,6 +235,8 @@ export const createLesson = ah(async (req, res) => {
     .string('content', { max: 20000 }).url('externalUrl').number('durationMinutes', { min: 0, max: 600 });
   const body = v.done();
   const lesson = { moduleId: module._id, organizationId: req.organizationId, ...body, order: (await LearningLesson.countDocuments({ moduleId: module._id })) + 1 };
+  if (req.body?.dueDate) lesson.dueDate = new Date(req.body.dueDate);
+  if (req.body?.reminder) lesson.reminder = req.body.reminder;
   if (body.contentType === 'QUIZ') {
     const qs = req.body?.quiz?.questions;
     if (!Array.isArray(qs) || !qs.length || qs.some(q => !q?.prompt || !Array.isArray(q.options) || q.options.length < 2 || !Number.isInteger(q.correctIndex) || q.correctIndex >= q.options.length)) {

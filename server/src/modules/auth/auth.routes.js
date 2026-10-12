@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { login, getCurrentUser, refreshAccessToken, changePassword, logout, logoutAll, setupPassword, register, getPublicOrganizations, getInvitationInfo } from './auth.controller.js';
+import {
+  login, getCurrentUser, refreshAccessToken, changePassword, logout, logoutAll,
+  setupPassword, register, getPublicOrganizations, getInvitationInfo,
+  switchOrPreviewRole, exitRolePreview
+} from './auth.controller.js';
 import { authenticate, optionalAuthenticate } from '../../middleware/auth.js';
 import { authLimiter } from '../../middleware/rateLimiter.js';
 
@@ -15,5 +19,7 @@ router.post('/logout', optionalAuthenticate, logout);
 router.post('/logout-all', authenticate, logoutAll);
 router.get('/me', authenticate, getCurrentUser);
 router.post('/change-password', authenticate, changePassword);
+router.post('/switch-role', authenticate, switchOrPreviewRole);
+router.post('/exit-preview', authenticate, exitRolePreview);
 
 export default router;

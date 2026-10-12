@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { session } from '../lib/session';
 
-export function useChatSocket({ onMessage, onRead, onTyping, onNotification } = {}) {
+export function useChatSocket({ onMessage, onRead, onTyping, onNotification, onPresence } = {}) {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
   const socketRef = useRef(null);
@@ -11,13 +11,15 @@ export function useChatSocket({ onMessage, onRead, onTyping, onNotification } = 
   const onReadRef = useRef(onRead);
   const onTypingRef = useRef(onTyping);
   const onNotificationRef = useRef(onNotification);
+  const onPresenceRef = useRef(onPresence);
 
   useEffect(() => {
     onMessageRef.current = onMessage;
     onReadRef.current = onRead;
     onTypingRef.current = onTyping;
     onNotificationRef.current = onNotification;
-  }, [onMessage, onRead, onTyping, onNotification]);
+    onPresenceRef.current = onPresence;
+  }, [onMessage, onRead, onTyping, onNotification, onPresence]);
 
   useEffect(() => {
     const token = session.getToken();
@@ -77,6 +79,18 @@ export function useChatSocket({ onMessage, onRead, onTyping, onNotification } = 
     socket.on('chat:notification', (payload) => {
       if (onNotificationRef.current) {
         onNotificationRef.current(payload);
+      }
+    });
+
+    socket.on('user_presence', (payload) => {
+      if (onPresenceRef.current) {
+        onPresenceRef.current(payload);
+      }
+    });
+
+    socket.on('presence_update', (payload) => {
+      if (onPresenceRef.current) {
+        onPresenceRef.current(payload);
       }
     });
 

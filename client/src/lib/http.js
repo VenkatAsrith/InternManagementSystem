@@ -36,10 +36,16 @@ function actingOrgHeader(headers) {
   if (actingOrg && session.getUser()?.role === 'SUPER_ADMIN') headers['x-organization-id'] = actingOrg;
 }
 
+function previewRoleHeader(headers) {
+  const preview = session.getPreviewRole();
+  if (preview) headers['x-preview-role'] = preview;
+}
+
 api.interceptors.request.use((config) => {
   const token = session.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   actingOrgHeader(config.headers);
+  previewRoleHeader(config.headers);
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) delete config.headers['Content-Type'];
   return config;
 });

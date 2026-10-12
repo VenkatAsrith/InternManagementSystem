@@ -6,8 +6,13 @@ import { storageService } from '../../utils/storage.js';
 import { successResponse, paginatedResponse } from '../../utils/response.js';
 import { notFound, forbidden, badRequest, conflict } from '../../utils/errors.js';
 import { Validator, parsePagination, escapeRegex, isObjectId } from '../../utils/validate.js';
-import { broadcastMessage } from './chat.service.js';
+import { broadcastMessage, getOnlineUsersList } from './chat.service.js';
 import { ROLES } from '../../../../shared/constants.js';
+
+export async function getOnlineUsers(req, res) {
+  const onlineIds = getOnlineUsersList();
+  return successResponse(res, { onlineUserIds: onlineIds });
+}
 
 export async function getConversations(req, res) {
   const conversations = await Conversation.find({

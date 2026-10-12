@@ -9,7 +9,10 @@
     "dev": "nodemon src/server.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit",
     "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit",
-    "seed": "node src/database/seed.js"
+    "seed": "node src/database/seed.js",
+    "reset:demo": "node src/database/resetDemoData.js --confirm",
+    "reset:all": "node src/database/resetAllTestData.js --confirm",
+    "reset:dry": "node src/database/resetAllTestData.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

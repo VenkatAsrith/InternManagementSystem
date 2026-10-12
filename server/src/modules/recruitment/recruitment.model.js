@@ -17,6 +17,11 @@ const internshipProgramSchema = new mongoose.Schema({
     finalReviewRequired: { type: Boolean, default: true },
     minimumAttendancePercent: { type: Number, default: 85, min: 0, max: 100 }
   },
+  feeType: { type: String, enum: ['FREE', 'PAID'], default: 'FREE' },
+  feeAmount: { type: Number, default: 0, min: 0 },
+  feeInclusions: [{ type: String }],
+  feeDescription: { type: String, default: '' },
+  currency: { type: String, default: 'INR' },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
@@ -41,6 +46,9 @@ const internshipOpeningSchema = new mongoose.Schema({
   stipend: { type: String, default: '' },
   stipendAmount: { type: Number, min: 0 },
   stipendCurrency: { type: String, default: 'INR', uppercase: true },
+  feeType: { type: String, enum: ['FREE', 'PAID'], default: 'FREE' },
+  feeAmount: { type: Number, default: 0, min: 0 },
+  feeInclusions: [{ type: String }],
   openPositions: { type: Number, default: 1, min: 1 },
   deadline: { type: Date, required: true },
   status: { type: String, enum: ['DRAFT', 'OPEN', 'CLOSED'], default: 'OPEN', index: true },

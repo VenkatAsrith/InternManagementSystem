@@ -2,14 +2,61 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Send, Paperclip, Search, Plus, MessageSquare, Users, FolderKanban, 
   Check, CheckCheck, Wifi, WifiOff, FileText, Image as ImageIcon, Download, X,
-  ArrowLeft, Clock, AlertCircle
+  ArrowLeft, Clock, AlertCircle, Eye, Share2, FileSpreadsheet, Sparkles
 } from 'lucide-react';
 import api from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
 import { useChatSocket } from '../../hooks/useChatSocket';
-import { Button, LoadingBlock, InlineAlert, StatusBadge } from '../ui';
+import { Button, LoadingBlock, InlineAlert, StatusBadge, Modal } from '../ui';
 import { fmtDateTime, fullName } from '../../lib/format';
 import { NewChatModal } from './NewChatModal';
+
+function ChatDocPreviewModal({ attachment, onClose }) {
+  if (!attachment) return null;
+  const isImg = attachment.mimeType?.startsWith('image/');
+  const isPdf = attachment.mimeType?.includes('pdf') || attachment.originalName?.toLowerCase().endsWith('.pdf');
+  const fileUrl = `/api/v1/chat/attachment/${attachment.storedName}`;
+
+  return (
+    <Modal open onClose={onClose} size="lg" title={`Document Preview: ${attachment.originalName}`}>
+      <div className="space-y-4">
+        <div className="h-[520px] w-full rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center">
+          {isImg ? (
+            <img src={fileUrl} alt={attachment.originalName} className="max-h-full max-w-full object-contain" />
+          ) : isPdf ? (
+            <iframe src={fileUrl} title={attachment.originalName} className="h-full w-full border-0" />
+          ) : (
+            <div className="text-center p-6 space-y-3">
+              <FileText className="h-16 w-16 text-brand-600 mx-auto" />
+              <p className="font-semibold text-slate-800 text-sm">{attachment.originalName}</p>
+              <p className="text-xs text-slate-500">Preview not supported in browser for this file format.</p>
+              <a
+                href={fileUrl}
+                download={attachment.originalName}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-semibold hover:bg-brand-700"
+              >
+                <Download className="h-4 w-4" /> Download File
+              </a>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-between items-center pt-2">
+          <span className="text-xs text-slate-500 font-mono">{attachment.mimeType}</span>
+          <div className="flex gap-2">
+            <a
+              href={fileUrl}
+              download={attachment.originalName}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <Download className="h-4 w-4" /> Download
+            </a>
+            <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 export function ChatPanel({ projectId = null, defaultConversationId = null, className = '' }) {
   const { user } = useAuth();
@@ -27,6 +74,8 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
   const [typingUsers, setTypingUsers] = useState({});
   const [newChatModalOpen, setNewChatModalOpen] = useState(false);
   const [mobileView, setMobileView] = useState('list'); // 'list' | 'chat'
+  const [onlineUserIds, setOnlineUserIds] = useState(new Set());
+  const [previewAttachment, setPreviewAttachment] = useState(null);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -90,6 +139,15 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
     }
   }, [activeConversation]);
 
+  const handlePresenceEvent = useCallback(({ userId, isOnline }) => {
+    setOnlineUserIds(prev => {
+      const next = new Set(prev);
+      if (isOnline) next.add(String(userId));
+      else next.delete(String(userId));
+      return next;
+    });
+  }, []);
+
   const {
     isConnected,
     joinConversation,
@@ -100,8 +158,19 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
   } = useChatSocket({
     onMessage: handleIncomingMessage,
     onRead: handleReadEvent,
-    onTyping: handleTypingEvent
+    onTyping: handleTypingEvent,
+    onPresence: handlePresenceEvent
   });
+
+  // Fetch initial online users
+  useEffect(() => {
+    api.get('/chat/online-users')
+      .then(res => {
+        const ids = res.data?.onlineUserIds || [];
+        setOnlineUserIds(new Set(ids.map(String)));
+      })
+      .catch(() => {});
+  }, []);
 
   // Load conversations
   const loadConversations = useCallback(async () => {
@@ -353,6 +422,13 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
                 const isSelected = activeConversation && String(activeConversation._id) === String(c._id);
                 const title = getConversationTitle(c);
                 const unread = c.unreadCount || 0;
+                const otherMember = (c.members || []).find((m) => {
+                  const mid = String(m.userId?._id || m.userId || m._id);
+                  return mid !== String(user?._id);
+                });
+                const otherUserId = String(otherMember?.userId?._id || otherMember?.userId || otherMember?._id || '');
+                const isOnline = onlineUserIds.has(otherUserId);
+
                 return (
                   <div
                     key={c._id}
@@ -365,13 +441,23 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
                     }`}
                     data-testid={`conversation-item-${c._id}`}
                   >
-                    <div className="h-9 w-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
-                      {c.type === 'DIRECT' ? (
-                        title.slice(0, 2).toUpperCase()
-                      ) : c.type === 'PROJECT' ? (
-                        <FolderKanban className="h-4 w-4 text-emerald-600" />
-                      ) : (
-                        <Users className="h-4 w-4 text-purple-600" />
+                    <div className="relative shrink-0">
+                      <div className="h-9 w-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
+                        {c.type === 'DIRECT' ? (
+                          title.slice(0, 2).toUpperCase()
+                        ) : c.type === 'PROJECT' ? (
+                          <FolderKanban className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <Users className="h-4 w-4 text-purple-600" />
+                        )}
+                      </div>
+                      {c.type === 'DIRECT' && (
+                        <span
+                          className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
+                            isOnline ? 'bg-emerald-500' : 'bg-slate-300'
+                          }`}
+                          title={isOnline ? 'Active Now' : 'Offline'}
+                        />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -405,47 +491,77 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
         {activeConversation ? (
           <>
             {/* Header */}
-            <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setMobileView('list')}
-                  className="md:hidden p-1.5 -ml-1 rounded-lg text-slate-600 hover:bg-slate-200 shrink-0"
-                  title="Back to conversations list"
-                  data-testid="chat-mobile-back-btn"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-                <div className="h-9 w-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs shrink-0">
-                  {getConversationTitle(activeConversation).slice(0, 2).toUpperCase()}
+            {(() => {
+              const activeOther = (activeConversation.members || []).find((m) => {
+                const mid = String(m.userId?._id || m.userId || m._id);
+                return mid !== String(user?._id);
+              });
+              const isPeerOnline = activeOther && onlineUserIds.has(String(activeOther.userId?._id || activeOther.userId || activeOther._id || ''));
+
+              return (
+                <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setMobileView('list')}
+                      className="md:hidden p-1.5 -ml-1 rounded-lg text-slate-600 hover:bg-slate-200 shrink-0"
+                      title="Back to conversations list"
+                      data-testid="chat-mobile-back-btn"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </button>
+                    <div className="relative shrink-0">
+                      <div className="h-9 w-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs">
+                        {getConversationTitle(activeConversation).slice(0, 2).toUpperCase()}
+                      </div>
+                      {activeConversation.type === 'DIRECT' && (
+                        <span
+                          className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
+                            isPeerOnline ? 'bg-emerald-500' : 'bg-slate-300'
+                          }`}
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-semibold text-slate-900 truncate" data-testid="chat-header-title">
+                        {getConversationTitle(activeConversation)}
+                      </h4>
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 truncate">
+                        <span>
+                          {activeConversation.type === 'DIRECT'
+                            ? 'Direct Collaboration'
+                            : activeConversation.type === 'PROJECT'
+                            ? 'Project Channel'
+                            : `${activeConversation.members?.length || 0} participants`}
+                        </span>
+                        {activeConversation.type === 'DIRECT' && (
+                          <>
+                            <span>&bull;</span>
+                            <span className={`inline-flex items-center gap-1 font-medium ${isPeerOnline ? 'text-emerald-700' : 'text-slate-500'}`}>
+                              <span className={`h-2 w-2 rounded-full ${isPeerOnline ? 'bg-emerald-500 ring-2 ring-emerald-200 animate-pulse' : 'bg-slate-300'}`} />
+                              {isPeerOnline ? 'Active Now' : 'Offline'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      {isConnected ? (
+                        <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                          <Wifi className="h-3.5 w-3.5" /> Live
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-amber-600 font-medium">
+                          <WifiOff className="h-3.5 w-3.5" /> Offline
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <h4 className="text-sm font-semibold text-slate-900 truncate" data-testid="chat-header-title">
-                    {getConversationTitle(activeConversation)}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 truncate">
-                    {activeConversation.type === 'DIRECT'
-                      ? 'Direct Collaboration'
-                      : activeConversation.type === 'PROJECT'
-                      ? 'Project Channel'
-                      : `${activeConversation.members?.length || 0} participants`}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  {isConnected ? (
-                    <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                      <Wifi className="h-3.5 w-3.5" /> Live
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-amber-600 font-medium">
-                      <WifiOff className="h-3.5 w-3.5" /> Offline
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Message History */}
             <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/20">
@@ -484,29 +600,61 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
                       >
                         {m.body && <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>}
 
-                        {/* Attachments */}
+                        {/* Attachments - ClickUp style Document & Media cards */}
                         {m.attachments?.length > 0 && (
                           <div className="mt-2 space-y-1.5">
                             {m.attachments.map((att, idx) => (
-                              <a
+                              <div
                                 key={idx}
-                                href={`/api/v1/chat/attachment/${att.storedName}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`flex items-center gap-2 p-2 rounded-lg text-xs font-medium transition ${
+                                className={`rounded-xl border p-2.5 flex items-center justify-between gap-3 text-xs transition ${
                                   isMine
-                                    ? 'bg-brand-700/60 hover:bg-brand-700 text-white'
-                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                                    ? 'bg-brand-700/80 border-brand-500 text-white'
+                                    : 'bg-slate-50 border-slate-200 text-slate-900 shadow-xs'
                                 }`}
                               >
-                                {att.mimeType?.startsWith('image/') ? (
-                                  <ImageIcon className="h-4 w-4 shrink-0" />
-                                ) : (
-                                  <FileText className="h-4 w-4 shrink-0" />
-                                )}
-                                <span className="truncate max-w-[180px]">{att.originalName}</span>
-                                <Download className="h-3.5 w-3.5 shrink-0 ml-auto opacity-70" />
-                              </a>
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                    isMine ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-700 border border-brand-100'
+                                  }`}>
+                                    {att.mimeType?.startsWith('image/') ? (
+                                      <ImageIcon className="h-4 w-4" />
+                                    ) : (
+                                      <FileText className="h-4 w-4" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-semibold truncate max-w-[170px]" title={att.originalName}>
+                                      {att.originalName}
+                                    </p>
+                                    <p className={`text-[10px] uppercase font-mono ${isMine ? 'text-brand-200' : 'text-slate-500'}`}>
+                                      {att.mimeType?.split('/')[1] || 'Doc'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewAttachment(att)}
+                                    className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 transition ${
+                                      isMine
+                                        ? 'bg-white/20 hover:bg-white/30 text-white'
+                                        : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                                    }`}
+                                  >
+                                    <Eye className="h-3 w-3" /> Preview
+                                  </button>
+                                  <a
+                                    href={`/api/v1/chat/attachment/${att.storedName}`}
+                                    download={att.originalName}
+                                    className={`p-1 rounded transition ${
+                                      isMine ? 'hover:bg-brand-600 text-white' : 'hover:bg-slate-200 text-slate-500'
+                                    }`}
+                                    title="Download file"
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                  </a>
+                                </div>
+                              </div>
                             ))}
                           </div>
                         )}
@@ -589,6 +737,16 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
                 title="Attach file"
                 data-testid="chat-attach-btn"
               />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={FileText}
+                loading={uploadingFile}
+                onClick={() => fileInputRef.current?.click()}
+                title="Share Document (PDF, Word, Excel, etc.)"
+                data-testid="chat-share-doc-btn"
+              />
               <input
                 type="text"
                 placeholder="Type a message... (Press Enter to send)"
@@ -628,6 +786,13 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
             setConversations(prev => [newConv, ...prev.filter(c => String(c._id) !== String(newConv._id))]);
             setActiveConversation(newConv);
           }}
+        />
+      )}
+
+      {previewAttachment && (
+        <ChatDocPreviewModal
+          attachment={previewAttachment}
+          onClose={() => setPreviewAttachment(null)}
         />
       )}
     </div>

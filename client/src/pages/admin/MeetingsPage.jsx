@@ -1,6 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Video, Calendar, Bell, CheckCircle2, AlertCircle, ArrowLeft, Search, Users, ExternalLink, Clock } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+  Plus, Video, Calendar, Bell, CheckCircle2, AlertCircle, ArrowLeft,
+  Search, Users, ExternalLink, Clock, Copy, Check, RefreshCw, AlertTriangle,
+  Globe, Link2, ShieldCheck, Mail, BookOpen, Layers, X
+} from 'lucide-react';
 import api from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -11,28 +15,172 @@ import { MEETING_TYPE } from '@shared/constants.js';
 import { Button, CheckboxField, DataTable, FormGrid, FormModal, Modal, PageHeader, SelectField, StatusBadge, TextAreaField, TextField } from '../../components/ui';
 import { MeetingLink } from '../intern/InternMeetingsPage';
 
-const NEXT = { SCHEDULED: ['STARTED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'], RESCHEDULED: ['STARTED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'], STARTED: ['COMPLETED'] };
+const NEXT = {
+  SCHEDULED: ['STARTED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'],
+  RESCHEDULED: ['STARTED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'],
+  STARTED: ['COMPLETED']
+};
 const OPEN = ['SCHEDULED', 'RESCHEDULED'];
 
 const PROVIDERS = [
-  { value: 'GOOGLE_MEET', label: 'Google Meet' },
+  { value: 'GOOGLE_MEET', label: 'Google Meet (Official Calendar API)' },
   { value: 'MS_TEAMS', label: 'Microsoft Teams' },
   { value: 'ZOOM', label: 'Zoom' },
   { value: 'CUSTOM', label: 'Custom Platform' },
   { value: 'IN_PERSON', label: 'In Person' }
 ];
 
-function NewMeetingModal({ onClose, onDone }) {
-  const toast = useToast();
-  const interns = useFetch(() => api.get('/interns', { params: { open: true, limit: 200 } }), []);
-  const staff = useFetch(() => api.get('/users', { params: { limit: 100 } }), []);
-  const projects = useFetch(() => api.get('/projects', { params: { limit: 100 } }), []);
-  const googleStatus = useFetch(() => api.get('/integrations/google/status'), []);
+const TIMEZONES = [
+  { value: 'Asia/Kolkata', label: 'India Standard Time (IST, UTC+5:30)' },
+  { value: 'UTC', label: 'Coordinated Universal Time (UTC)' },
+  { value: 'America/New_York', label: 'Eastern Time (ET, UTC-5)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT, UTC-8)' },
+  { value: 'Europe/London', label: 'Greenwich Mean Time (GMT, UTC+0)' },
+  { value: 'Asia/Dubai', label: 'Gulf Standard Time (GST, UTC+4)' },
+  { value: 'Asia/Singapore', label: 'Singapore Time (SGT, UTC+8)' }
+];
 
-  const [step, setStep] = useState('FORM'); // 'FORM' | 'PREVIEW'
+function GoogleIntegrationBanner({ googleStatus, onReload }) {
+  const toast = useToast();
+  const [connecting, setConnecting] = useState(false);
+
+  const isConnected = !!googleStatus.data?.isConnected;
+  const isConfigured = googleStatus.data?.isConfigured !== false;
+  const accountEmail = googleStatus.data?.accountEmail;
+  const missingConfig = googleStatus.data?.missingConfig || [];
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const res = await api.get('/integrations/google/auth-url');
+      if (res.data?.authUrl) {
+        window.location.href = res.data.authUrl;
+      } else {
+        toast.error('Unable to generate Google authorization URL');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Google OAuth initialization failed');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Are you sure you want to disconnect Google Calendar integration?')) return;
+    try {
+      await api.post('/integrations/google/disconnect');
+      toast.success('Google Workspace account disconnected');
+      onReload();
+    } catch (err) {
+      toast.error(err.message || 'Failed to disconnect');
+    }
+  };
+
+  if (isConnected) {
+    return (
+      <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-emerald-900 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm flex-shrink-0">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-sm text-emerald-950">Google Calendar & Meet Connected</p>
+                <span className="rounded-full bg-emerald-200/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-900 uppercase">
+                  Live OAuth 2.0
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800 mt-0.5">
+                Authorized account: <strong className="font-semibold text-emerald-950">{accountEmail}</strong> &bull; Genuine Google Meet conferences & Calendar events will be provisioned.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <Button size="sm" variant="outline" onClick={handleConnect} loading={connecting} title="Reconnect Google Account">
+              Reconnect
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleDisconnect} className="text-emerald-800 hover:text-rose-700 hover:bg-rose-50">
+              Disconnect
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isConfigured) {
+    return (
+      <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white shadow-sm flex-shrink-0 mt-0.5">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold text-sm text-amber-950">Google Meet Integration Not Configured</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              The Google Calendar API requires environment variables in <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[11px]">server/.env</code>:
+              {' '}<strong className="font-semibold">{missingConfig.join(', ')}</strong>.
+            </p>
+            <p className="text-xs text-amber-700 mt-1">
+              Add your Google OAuth 2.0 Client ID and Client Secret from the Google Cloud Console to enable automated Google Meet creation.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50/60 p-4 text-blue-900 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm flex-shrink-0">
+            <Video className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-sm text-blue-950">Google Calendar Not Connected</p>
+              <span className="rounded-full bg-blue-200/80 px-2 py-0.5 text-[10px] font-bold text-blue-900 uppercase">
+                Action Required
+              </span>
+            </div>
+            <p className="text-xs text-blue-800 mt-0.5">
+              Connect your authorized Google Workspace account to generate real Google Meet conference links and calendar invitations.
+            </p>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="primary"
+          icon={Video}
+          onClick={handleConnect}
+          loading={connecting}
+          className="self-end sm:self-center shadow-sm"
+          data-testid="connect-google-calendar-banner-btn"
+        >
+          Connect Google Calendar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function NewMeetingModal({ onClose, onDone, isGoogleConnected, onConnectGoogle }) {
+  const toast = useToast();
+  const { user } = useAuth();
+  const interns = useFetch(() => api.get('/interns', { params: { open: true, limit: 200 } }), []);
+  const staff = useFetch(() => api.get('/users', { params: { limit: 150 } }), []);
+  const projects = useFetch(() => api.get('/projects', { params: { limit: 100 } }), []);
+  const bootcamps = useFetch(() => api.get('/growth/bootcamps'), []);
+  const programs = useFetch(() => api.get('/training/programs'), []);
+
+  const [step, setStep] = useState('FORM'); // 'FORM' | 'CONFIRMATION'
   const [participantSearch, setParticipantSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
+  const [createdMeeting, setCreatedMeeting] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const form = useForm({
     title: '',
@@ -40,13 +188,17 @@ function NewMeetingModal({ onClose, onDone }) {
     scheduledDate: todayISO(),
     startTime: '10:00',
     endTime: '11:00',
+    timezone: 'Asia/Kolkata',
     internIds: [],
     participants: [],
+    externalAttendees: '',
     meetingProvider: 'GOOGLE_MEET',
     meetingLink: '',
     agenda: '',
     description: '',
     projectId: '',
+    programId: '',
+    bootcampId: '',
     reminder24h: true,
     reminder15m: true
   });
@@ -79,11 +231,19 @@ function NewMeetingModal({ onClose, onDone }) {
     form.set('internIds', []);
   };
 
-  const handleValidateForPreview = (e) => {
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopiedLink(true);
+    toast.success('Google Meet link copied to clipboard');
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handleSubmit = async (e) => {
     e?.preventDefault();
     setApiError(null);
+
+    // Validation
     if (!form.values.title.trim()) {
-      form.set('title', form.values.title);
       toast.error('Meeting title is required');
       return;
     }
@@ -99,44 +259,48 @@ function NewMeetingModal({ onClose, onDone }) {
       toast.error('Please select at least one intern participant');
       return;
     }
-    setStep('PREVIEW');
-  };
 
-  const handleFinalSubmit = async () => {
+    const isGoogleMeet = form.values.meetingProvider === 'GOOGLE_MEET';
+    if (isGoogleMeet && !isGoogleConnected) {
+      setApiError('Google Calendar is not connected. Please connect your Google account before scheduling a Google Meet conference.');
+      toast.error('Google Calendar account not connected');
+      return;
+    }
+
     if (submitting) return; // Prevent double submit idempotency
     setSubmitting(true);
-    setApiError(null);
 
     const idempotencyKey = `meet_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
     try {
-      await api.post('/meetings', {
+      const res = await api.post('/meetings', {
         title: form.values.title.trim(),
         type: form.values.type,
         scheduledDate: form.values.scheduledDate,
         startTime: form.values.startTime,
         endTime: form.values.endTime,
+        timezone: form.values.timezone,
         internIds: form.values.internIds,
         meetingProvider: form.values.meetingProvider,
         idempotencyKey,
+        ...(form.values.externalAttendees.trim() ? { externalAttendees: form.values.externalAttendees.trim() } : {}),
         ...(form.values.meetingLink.trim() ? { meetingLink: form.values.meetingLink.trim() } : {}),
         ...(form.values.agenda.trim() || form.values.description.trim()
           ? { agenda: (form.values.agenda || form.values.description).trim(), description: (form.values.description || form.values.agenda).trim() }
           : {}),
-        ...(form.values.projectId ? { projectId: form.values.projectId } : {})
+        ...(form.values.projectId ? { projectId: form.values.projectId } : {}),
+        ...(form.values.programId ? { programId: form.values.programId } : {}),
+        ...(form.values.bootcampId ? { bootcampId: form.values.bootcampId } : {})
       });
 
-      toast.success(
-        form.values.meetingProvider === 'GOOGLE_MEET'
-          ? 'Meeting scheduled with Google Meet conference and reminders set.'
-          : 'Meeting scheduled successfully. Participants were notified.'
-      );
-      onDone();
+      const meetingData = res.data;
+      setCreatedMeeting(meetingData);
+      setStep('CONFIRMATION');
+      toast.success('Meeting created successfully with genuine Google Meet link and reminders!');
     } catch (err) {
       const errMsg = err.message || 'Failed to schedule meeting';
       setApiError(errMsg);
       toast.error(errMsg);
-      setStep('FORM'); // Return to form to fix
     } finally {
       setSubmitting(false);
     }
@@ -144,63 +308,88 @@ function NewMeetingModal({ onClose, onDone }) {
 
   const selectedCount = form.values.internIds.length;
   const isGoogleMeet = form.values.meetingProvider === 'GOOGLE_MEET';
-  const isGoogleConnected = googleStatus.data?.isConnected;
 
   return (
     <Modal
       open
-      onClose={onClose}
+      onClose={() => {
+        if (step === 'CONFIRMATION') onDone();
+        else onClose();
+      }}
       size="lg"
       testId="meeting-modal"
-      title={step === 'PREVIEW' ? 'Meeting Preview' : 'Schedule Meeting'}
-      description={step === 'PREVIEW' ? 'Review conference details and participants before confirming.' : 'Create a 1-on-1, review or sync meeting.'}
+      title={step === 'CONFIRMATION' ? 'Meeting Confirmed & Provisioned' : 'Schedule Meeting'}
+      description={step === 'CONFIRMATION' ? 'Google Calendar event and video conference have been generated successfully.' : 'Create a 1-on-1, review or sync meeting with genuine conference link.'}
     >
-      {apiError && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800">
-          <div className="flex items-start gap-2.5">
-            <AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">Unable to schedule meeting</p>
-              <p className="mt-0.5">{apiError}</p>
-              {isGoogleMeet && !isGoogleConnected && (
-                <p className="mt-2 text-rose-700 font-medium">
-                  Tip: Connect your Google Workspace in Admin Settings &gt; Integrations to automatically create Google Calendar events and Meet links.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {step === 'FORM' ? (
-        <form onSubmit={handleValidateForPreview} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {apiError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold text-rose-950">Unable to schedule meeting</p>
+                  <p className="mt-0.5">{apiError}</p>
+                  {isGoogleMeet && !isGoogleConnected && (
+                    <div className="mt-3">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="primary"
+                        icon={Video}
+                        onClick={onConnectGoogle}
+                      >
+                        Connect Google Calendar Now
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <FormGrid>
-            <TextField {...f('title')} label="Meeting Title" required className="sm:col-span-2" placeholder="Weekly Intern Review" />
-            <SelectField {...f('type')} label="Type" options={Object.values(MEETING_TYPE).map((t) => ({ value: t, label: humanize(t) }))} />
+            <TextField {...f('title')} label="Meeting Title" required className="sm:col-span-2" placeholder="e.g. Weekly Technical Progress Review" />
+            <SelectField {...f('type')} label="Meeting Type" options={Object.values(MEETING_TYPE).map((t) => ({ value: t, label: humanize(t) }))} />
             <SelectField {...f('meetingProvider')} label="Meeting Platform" options={PROVIDERS} />
-            <TextField {...f('scheduledDate')} label="Date" type="date" required min={todayISO()} />
+            <TextField {...f('scheduledDate')} label="Meeting Date" type="date" required min={todayISO()} />
             <div className="grid grid-cols-2 gap-2">
               <TextField {...f('startTime')} label="Start Time" type="time" required />
               <TextField {...f('endTime')} label="End Time" type="time" required />
             </div>
+            <SelectField {...f('timezone')} label="Time Zone" options={TIMEZONES} />
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Meeting Organizer</label>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 font-medium truncate">
+                {fullName(user)} ({user?.email}) &bull; {humanize(user?.role)}
+              </div>
+            </div>
 
             {isGoogleMeet && (
-              <div className="sm:col-span-2 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs text-blue-900">
-                <div className="flex items-center gap-2 font-medium">
-                  <Video className="h-4 w-4 text-blue-700" />
-                  <span>Google Meet Integration</span>
+              <div className="sm:col-span-2 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-900">
+                <div className="flex items-center justify-between gap-2 font-medium">
+                  <div className="flex items-center gap-2">
+                    <Video className="h-4 w-4 text-blue-700" />
+                    <span className="font-semibold">Google Meet Integration</span>
+                  </div>
                   {isGoogleConnected ? (
-                    <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
-                      <CheckCircle2 className="h-3 w-3" /> Workspace Linked
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                      <CheckCircle2 className="h-3 w-3" /> Workspace Authorized
                     </span>
                   ) : (
-                    <span className="ml-auto text-[11px] font-medium text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-full">
-                      OAuth setup optional
-                    </span>
+                    <button
+                      type="button"
+                      onClick={onConnectGoogle}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-full border border-amber-300 transition-colors"
+                    >
+                      <AlertTriangle className="h-3 w-3" /> Connect Required &rarr;
+                    </button>
                   )}
                 </div>
                 <p className="mt-1 text-slate-600">
-                  Google Meet conference URL and calendar invitations with 24-hour and 15-minute reminders will be provisioned.
+                  {isGoogleConnected
+                    ? 'A real Google Calendar event will be created and an authentic Google Meet URL generated.'
+                    : 'Google Calendar must be connected before scheduling a Google Meet conference.'}
                 </p>
               </div>
             )}
@@ -212,15 +401,38 @@ function NewMeetingModal({ onClose, onDone }) {
                 type="url"
                 placeholder="https://..."
                 className="sm:col-span-2"
-                hint="Leave empty to automatically generate a secure meeting link."
+                hint="Leave empty to automatically generate a secure meeting conference link."
               />
             )}
+
+            <TextField
+              {...f('externalAttendees')}
+              label="External Attendee Emails (Optional)"
+              type="text"
+              placeholder="client@partner.com, advisor@external.org (comma-separated)"
+              className="sm:col-span-2"
+              hint="External guests will receive calendar invites and reminder emails."
+            />
 
             <SelectField
               {...f('projectId')}
               label="Related Project (Optional)"
               placeholder="None (General / Direct Review)"
               options={(projects.data?.projects || projects.data || []).map((p) => ({ value: p._id, label: `${p.title} (${p.code || 'Project'})` }))}
+            />
+
+            <SelectField
+              {...f('programId')}
+              label="Related Training Program (Optional)"
+              placeholder="None (Direct Review)"
+              options={(programs.data || []).map((p) => ({ value: p._id, label: `${p.title} (${p.code || 'Track'})` }))}
+            />
+
+            <SelectField
+              {...f('bootcampId')}
+              label="Related Bootcamp (Optional)"
+              placeholder="None"
+              options={(bootcamps.data || []).map((b) => ({ value: b._id, label: `${b.title} (${b.category || 'Bootcamp'})` }))}
               className="sm:col-span-2"
             />
           </FormGrid>
@@ -300,11 +512,11 @@ function NewMeetingModal({ onClose, onDone }) {
             </div>
           </div>
 
-          {/* Automated Reminders */}
+          {/* Automated Reminders Configuration */}
           <div className="rounded-xl border border-slate-200 bg-white p-3.5">
             <div className="flex items-center gap-2 mb-2">
               <Bell className="h-4 w-4 text-brand-600" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">Automated Reminders</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">Automated Dual Reminders</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
               <label className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
@@ -316,7 +528,7 @@ function NewMeetingModal({ onClose, onDone }) {
                 />
                 <div>
                   <p className="font-semibold text-slate-800">24 Hours Before</p>
-                  <p className="text-[10px] text-slate-500">In-app & Calendar reminder</p>
+                  <p className="text-[10px] text-slate-500">Automated email & calendar notification</p>
                 </div>
               </label>
 
@@ -329,7 +541,7 @@ function NewMeetingModal({ onClose, onDone }) {
                 />
                 <div>
                   <p className="font-semibold text-slate-800">15 Minutes Before</p>
-                  <p className="text-[10px] text-slate-500">Urgent join notification</p>
+                  <p className="text-[10px] text-slate-500">Direct urgent join alert to all attendees</p>
                 </div>
               </label>
             </div>
@@ -338,111 +550,242 @@ function NewMeetingModal({ onClose, onDone }) {
           <TextAreaField {...f('agenda')} label="Agenda / Discussion Topics" rows={2} placeholder="Points to discuss, milestones, blockers..." />
 
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" data-testid="preview-meeting-btn">
-              Preview Meeting
+            <Button
+              type="submit"
+              variant="primary"
+              loading={submitting}
+              disabled={isGoogleMeet && !isGoogleConnected}
+              data-testid="create-meeting-submit-btn"
+            >
+              Create Meeting
             </Button>
           </div>
         </form>
       ) : (
-        /* Real Useful Meeting Preview Step (§9) */
-        <div className="space-y-5" data-testid="meeting-preview-screen">
-          <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50/50 to-white p-5 shadow-sm">
-            <div className="flex items-start justify-between">
+        /* Step 5 — Meeting Confirmation Screen */
+        <div className="space-y-5" data-testid="meeting-confirmation-screen">
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-semibold text-brand-800 uppercase tracking-wide">
-                  {humanize(form.values.type)}
+                <span className="rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-bold uppercase tracking-wide border border-emerald-200">
+                  Meeting Created & Confirmed
                 </span>
-                <h3 className="mt-2 text-xl font-bold text-slate-900">{form.values.title}</h3>
+                <h3 className="mt-2 text-xl font-bold text-slate-900">{createdMeeting?.title}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Type: {humanize(createdMeeting?.type)} &bull; Organizer: {fullName(user)}
+                </p>
               </div>
-              <span className="rounded-lg bg-emerald-100 px-3 py-1 font-mono text-xs font-semibold text-emerald-800">
-                {humanize(form.values.meetingProvider)}
+              <span className="rounded-lg bg-blue-100 text-blue-800 px-3 py-1 text-xs font-bold border border-blue-200">
+                {humanize(createdMeeting?.meetingProvider || 'GOOGLE_MEET')}
               </span>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 text-xs">
+            {/* Meet Link Highlight Box */}
+            <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/80 p-4">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-700 block mb-1">
+                Authentic Google Meet Joining Link
+              </span>
+              <p className="font-mono text-base font-bold text-blue-900 select-all break-all">
+                {createdMeeting?.googleMeetLink || createdMeeting?.meetingLink}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon={copiedLink ? Check : Copy}
+                  onClick={() => copyToClipboard(createdMeeting?.googleMeetLink || createdMeeting?.meetingLink)}
+                  data-testid="copy-meet-link-confirm-btn"
+                >
+                  {copiedLink ? 'Copied to Clipboard' : 'Copy Meet Link'}
+                </Button>
+                <a
+                  href={createdMeeting?.googleMeetLink || createdMeeting?.meetingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-500 transition-colors shadow-sm"
+                  data-testid="open-google-meet-confirm-btn"
+                >
+                  <Video className="h-4 w-4" /> Open Google Meet
+                </a>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 text-xs">
               <div className="rounded-lg border border-slate-100 bg-white p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Date & Time</p>
                 <p className="mt-1 font-semibold text-slate-900 text-sm">
-                  {fmtDate(form.values.scheduledDate)}
+                  {fmtDate(createdMeeting?.scheduledDate)}
                 </p>
                 <p className="text-slate-600">
-                  {form.values.startTime} &ndash; {form.values.endTime}
+                  {createdMeeting?.startTime} &ndash; {createdMeeting?.endTime} ({createdMeeting?.timezone || 'Asia/Kolkata'})
                 </p>
               </div>
 
               <div className="rounded-lg border border-slate-100 bg-white p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Platform</p>
-                <div className="mt-1 flex items-center gap-1.5 font-semibold text-slate-900 text-sm">
-                  <Video className="h-4 w-4 text-brand-600" />
-                  <span>{humanize(form.values.meetingProvider)}</span>
-                </div>
-                <p className="text-slate-600">
-                  {isGoogleMeet ? 'Real Google Meet conference will be provisioned' : 'Secure conference link'}
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Google Calendar Event</p>
+                <p className="mt-1 font-mono text-xs text-slate-700">
+                  {createdMeeting?.googleCalendarEventId || 'primary_event'}
                 </p>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 mt-1">
+                  <CheckCircle2 className="h-3 w-3" /> Event Synchronized
+                </span>
               </div>
 
               <div className="rounded-lg border border-slate-100 bg-white p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Participants ({selectedCount})</p>
-                <ul className="mt-1 max-h-24 overflow-y-auto space-y-0.5 text-slate-700">
-                  {internList.filter(i => form.values.internIds.includes(i._id)).map(i => (
-                    <li key={i._id} className="flex items-center gap-1 font-medium">
-                      &bull; {fullName(i.userId)} <span className="font-mono text-[10px] text-slate-500">({i.internId})</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="rounded-lg border border-slate-100 bg-white p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Delivery & Reminders</p>
-                <div className="mt-1 space-y-1 text-slate-700">
-                  <p className="flex items-center gap-1.5 text-emerald-700 font-medium">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Google Calendar Event
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Participants ({createdMeeting?.participants?.length || selectedCount})</p>
+                <p className="mt-1 text-slate-700 font-medium">
+                  {selectedCount} intern participant(s) enrolled
+                </p>
+                {form.values.externalAttendees && (
+                  <p className="text-[11px] text-slate-500 mt-1 truncate">
+                    Guests: {form.values.externalAttendees}
                   </p>
-                  {form.values.reminder24h && (
-                    <p className="flex items-center gap-1.5 text-slate-700">
-                      <Clock className="h-3.5 w-3.5 text-brand-600" /> 24 hours before
-                    </p>
-                  )}
-                  {form.values.reminder15m && (
-                    <p className="flex items-center gap-1.5 text-slate-700">
-                      <Clock className="h-3.5 w-3.5 text-brand-600" /> 15 minutes before
-                    </p>
-                  )}
+                )}
+              </div>
+
+              <div className="rounded-lg border border-slate-100 bg-white p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Dual Reminders</p>
+                <div className="mt-1 space-y-0.5 text-slate-700">
+                  <p className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> 24 Hours Before: Scheduled
+                  </p>
+                  <p className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> 15 Minutes Before: Scheduled
+                  </p>
                 </div>
               </div>
             </div>
-
-            {form.values.agenda && (
-              <div className="mt-4 rounded-lg border border-slate-100 bg-white p-3 text-xs">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Agenda</p>
-                <p className="mt-1 text-slate-700 whitespace-pre-wrap">{form.values.agenda}</p>
-              </div>
-            )}
           </div>
 
-          <div className="flex justify-between items-center pt-2">
-            <Button type="button" variant="outline" icon={ArrowLeft} onClick={() => setStep('FORM')}>
-              Edit Details
+          <div className="flex justify-end pt-2">
+            <Button
+              type="button"
+              variant="primary"
+              onClick={onDone}
+              data-testid="done-confirm-meeting-btn"
+            >
+              Done & View Meeting in List
             </Button>
-            <div className="flex items-center gap-3">
-              <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                loading={submitting}
-                onClick={handleFinalSubmit}
-                data-testid="confirm-schedule-meeting-btn"
-              >
-                Schedule Meeting
-              </Button>
-            </div>
           </div>
         </div>
       )}
+    </Modal>
+  );
+}
+
+function MeetingDetailsModal({ meeting, onClose, onReschedule, onStatusChange }) {
+  const toast = useToast();
+  const [copied, setCopied] = useState(false);
+  const meetUrl = meeting.googleMeetLink || meeting.meetingLink;
+
+  const copyLink = () => {
+    if (!meetUrl) return;
+    navigator.clipboard.writeText(meetUrl);
+    setCopied(true);
+    toast.success('Meeting link copied');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="md"
+      testId="meeting-details-modal"
+      title={meeting.title}
+      description={`${humanize(meeting.type)} • Organized by ${fullName(meeting.organizerId || meeting.mentorId)}`}
+    >
+      <div className="space-y-4">
+        {meetUrl && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-700 block mb-1">
+              Google Meet Conference URL
+            </span>
+            <p className="font-mono text-sm font-bold text-blue-900 break-all select-all">
+              {meetUrl}
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <Button size="sm" variant="outline" icon={copied ? Check : Copy} onClick={copyLink}>
+                {copied ? 'Copied' : 'Copy Meet Link'}
+              </Button>
+              <a
+                href={meetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+              >
+                <Video className="h-3.5 w-3.5" /> Open Google Meet
+              </a>
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2 text-xs">
+          <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase">When</span>
+            <p className="mt-1 font-semibold text-slate-900">{fmtDate(meeting.scheduledDate)}</p>
+            <p className="text-slate-600">{meeting.startTime} &ndash; {meeting.endTime} ({meeting.timezone || 'Asia/Kolkata'})</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase">Status & Provider</span>
+            <div className="mt-1 flex items-center gap-2">
+              <StatusBadge status={meeting.status} />
+              <span className="font-semibold text-slate-700">{humanize(meeting.meetingProvider)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <span className="text-xs font-semibold text-slate-700 uppercase block mb-1.5">Participants</span>
+          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+            {(meeting.participants || []).map((p) => (
+              <span key={p._id} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-800">
+                {fullName(p)} <span className="text-slate-500 font-mono text-[10px]">({p.email})</span>
+              </span>
+            ))}
+            {(meeting.externalAttendees || []).map((email, idx) => (
+              <span key={idx} className="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-800 border border-blue-200">
+                {email} (Guest)
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {meeting.agenda && (
+          <div>
+            <span className="text-xs font-semibold text-slate-700 uppercase block mb-1">Agenda</span>
+            <p className="text-xs text-slate-700 whitespace-pre-wrap bg-slate-50 p-3 rounded-lg border border-slate-100">
+              {meeting.agenda}
+            </p>
+          </div>
+        )}
+
+        {meeting.reminders?.length > 0 && (
+          <div>
+            <span className="text-xs font-semibold text-slate-700 uppercase block mb-1">Automated Reminders</span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {meeting.reminders.map((rem, idx) => (
+                <div key={idx} className="rounded-lg border border-slate-100 bg-slate-50 p-2">
+                  <p className="font-semibold text-slate-800">{rem.type === '24_HOURS' ? '24 Hours Before' : '15 Minutes Before'}</p>
+                  <p className="text-[11px] text-slate-500">Status: <strong className="text-emerald-700">{rem.status}</strong></p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+          {OPEN.includes(meeting.status) && (
+            <Button variant="primary" onClick={() => { onClose(); onReschedule(meeting); }}>
+              Reschedule
+            </Button>
+          )}
+        </div>
+      </div>
     </Modal>
   );
 }
@@ -458,7 +801,7 @@ function RescheduleModal({ meeting, onClose, onDone }) {
       size="sm"
       testId="meeting-reschedule-modal"
       title="Reschedule Meeting"
-      description="Updates Google Calendar event and notifies all participants."
+      description="Updates Google Calendar event, recalculates reminders, and notifies participants."
       submitLabel="Reschedule"
       form={form}
       rules={{
@@ -528,11 +871,50 @@ function StatusModal({ meeting, status, onClose, onDone }) {
 
 export function MeetingsPage() {
   const { can, user } = useAuth();
+  const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const state = useFetch(() => api.get('/meetings'), []);
+  const googleStatus = useFetch(() => api.get('/integrations/google/status'), []);
+
   const [modal, setModal] = useState(null);
-  const close = () => setModal(null);
-  const done = () => { close(); state.reload({ silent: true }); };
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
+
+  const close = () => { setModal(null); setSelectedMeeting(null); };
+  const done = () => { close(); state.reload({ silent: true }); googleStatus.reload({ silent: true }); };
   const manages = (m) => can('meetings.manage') && (!['MENTOR', 'TEAM_LEAD'].includes(user.role) || m.mentorId?._id === user._id);
+
+  // Check URL query parameters for OAuth redirect notifications
+  useEffect(() => {
+    const googleParam = searchParams.get('google');
+    if (googleParam === 'connected') {
+      const email = searchParams.get('email');
+      toast.success(email ? `Google Workspace connected successfully (${email})!` : 'Google Workspace connected successfully!');
+      googleStatus.reload({ silent: true });
+      searchParams.delete('google');
+      searchParams.delete('email');
+      setSearchParams(searchParams, { replace: true });
+    } else if (googleParam === 'error') {
+      const msg = searchParams.get('message') || 'Google authentication failed';
+      toast.error(msg);
+      searchParams.delete('google');
+      searchParams.delete('message');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, toast, googleStatus]);
+
+  const handleConnectGoogle = async () => {
+    try {
+      const res = await api.get('/integrations/google/auth-url');
+      if (res.data?.authUrl) {
+        window.location.href = res.data.authUrl;
+      } else {
+        toast.error('Unable to generate Google authorization URL');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Google OAuth initialization failed');
+    }
+  };
 
   const cols = [
     {
@@ -540,20 +922,33 @@ export function MeetingsPage() {
       header: 'Meeting',
       render: (m) => (
         <div>
-          <div className="flex items-center gap-1.5">
-            <p className="font-semibold text-slate-900">{m.title}</p>
+          <button
+            type="button"
+            onClick={() => setSelectedMeeting(m)}
+            className="text-left font-semibold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1.5"
+            data-testid={`meeting-title-${m._id}`}
+          >
+            <span>{m.title}</span>
             {m.meetingProvider === 'GOOGLE_MEET' && (
               <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200" title="Google Meet Scheduled">
                 <Video className="h-3 w-3" /> Meet
               </span>
             )}
-          </div>
-          <p className="text-xs text-slate-600">{humanize(m.type)} &bull; host {fullName(m.mentorId)}</p>
+          </button>
+          <p className="text-xs text-slate-600">{humanize(m.type)} &bull; host {fullName(m.mentorId || m.organizerId)}</p>
         </div>
       )
     },
     { key: 'when', header: 'When', render: (m) => `${fmtDate(m.scheduledDate)}, ${m.startTime}-${m.endTime}` },
-    { key: 'people', header: 'Participants', render: (m) => (m.participants || []).map((p) => p.firstName).join(', ') },
+    {
+      key: 'people',
+      header: 'Participants',
+      render: (m) => (
+        <span className="text-xs text-slate-700">
+          {(m.participants || []).map((p) => p.firstName).join(', ') || 'No attendees'}
+        </span>
+      )
+    },
     {
       key: 'reminders',
       header: 'Reminders',
@@ -575,11 +970,21 @@ export function MeetingsPage() {
       key: 'actions',
       header: '',
       align: 'right',
-      render: (m) => manages(m) && (
-        <div className="flex flex-wrap justify-end gap-2">
-          {OPEN.includes(m.status) && <Button size="sm" variant="outline" onClick={() => setModal({ type: 'reschedule', m })} data-testid={`meeting-reschedule-${m._id}`}>Reschedule</Button>}
-          {(NEXT[m.status] || []).slice(0, 2).map((s) => <Button key={s} size="sm" variant="outline" onClick={() => setModal({ type: 'status', m, s })} data-testid={`meeting-${s}-${m._id}`}>{humanize(s)}</Button>)}
-          {!['CANCELLED', 'NO_SHOW'].includes(m.status) && <Button size="sm" variant="outline" onClick={() => setModal({ type: 'item', m })} data-testid={`meeting-item-${m._id}`}>Action item</Button>}
+      render: (m) => (
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <Button size="sm" variant="ghost" onClick={() => setSelectedMeeting(m)} data-testid={`view-details-${m._id}`}>
+            Details
+          </Button>
+          {manages(m) && OPEN.includes(m.status) && (
+            <Button size="sm" variant="outline" onClick={() => setModal({ type: 'reschedule', m })} data-testid={`meeting-reschedule-${m._id}`}>
+              Reschedule
+            </Button>
+          )}
+          {manages(m) && (NEXT[m.status] || []).slice(0, 1).map((s) => (
+            <Button key={s} size="sm" variant="outline" onClick={() => setModal({ type: 'status', m, s })} data-testid={`meeting-${s}-${m._id}`}>
+              {humanize(s)}
+            </Button>
+          ))}
         </div>
       )
     }
@@ -589,7 +994,7 @@ export function MeetingsPage() {
     <>
       <PageHeader
         title="Meetings"
-        description="1-on-1s, syncs and intern reviews with integrated Google Meet and automated calendar reminders."
+        description="Schedule 1-on-1s, technical reviews, and sync calls with genuine Google Meet links and automated dual reminders."
         actions={(
           <div className="flex items-center gap-2">
             <Link
@@ -599,10 +1004,21 @@ export function MeetingsPage() {
             >
               <Video className="h-4 w-4" /> Google Meet Hub
             </Link>
-            {can('meetings.manage') && <Button icon={Plus} onClick={() => setModal({ type: 'new' })} data-testid="new-meeting">Schedule meeting</Button>}
+            {can('meetings.manage') && (
+              <Button icon={Plus} onClick={() => setModal({ type: 'new' })} data-testid="new-meeting">
+                Schedule Meeting
+              </Button>
+            )}
           </div>
         )}
       />
+
+      {/* Integration Diagnostic Banner */}
+      <GoogleIntegrationBanner
+        googleStatus={googleStatus}
+        onReload={() => googleStatus.reload({ silent: true })}
+      />
+
       <DataTable
         testId="meetings-table"
         columns={cols}
@@ -611,10 +1027,26 @@ export function MeetingsPage() {
         error={state.error}
         onRetry={state.reload}
         caption="Meetings"
-        emptyTitle="No meetings"
-        emptyDescription="Schedule a meeting with one or more interns."
+        emptyTitle="No meetings scheduled"
+        emptyDescription="Schedule a real Google Meet meeting with one or more interns to get started."
       />
-      {modal?.type === 'new' && <NewMeetingModal onClose={close} onDone={done} />}
+
+      {modal?.type === 'new' && (
+        <NewMeetingModal
+          onClose={close}
+          onDone={done}
+          isGoogleConnected={!!googleStatus.data?.isConnected}
+          onConnectGoogle={handleConnectGoogle}
+        />
+      )}
+      {selectedMeeting && (
+        <MeetingDetailsModal
+          meeting={selectedMeeting}
+          onClose={() => setSelectedMeeting(null)}
+          onReschedule={(m) => setModal({ type: 'reschedule', m })}
+          onStatusChange={(m, s) => setModal({ type: 'status', m, s })}
+        />
+      )}
       {modal?.type === 'reschedule' && <RescheduleModal meeting={modal.m} onClose={close} onDone={done} />}
       {modal?.type === 'item' && <ActionItemModal meeting={modal.m} onClose={close} onDone={done} />}
       {modal?.type === 'status' && <StatusModal meeting={modal.m} status={modal.s} onClose={close} onDone={done} />}

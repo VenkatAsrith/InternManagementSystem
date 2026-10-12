@@ -7,7 +7,7 @@ import { CompensationPlan } from '../finance/finance.model.js';
 import { generateId, generateSecretToken, hashToken } from '../../utils/idGenerator.js';
 import { recordAuditLog } from '../../middleware/auditLogger.js';
 import { createNotification } from '../notifications/notification.service.js';
-import { emailService } from '../email/email.service.js';
+import { emailService, sendOnboardingCredentialsEmail } from '../email/email.service.js';
 import { moveApplication } from '../recruitment/application.service.js';
 import {
   OFFER_STATUS, APPLICATION_STATUS, ROLES, INTERN_STATUS, ONBOARDING_STATUS, COMPENSATION_TYPE
@@ -120,6 +120,7 @@ export async function acceptOfferAtomically({ offerId, filter = {}, via, actor =
     // ---- 2b. identity: ONE person = ONE user --------------------------------------------------------------------
     let user = await User.findOne({ email: candidate.email }).select('+passwordSetupTokenHash');
     let setupToken = null;
+    let tempPassword = `Tmt@${Math.floor(100000 + Math.random() * 900000)}`;
     if (!user) {
       setupToken = generateSecretToken();
       user = await User.create({
@@ -131,7 +132,7 @@ export async function acceptOfferAtomically({ offerId, filter = {}, via, actor =
         phone: candidate.phone,
         role: ROLES.INTERN,
         candidateId: candidate._id,
-        password: generateSecretToken(24), // unguessable placeholder, replaced when the intern sets their own password
+        password: tempPassword,
         mustChangePassword: true,
         passwordSetupTokenHash: hashToken(setupToken),
         passwordSetupExpiresAt: new Date(Date.now() + env.PASSWORD_SETUP_TTL_HOURS * 3600 * 1000),
@@ -147,6 +148,8 @@ export async function acceptOfferAtomically({ offerId, filter = {}, via, actor =
       setupToken = generateSecretToken();
       user.role = ROLES.INTERN;
       user.departmentId = before.departmentId;
+      user.password = tempPassword;
+      user.mustChangePassword = true;
       user.passwordSetupTokenHash = hashToken(setupToken);
       user.passwordSetupExpiresAt = new Date(Date.now() + env.PASSWORD_SETUP_TTL_HOURS * 3600 * 1000);
       await user.save();
@@ -228,16 +231,21 @@ export async function acceptOfferAtomically({ offerId, filter = {}, via, actor =
           entityType: 'Intern', entityId: intern._id
         });
       }
-      emailService.queueEmail({
-        to: candidate.email, subject: `Welcome to ${program.title}`, template: 'OFFER_ACCEPTED_WELCOME',
-        text: `Hi ${candidate.firstName}, your offer ${before.offerId} is confirmed (Intern ID ${internId}).${setupLink ? ` Set your password: ${setupLink}` : ''}`,
+      await sendOnboardingCredentialsEmail({
+        to: candidate.email,
+        name: `${candidate.firstName} ${candidate.lastName}`,
+        email: candidate.email,
+        password: tempPassword,
+        role: ROLES.INTERN,
+        orgName: 'TechMecha Torque',
+        loginUrl: `${env.FRONTEND_URL || 'http://localhost:3000'}/login`,
         organizationId: before.organizationId
-      });
+      }).catch(err => logger.warn(`Credentials email dispatch failed: ${err.message}`));
     } catch (sideEffectError) {
       logger.error(`Post-acceptance side effect failed for ${before.offerId}: ${sideEffectError.message}`);
     }
 
-    return { offer: finalOffer, intern, user, plan, tasks, compensation, setupLink };
+    return { offer: finalOffer, intern, user, plan, tasks, compensation, setupLink, tempPassword };
   } catch (error) {
     // ---- ROLLBACK: undo everything, newest first, then restore the offer exactly as it was ------------------------
     logger.warn(`Offer acceptance failed for ${before.offerId} (${error.message}). Rolling back ${undo.length} step(s).`);

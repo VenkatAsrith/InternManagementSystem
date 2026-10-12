@@ -48,6 +48,7 @@ import { FinancePage } from './pages/admin/FinancePage';
 import { DocumentsPage } from './pages/admin/DocumentsPage';
 import { TemplatesPage } from './pages/admin/TemplatesPage';
 import { CertificatesPage } from './pages/admin/CertificatesPage';
+import { EmailTemplatesPage } from './pages/admin/EmailTemplatesPage';
 import { ExitsPage } from './pages/admin/ExitsPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { RolesPage } from './pages/admin/RolesPage';
@@ -128,6 +129,7 @@ export default function App() {
                     <Route path="/admin/interns" element={g(ACCESS.interns, <InternsPage />)} />
                     <Route path="/admin/interns/:id" element={g(ACCESS.interns, <InternDetailPage />)} />
                     <Route path="/admin/trainees" element={g(ACCESS.trainees, <TraineesPage />)} />
+                    <Route path="/admin/training-programs" element={<Navigate to="/admin/trainees?tab=programs" replace />} />
                     <Route path="/admin/trainees/:id" element={g(ACCESS.trainees, <TraineeDetailPage />)} />
                     <Route path="/admin/projects" element={g(ACCESS.projects, <ProjectsPage />)} />
                     <Route path="/admin/tasks" element={g(ACCESS.tasks, <TasksPage />)} />
@@ -142,6 +144,7 @@ export default function App() {
                     <Route path="/admin/finance" element={g(ACCESS.finance, <FinancePage />)} />
                     <Route path="/admin/documents" element={g(ACCESS.documents, <DocumentsPage />)} />
                     <Route path="/admin/templates" element={g(ACCESS.templates, <TemplatesPage />)} />
+                    <Route path="/admin/email-templates" element={g(ACCESS.templates, <EmailTemplatesPage />)} />
                     <Route path="/admin/certificates" element={g(ACCESS.certificates, <CertificatesPage />)} />
                     <Route path="/admin/exits" element={g(ACCESS.exits, <ExitsPage />)} />
                     <Route path="/admin/users" element={g(ACCESS.users, <UsersPage />)} />

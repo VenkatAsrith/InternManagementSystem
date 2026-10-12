@@ -15,6 +15,7 @@ export const ROLES = {
   DOCUMENT_ADMIN: 'DOCUMENT_ADMIN',
   AUDITOR: 'AUDITOR',
   INTERN: 'INTERN',
+  INTERN_TRAINEE: 'INTERN_TRAINEE',
   CANDIDATE: 'CANDIDATE'
 };
 
@@ -74,6 +75,16 @@ export const ROLE_PERMISSIONS = {
     'leaves.read', 'assets.read', 'analytics.read'
   ],
   INTERN: [
+    'profile.read', 'profile.update', 'interns.read_own', 'projects.read_own',
+    'tasks.read_own', 'tasks.submit', 'tasks.progress', 'learning.read', 'learning.progress',
+    'attendance.check_in', 'attendance.check_out', 'attendance.read_own',
+    'leaves.request', 'leaves.read_own', 'journals.create', 'journals.read_own',
+    'meetings.read_own', 'feedback.read_own', 'performance.read_own', 'performance.self_assess',
+    'documents.read_own', 'documents.upload', 'certificates.read_own',
+    'finance.read_own', 'assets.read_own', 'exit.read_own', 'onboarding.read_own', 'onboarding.update_own',
+    'training.read_own', 'training.progress'
+  ],
+  INTERN_TRAINEE: [
     'profile.read', 'profile.update', 'interns.read_own', 'projects.read_own',
     'tasks.read_own', 'tasks.submit', 'tasks.progress', 'learning.read', 'learning.progress',
     'attendance.check_in', 'attendance.check_out', 'attendance.read_own',
@@ -628,7 +639,8 @@ export const DOCUMENT_TYPE = {
   TERMINATION_LETTER: 'TERMINATION_LETTER',
   RELIEVING_LETTER: 'RELIEVING_LETTER',
   FINAL_SETTLEMENT_STATEMENT: 'FINAL_SETTLEMENT_STATEMENT',
-  ASSET_HANDOVER_RECEIPT: 'ASSET_HANDOVER_RECEIPT'
+  ASSET_HANDOVER_RECEIPT: 'ASSET_HANDOVER_RECEIPT',
+  BOOTCAMP_PASS: 'BOOTCAMP_PASS'
 };
 
 export const DOCUMENT_CATEGORY = {

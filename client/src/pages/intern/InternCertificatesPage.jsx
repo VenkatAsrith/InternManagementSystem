@@ -21,7 +21,8 @@ function InternCertificatePreviewModal({ cert, onClose }) {
         setError(null);
         const res = await api.get(`/certificates/${cert._id}/download?inline=1`, { responseType: 'blob' });
         if (!active) return;
-        url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+        const blob = res instanceof Blob ? res : (res?.data instanceof Blob ? res.data : new Blob([res], { type: 'application/pdf' }));
+        url = URL.createObjectURL(blob);
         setBlobUrl(url);
       } catch (err) {
         if (!active) return;

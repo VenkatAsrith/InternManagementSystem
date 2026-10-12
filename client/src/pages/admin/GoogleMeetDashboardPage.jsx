@@ -159,11 +159,42 @@ export function GoogleMeetDashboardPage() {
       />
 
       {/* Overview Stat Cards */}
+      {!isGoogleConnected && (
+        <div className="mb-6 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 text-blue-900 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm flex-shrink-0">
+              <Video className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-blue-950">Connect Google Workspace for Official Conferences</p>
+              <p className="text-xs text-blue-800">
+                Authorize your Google account to automatically generate real Google Meet rooms and Google Calendar events.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={Video}
+            onClick={async () => {
+              try {
+                const res = await api.get('/integrations/google/auth-url');
+                if (res.data?.authUrl) window.location.href = res.data.authUrl;
+              } catch (e) {
+                toast.error(e.message || 'Failed to start OAuth');
+              }
+            }}
+          >
+            Connect Google Calendar
+          </Button>
+        </div>
+      )}
+
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Google Workspace"
-          value={isGoogleConnected ? 'Connected' : 'Ready'}
-          hint={isGoogleConnected ? googleStatus.data?.accountEmail : 'One-click meet active'}
+          value={isGoogleConnected ? 'Connected' : 'Disconnected'}
+          hint={isGoogleConnected ? googleStatus.data?.accountEmail : 'OAuth connection required'}
         />
         <StatCard
           label="Google Meets"
@@ -177,8 +208,8 @@ export function GoogleMeetDashboardPage() {
         />
         <StatCard
           label="Calendar Sync"
-          value={isGoogleConnected ? 'Automated' : 'Direct URL'}
-          hint="Reminders enabled"
+          value={isGoogleConnected ? 'Automated' : 'Offline'}
+          hint="24h & 15m reminders"
         />
       </div>
 
@@ -220,6 +251,16 @@ export function GoogleMeetDashboardPage() {
                 >
                   Generate Meet Link
                 </Button>
+                <a
+                  href="https://meet.google.com/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold text-white border border-white/20 transition-all"
+                  data-testid="direct-meet-google-btn"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Launch meet.google.com
+                </a>
               </div>
             </div>
           </div>

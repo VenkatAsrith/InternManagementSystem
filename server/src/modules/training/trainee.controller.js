@@ -8,17 +8,20 @@ import { User } from '../users/user.model.js';
 import { Person } from '../people/people.model.js';
 import { Organization } from '../organizations/organization.model.js';
 import { Certificate } from '../certificates/certificate.model.js';
+import { Intern } from '../interns/intern.model.js';
 import { generateCertificatePDF } from '../../utils/pdfGenerator.js';
 import { storageService } from '../../utils/storage.js';
-import { generateRandomId } from '../../utils/idGenerator.js';
+import { generateId, generateRandomId } from '../../utils/idGenerator.js';
 import { formatDateLong } from '../../utils/time.js';
 import { successResponse, paginatedResponse } from '../../utils/response.js';
 import { recordAuditLog } from '../../middleware/auditLogger.js';
 import { createNotification } from '../notifications/notification.service.js';
 import { ah } from '../../utils/asyncHandler.js';
-import { notFound, conflict, unprocessable, forbidden } from '../../utils/errors.js';
+import { notFound, conflict, unprocessable, forbidden, badRequest } from '../../utils/errors.js';
 import { Validator, parsePagination, isObjectId, escapeRegex } from '../../utils/validate.js';
 import { env } from '../../config/env.js';
+import { logger } from '../../config/logger.js';
+import { sendOnboardingCredentialsEmail } from '../email/email.service.js';
 
 // Calculate rule-based At-Risk status
 export function calculateAtRiskStatus(engagement, { attendanceRate, pendingTasksCount, failedAssessmentsCount }) {
@@ -176,6 +179,223 @@ export const enrollTrainee = ah(async (req, res) => {
   });
 
   return successResponse(res, engagement, 'Enrolled in training program successfully', 201);
+});
+
+export const createAndEnrollTrainee = ah(async (req, res) => {
+  const {
+    firstName, lastName, email, phone, programId, internId, mentorId, managerId, departmentId,
+    institution, degree, graduationYear, location, workMode, startDate, expectedEndDate,
+    source, referral, compensation, candidatePayment, internalNotes, assignedCourses, concession
+  } = req.body;
+  if (!firstName || !lastName || !email || !programId) {
+    throw badRequest('First name, last name, email, and programId are required');
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const program = await TrainingProgram.findOne({
+    _id: programId,
+    organizationId: req.organizationId
+  });
+  if (!program) throw notFound('Training program not found');
+
+  let internDoc = null;
+  if (internId) {
+    internDoc = await Intern.findOne({ _id: internId, organizationId: req.organizationId });
+  }
+
+  const rawDigits = Math.floor(100000 + Math.random() * 900000);
+  const tempPassword = `Tmt@${rawDigits}`;
+
+  let user = await User.findOne({ organizationId: req.organizationId, email: normalizedEmail });
+  if (!user) {
+    user = await User.create({
+      organizationId: req.organizationId,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: normalizedEmail,
+      phone: phone?.trim() || '0000000000',
+      password: tempPassword,
+      role: 'INTERN_TRAINEE',
+      status: 'ACTIVE',
+      isActive: true,
+      emailVerified: true
+    });
+  } else {
+    user.password = tempPassword;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'ORGANIZATION_ADMIN') {
+      user.role = 'INTERN_TRAINEE';
+    }
+    await user.save();
+  }
+
+  // Find or create Person
+  let person = await Person.findOne({ organizationId: req.organizationId, normalizedEmail });
+  if (!person) {
+    const rawPhone = phone?.trim() || user.phone || '0000000000';
+    person = await Person.create({
+      organizationId: req.organizationId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      normalizedEmail,
+      phone: rawPhone,
+      normalizedPhone: rawPhone.replace(/[^0-9+]/g, '') || '0000000000',
+      userId: user._id
+    });
+  }
+
+  // Build concessions array if passed
+  const concessionsList = [];
+  if (concession && concession.concessionType) {
+    concessionsList.push({
+      concessionType: concession.concessionType,
+      description: concession.description || '',
+      amountOrPercentage: concession.amountOrPercentage || '',
+      reason: concession.reason || '',
+      originalFee: Number(concession.originalFee) || 0,
+      adjustedFee: Number(concession.adjustedFee) || 0,
+      effectiveDate: new Date(),
+      approvalStatus: concession.approvalStatus || 'APPROVED',
+      approvedBy: req.userId,
+      approvedAt: new Date(),
+      internalRemarks: concession.internalRemarks || ''
+    });
+  }
+
+  // Candidate payment object
+  const candidatePaymentObj = {
+    feeType: candidatePayment?.feeType || program.feeType || 'PAID',
+    feeAmount: candidatePayment?.feeAmount !== undefined ? Number(candidatePayment.feeAmount) : (program.grossFee || 0),
+    amountPaid: candidatePayment?.amountPaid !== undefined ? Number(candidatePayment.amountPaid) : (program.amountPaid || 0),
+    paymentStatus: candidatePayment?.paymentStatus || (program.feeType === 'FREE' ? 'PAID' : (program.paymentStatus || 'PENDING')),
+    paymentMethod: candidatePayment?.paymentMethod || '',
+    paymentReference: candidatePayment?.paymentReference || '',
+    paidAt: candidatePayment?.paidAt ? new Date(candidatePayment.paidAt) : undefined,
+    notes: candidatePayment?.notes || ''
+  };
+
+  // Compensation / stipend object
+  const compensationObj = {
+    type: compensation?.type || internDoc?.compensation?.type || 'UNPAID',
+    amount: compensation?.amount !== undefined ? Number(compensation.amount) : (internDoc?.compensation?.amount || 0),
+    currency: compensation?.currency || internDoc?.compensation?.currency || 'INR',
+    frequency: compensation?.frequency || internDoc?.compensation?.frequency || 'MONTHLY',
+    startDate: compensation?.startDate ? new Date(compensation.startDate) : (internDoc?.compensation?.startDate || new Date()),
+    approvedBy: req.userId
+  };
+
+  // Referral details
+  const referralObj = referral || internDoc?.referral || (req.body.referredById || req.body.referralName ? {
+    referredById: req.body.referredById || undefined,
+    referralName: req.body.referralName || '',
+    referralEmail: req.body.referralEmail || '',
+    relationship: req.body.relationship || '',
+    notes: req.body.referralNotes || '',
+    date: req.body.referralDate ? new Date(req.body.referralDate) : new Date()
+  } : undefined);
+
+  const traineeId = internDoc?.internId || await generateId('TRN');
+  const start = startDate ? new Date(startDate) : (internDoc?.startDate || new Date());
+  const end = expectedEndDate ? new Date(expectedEndDate) : (internDoc?.expectedEndDate || new Date(Date.now() + 86400000 * ((program.durationWeeks || 8) * 7)));
+
+  // Check existing engagement in this program
+  let engagement = await TrainingEngagement.findOne({
+    organizationId: req.organizationId,
+    programId: program._id,
+    userId: user._id,
+    status: { $nin: ['DROPPED', 'TERMINATED'] }
+  });
+
+  if (!engagement) {
+    engagement = await TrainingEngagement.create({
+      organizationId: req.organizationId,
+      personId: person._id,
+      userId: user._id,
+      internId: internId || internDoc?._id || undefined,
+      traineeId,
+      departmentId: departmentId || internDoc?.departmentId || undefined,
+      programId: program._id,
+      trainerId: mentorId || program.trainerId || undefined,
+      mentorId: mentorId || program.trainerId || undefined,
+      managerId: managerId || internDoc?.managerId || req.userId,
+      workMode: workMode || internDoc?.workMode || 'REMOTE',
+      startDate: start,
+      expectedEndDate: end,
+      activatedAt: new Date(),
+      source: source || internDoc?.source || 'APPLICATION',
+      institution: institution || internDoc?.institution || '',
+      degree: degree || internDoc?.degree || '',
+      graduationYear: graduationYear || internDoc?.graduationYear || '',
+      location: location || internDoc?.location || '',
+      internalNotes: internalNotes || internDoc?.internalNotes || '',
+      referral: referralObj,
+      compensation: compensationObj,
+      candidatePayment: candidatePaymentObj,
+      assignedCourses: Array.isArray(assignedCourses) ? assignedCourses : [],
+      concessions: concessionsList,
+      status: 'ACTIVE',
+      overallProgress: 0,
+      completedModuleNumbers: [],
+      attendancePercent: 100,
+      enrolledAt: new Date(),
+      lastActivityAt: new Date()
+    });
+
+    await TraineeActivity.create({
+      organizationId: req.organizationId,
+      engagementId: engagement._id,
+      userId: user._id,
+      action: 'ENROLLED',
+      title: `Enrolled in ${program.title}`,
+      details: { programCode: program.code, duration: program.duration }
+    });
+  } else {
+    if (concessionsList.length > 0) {
+      engagement.concessions.push(...concessionsList);
+      await engagement.save();
+    }
+  }
+
+  // Dispatch credentials email asynchronously
+  const portalUrl = env.CLIENT_URL || env.FRONTEND_URL || 'http://localhost:3000';
+  sendOnboardingCredentialsEmail({
+    to: user.email,
+    name: `${user.firstName} ${user.lastName}`,
+    email: user.email,
+    temporaryPassword: tempPassword,
+    role: 'Intern Trainee',
+    portalUrl
+  }).catch((err) => {
+    logger.warn(`Failed to send onboarding email to ${user.email}: ${err.message}`);
+  });
+
+  await recordAuditLog({
+    action: 'TRAINEE_CREATED_AND_ENROLLED',
+    entityType: 'TrainingEngagement',
+    entityId: engagement._id,
+    after: { programTitle: program.title, email: user.email },
+    req
+  });
+
+  return successResponse(
+    res,
+    {
+      engagement,
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role
+      },
+      credentials: {
+        email: user.email,
+        temporaryPassword: tempPassword
+      }
+    },
+    'Intern trainee created, enrolled, and credentials emailed successfully',
+    201
+  );
 });
 
 export const getMyTraineeProfile = ah(async (req, res) => {
@@ -336,6 +556,9 @@ export const getAdminTrainees = ah(async (req, res) => {
       .populate('userId', 'firstName lastName email phone avatarUrl')
       .populate('programId', 'title code duration durationWeeks')
       .populate('mentorId', 'firstName lastName email')
+      .populate('managerId', 'firstName lastName email')
+      .populate('departmentId', 'name code')
+      .populate('internId', 'internId')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
@@ -362,7 +585,11 @@ export const getAdminTraineeDetail = ah(async (req, res) => {
   })
     .populate('userId', 'firstName lastName email phone avatarUrl')
     .populate('programId')
-    .populate('mentorId', 'firstName lastName email');
+    .populate('mentorId', 'firstName lastName email')
+    .populate('managerId', 'firstName lastName email')
+    .populate('departmentId', 'name code')
+    .populate('referral.referredById', 'firstName lastName email')
+    .populate('internId');
 
   if (!engagement) throw notFound('Trainee record not found');
 
@@ -382,6 +609,73 @@ export const getAdminTraineeDetail = ah(async (req, res) => {
     activities,
     attendance: attendanceRecords
   });
+});
+
+export const updateAdminTrainee = ah(async (req, res) => {
+  const engagement = await TrainingEngagement.findOne({ _id: req.params.id, organizationId: req.organizationId });
+  if (!engagement) throw notFound('Trainee record not found');
+
+  const before = engagement.toObject();
+  const allowedFields = [
+    'institution', 'degree', 'graduationYear', 'location', 'workMode',
+    'internalNotes', 'source', 'status'
+  ];
+  allowedFields.forEach((f) => {
+    if (req.body[f] !== undefined) {
+      engagement[f] = req.body[f];
+    }
+  });
+
+  if (req.body.departmentId) engagement.departmentId = req.body.departmentId;
+  if (req.body.mentorId) engagement.mentorId = req.body.mentorId;
+  if (req.body.managerId) engagement.managerId = req.body.managerId;
+
+  if (req.body.startDate) engagement.startDate = new Date(req.body.startDate);
+  if (req.body.expectedEndDate) {
+    const end = new Date(req.body.expectedEndDate);
+    if (engagement.expectedEndDate && end.getTime() !== engagement.expectedEndDate.getTime()) {
+      engagement.extensionHistory.push({
+        previousEndDate: engagement.expectedEndDate,
+        newEndDate: end,
+        reason: req.body.reason || 'Curriculum duration update',
+        changedBy: req.userId
+      });
+    }
+    engagement.expectedEndDate = end;
+  }
+
+  if (req.body.compensation && typeof req.body.compensation === 'object') {
+    engagement.compensation = {
+      ...engagement.compensation?.toObject?.() || {},
+      ...req.body.compensation
+    };
+  }
+
+  if (req.body.candidatePayment && typeof req.body.candidatePayment === 'object') {
+    const cp = req.body.candidatePayment;
+    engagement.candidatePayment = {
+      feeType: cp.feeType || engagement.candidatePayment?.feeType || 'PAID',
+      feeAmount: cp.feeAmount !== undefined ? Number(cp.feeAmount) : (engagement.candidatePayment?.feeAmount || 0),
+      amountPaid: cp.amountPaid !== undefined ? Number(cp.amountPaid) : (engagement.candidatePayment?.amountPaid || 0),
+      paymentStatus: cp.paymentStatus || engagement.candidatePayment?.paymentStatus || 'PENDING',
+      paymentMethod: cp.paymentMethod !== undefined ? cp.paymentMethod : (engagement.candidatePayment?.paymentMethod || ''),
+      paymentReference: cp.paymentReference !== undefined ? cp.paymentReference : (engagement.candidatePayment?.paymentReference || ''),
+      paidAt: cp.paidAt ? new Date(cp.paidAt) : (engagement.candidatePayment?.paidAt || undefined),
+      notes: cp.notes !== undefined ? cp.notes : (engagement.candidatePayment?.notes || '')
+    };
+  }
+
+  await engagement.save();
+  await recordAuditLog({
+    action: 'TRAINEE_UPDATED',
+    entityType: 'TrainingEngagement',
+    entityId: engagement._id,
+    before,
+    after: engagement.toObject(),
+    req
+  });
+
+  return successResponse(res, engagement, 'Trainee profile updated successfully');
 });
 
 export const createTraineeTask = ah(async (req, res) => {

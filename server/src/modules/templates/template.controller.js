@@ -40,18 +40,35 @@ export const createTemplateVersion = ah(async (req, res) => {
     .string('title', { required: true, max: 150 })
     .oneOf('documentType', DOCUMENT_TYPE)
     .oneOf('category', DOCUMENT_CATEGORY)
-    .string('bodyMarkdown', { required: true, min: 20, max: 20000 })
+    .string('bodyMarkdown', { max: 50000 })
+    .string('bodyHtml', { max: 50000 })
+    .string('bodyCss', { max: 20000 })
+    .oneOf('templateType', ['LETTER', 'CERTIFICATE', 'BOOTCAMP_PASS', 'MARKDOWN'], { defaultValue: 'LETTER' })
     .stringList('availableVariables', { max: 60, itemMax: 80 });
   const body = v.done();
 
+  if (!body.bodyMarkdown && !body.bodyHtml) {
+    throw unprocessable('Either bodyMarkdown or bodyHtml must be provided.', [{ field: 'bodyHtml', message: 'Template content required' }]);
+  }
+
   const latest = await DocumentTemplate.findOne({ organizationId: req.organizationId, templateCode: body.templateCode }).sort({ version: -1 });
-  const documentType = body.documentType || latest?.documentType;
-  if (!documentType) throw unprocessable('Document type is required for a new template.', [{ field: 'documentType', message: 'Required' }]);
+  const documentType = body.documentType || latest?.documentType || 'OFFER_LETTER';
 
   const template = await DocumentTemplate.create({
-    organizationId: req.organizationId, templateCode: body.templateCode, title: body.title, version: latest ? latest.version + 1 : 1,
-    documentType, category: body.category || latest?.category || DOCUMENT_CATEGORY.OTHER, bodyMarkdown: body.bodyMarkdown,
-    availableVariables: body.availableVariables || latest?.availableVariables || [], isApproved: true, approvedBy: req.userId, isActive: true
+    organizationId: req.organizationId,
+    templateCode: body.templateCode,
+    title: body.title,
+    version: latest ? latest.version + 1 : 1,
+    documentType,
+    category: body.category || latest?.category || DOCUMENT_CATEGORY.OTHER,
+    bodyMarkdown: body.bodyMarkdown || '',
+    bodyHtml: body.bodyHtml || '',
+    bodyCss: body.bodyCss || '',
+    templateType: body.templateType || latest?.templateType || 'LETTER',
+    availableVariables: body.availableVariables || latest?.availableVariables || [],
+    isApproved: true,
+    approvedBy: req.userId,
+    isActive: true
   });
   await recordAuditLog({ action: 'TEMPLATE_VERSION_CREATED', entityType: 'DocumentTemplate', entityId: template._id, after: { templateCode: template.templateCode, version: template.version }, req });
   return successResponse(res, template, `Template ${template.templateCode} version ${template.version} created`, 201);

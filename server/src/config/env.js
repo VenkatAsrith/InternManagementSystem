@@ -98,6 +98,13 @@ export const env = {
   DEFAULT_ATTENDANCE_REQUIREMENT_PERCENT: int('DEFAULT_ATTENDANCE_REQUIREMENT_PERCENT', 85),
   DEFAULT_MIN_TASKS_FOR_CERTIFICATE: int('DEFAULT_MIN_TASKS_FOR_CERTIFICATE', 5),
 
+  // Google Workspace & Calendar Integration (OAuth 2.0)
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+  GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || `${process.env.APP_URL || 'http://localhost:5000'}/api/v1/integrations/google/oauth-callback`,
+  GOOGLE_CALENDAR_ID: process.env.GOOGLE_CALENDAR_ID || 'primary',
+  APP_BASE_URL: process.env.APP_BASE_URL || process.env.APP_URL || 'http://localhost:5000',
+
   // Test hooks. Accepted ONLY when NODE_ENV=test|qa, never in development/production.
   QA_FAULT_INJECTION: ['test', 'qa'].includes(process.env.NODE_ENV || '') && process.env.QA_FAULT_INJECTION === 'true'
 };

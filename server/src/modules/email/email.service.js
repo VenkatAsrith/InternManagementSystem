@@ -351,6 +351,104 @@ export const sendPasswordResetEmail = async (email, otp, name = "Student") => {
 };
 
 /**
+ * Send welcome onboarding credentials email with generated password.
+ */
+export const sendOnboardingCredentialsEmail = async ({
+  to,
+  name = 'Participant',
+  email,
+  password,
+  role = 'INTERN',
+  orgName = 'TechMecha Torque',
+  loginUrl = 'http://localhost:3000/login',
+  organizationId
+}) => {
+  const roleTitle = role === 'INTERN_TRAINEE' ? 'Intern Trainee' : 'Intern';
+  const htmlTemplate = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="max-width: 560px; margin: 0 auto; padding: 32px 16px;">
+        <tr>
+          <td style="padding: 0;">
+            <!-- Header -->
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr>
+                <td style="padding: 28px 36px; text-align: center; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 14px 14px 0 0; border: 1px solid #4338ca;">
+                  <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
+                    🚀 Welcome to ${orgName}
+                  </h1>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #c7d2fe;">
+                    Intern Management &amp; Learning Platform
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Body -->
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr>
+                <td style="padding: 36px; background-color: #1e293b; border-left: 1px solid #334155; border-right: 1px solid #334155;">
+                  <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600; color: #ffffff;">
+                    Congratulations, ${name}! 🎉
+                  </h2>
+                  <p style="margin: 0 0 24px; font-size: 14px; color: #cbd5e1; line-height: 1.6;">
+                    You have been onboarded as <strong>${roleTitle}</strong> at ${orgName}. Your portal account has been created. Use the credentials below to log in:
+                  </p>
+
+                  <!-- Credentials Box -->
+                  <div style="background-color: #0f172a; border: 1px solid #3b82f6; border-radius: 10px; padding: 20px; margin-bottom: 24px;">
+                    <p style="margin: 0 0 10px; font-size: 13px; color: #94a3b8;">
+                      <strong style="color: #ffffff;">Portal URL:</strong> <a href="${loginUrl}" style="color: #60a5fa; text-decoration: underline;">${loginUrl}</a>
+                    </p>
+                    <p style="margin: 0 0 10px; font-size: 13px; color: #94a3b8;">
+                      <strong style="color: #ffffff;">Login Email:</strong> <span style="font-family: monospace; color: #93c5fd;">${email}</span>
+                    </p>
+                    <p style="margin: 0; font-size: 13px; color: #94a3b8;">
+                      <strong style="color: #ffffff;">Temporary Password:</strong> <span style="font-family: monospace; background: #1e293b; color: #34d399; font-weight: bold; padding: 3px 8px; border-radius: 4px; border: 1px solid #059669;">${password}</span>
+                    </p>
+                  </div>
+
+                  <p style="margin: 0 0 24px; font-size: 13px; color: #94a3b8; line-height: 1.5;">
+                    🔒 <strong>Next Steps:</strong> Log in, reset your temporary password in Account &amp; Security, and upload your required onboarding documents.
+                  </p>
+
+                  <div style="text-align: center;">
+                    <a href="${loginUrl}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px; padding: 12px 30px; border-radius: 8px;">
+                      Log In to Workspace &rarr;
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Footer -->
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr>
+                <td style="padding: 20px 36px; text-align: center; background-color: #0f172a; border-radius: 0 0 14px 14px; border: 1px solid #334155;">
+                  <p style="margin: 0; font-size: 11px; color: #64748b;">
+                    © ${new Date().getFullYear()} ${orgName}. All rights reserved. Do not share your login credentials with anyone.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return await sendMail({
+    to,
+    subject: `Welcome to ${orgName} – Your Login Credentials`,
+    html: htmlTemplate,
+    text: `Welcome to ${orgName}! Your login email: ${email}, Temporary Password: ${password}. Portal: ${loginUrl}`
+  });
+};
+
+/**
  * Enterprise EmailService class supporting idempotency, audit logging,
  * and seamless dual-SMTP delivery.
  */

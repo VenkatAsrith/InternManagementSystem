@@ -110,7 +110,18 @@ export const getCurrentUser = ah(async (req, res) => {
     .populate('departmentId', 'name code')
     .populate('organizationId', 'name code logoUrl domain timezone');
   if (!user) throw new AppError('User not found', 404, 'USER_NOT_FOUND');
-  return successResponse(res, { user: user.toJSON(), permissions: req.permissions }, 'Current user retrieved');
+  const userJson = user.toJSON();
+  if (req.isPreviewMode) {
+    userJson.role = req.userRole;
+    userJson.isPreviewMode = true;
+    userJson.originalRole = req.originalUserRole;
+  }
+  return successResponse(res, {
+    user: userJson,
+    permissions: req.permissions,
+    isPreviewMode: !!req.isPreviewMode,
+    activeRole: req.userRole
+  }, 'Current user retrieved');
 });
 
 export const refreshAccessToken = ah(async (req, res) => {
@@ -343,5 +354,76 @@ export const register = ah(async (req, res) => {
       approvalStatus: newUser.approvalStatus
     }
   }, 'Registration submitted successfully. Please wait for an administrator to review and approve your account.', 201);
+});
+
+export const switchOrPreviewRole = ah(async (req, res) => {
+  const v = new Validator(req.body);
+  v.string('role', { required: true, upper: true, max: 60 });
+  const { role } = v.done();
+
+  const user = await User.findById(req.userId);
+  if (!user) throw unauthorized('User not found');
+
+  if (user.role !== ROLES.SUPER_ADMIN && user.role !== role) {
+    throw forbidden('Only Global Administrators may preview different roles.', 'FORBIDDEN');
+  }
+
+  if (!Object.values(ROLES).includes(role)) {
+    throw unprocessable(`Unknown role '${role}'.`, [{ field: 'role', message: 'Role does not exist' }]);
+  }
+
+  const perms = await resolvePermissions({ role, organizationId: req.organizationId });
+  const userJson = user.toJSON();
+  userJson.role = role;
+  userJson.isPreviewMode = role !== user.role;
+  userJson.originalRole = user.role;
+
+  await recordAuditLog({
+    organizationId: req.organizationId,
+    actorId: user._id,
+    actorEmail: user.email,
+    actorRole: user.role,
+    action: 'ROLE_PREVIEW_ENTERED',
+    entityType: 'User',
+    entityId: user._id,
+    metadata: { previewRole: role, originalRole: user.role },
+    req
+  });
+
+  return successResponse(res, {
+    activeRole: role,
+    originalRole: user.role,
+    isPreviewMode: role !== user.role,
+    permissions: perms,
+    user: userJson
+  }, `Switched role view to ${role}`);
+});
+
+export const exitRolePreview = ah(async (req, res) => {
+  const user = await User.findById(req.userId);
+  if (!user) throw unauthorized('User not found');
+
+  const perms = await resolvePermissions(user);
+  const userJson = user.toJSON();
+
+  await recordAuditLog({
+    organizationId: req.organizationId,
+    actorId: user._id,
+    actorEmail: user.email,
+    actorRole: user.role,
+    action: 'ROLE_PREVIEW_EXITED',
+    entityType: 'User',
+    entityId: user._id,
+    metadata: { restoredRole: user.role },
+    req
+  });
+
+  return successResponse(res, {
+    activeRole: user.role,
+    originalRole: user.role,
+    isPreviewMode: false,
+    permissions: perms,
+    user: userJson
+  }, 'Exited role preview');
 });
 

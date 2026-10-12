@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { FileText } from 'lucide-react';
+import { FileText, CreditCard } from 'lucide-react';
 import api from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -46,6 +46,92 @@ function StatusModal({ intern, onClose, onDone }) {
     <FormModal open onClose={onClose} size="sm" testId="status-modal" title="Change status" description="Only steps allowed by the internship lifecycle are listed. Exit steps are handled in Exit & Offboarding." submitLabel="Change status" form={form} rules={{ status: rules.required('Status') }}
       onSubmit={(v) => api.patch(`/interns/${intern._id}`, { status: v.status })} onDone={() => { toast.success('Status updated'); onDone(); }}>
       <SelectField {...form.field('status')} label="New status" required options={allowed.map((s) => ({ value: s, label: humanize(s) }))} />
+    </FormModal>
+  );
+}
+
+function UpdateInternPaymentModal({ intern, onClose, onDone }) {
+  const toast = useToast();
+  const currentPay = intern.candidatePayment || {};
+  const form = useForm({
+    feeType: currentPay.feeType || 'FREE',
+    feeAmount: currentPay.feeAmount ?? (intern.programId?.feeAmount || 0),
+    amountPaid: currentPay.amountPaid ?? 0,
+    paymentStatus: currentPay.paymentStatus || 'PENDING',
+    paymentMethod: currentPay.paymentMethod || 'BANK_TRANSFER',
+    paymentReference: currentPay.paymentReference || '',
+    paidAt: currentPay.paidAt ? String(currentPay.paidAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    notes: currentPay.notes || ''
+  });
+  const f = form.field;
+
+  return (
+    <FormModal
+      open
+      onClose={onClose}
+      size="md"
+      testId="update-intern-payment-modal"
+      title="Candidate Payment & Fee Status"
+      description="Record or update candidate training/internship program fees and payment settlements."
+      submitLabel="Save Payment"
+      form={form}
+      onSubmit={async (v) => {
+        return await api.patch(`/interns/${intern._id}`, {
+          candidatePayment: {
+            feeType: v.feeType,
+            feeAmount: Number(v.feeAmount || 0),
+            amountPaid: Number(v.amountPaid || 0),
+            paymentStatus: v.paymentStatus,
+            paymentMethod: v.paymentMethod,
+            paymentReference: v.paymentReference.trim(),
+            paidAt: v.paidAt ? new Date(v.paidAt) : null,
+            notes: v.notes.trim()
+          }
+        });
+      }}
+      onDone={() => {
+        toast.success('Candidate payment updated');
+        onDone();
+      }}
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <SelectField
+          {...f('feeType')}
+          label="Program Fee Model"
+          options={[
+            { value: 'FREE', label: 'Free (No Candidate Fee)' },
+            { value: 'PAID', label: 'Paid Program (Fee Required)' }
+          ]}
+        />
+        <SelectField
+          {...f('paymentStatus')}
+          label="Payment Status"
+          options={[
+            { value: 'PENDING', label: 'Pending' },
+            { value: 'PARTIAL', label: 'Partial Paid' },
+            { value: 'PAID', label: 'Fully Paid' },
+            { value: 'WAIVED', label: 'Waived / Scholarship' },
+            { value: 'REFUNDED', label: 'Refunded' }
+          ]}
+        />
+        <TextField {...f('feeAmount')} label="Total Fee Amount (₹)" type="number" min={0} />
+        <TextField {...f('amountPaid')} label="Amount Paid So Far (₹)" type="number" min={0} />
+        <SelectField
+          {...f('paymentMethod')}
+          label="Payment Method"
+          options={[
+            { value: 'UPI', label: 'UPI / QR' },
+            { value: 'BANK_TRANSFER', label: 'Bank Transfer (NEFT/IMPS/RTGS)' },
+            { value: 'CREDIT_CARD', label: 'Credit / Debit Card' },
+            { value: 'NET_BANKING', label: 'Net Banking' },
+            { value: 'CASH', label: 'Cash / Cheque' },
+            { value: 'OTHER', label: 'Other Gateway' }
+          ]}
+        />
+        <TextField {...f('paymentReference')} label="Transaction ID / UTR" placeholder="e.g. UTR12345678" />
+        <TextField {...f('paidAt')} label="Payment Date" type="date" />
+        <TextAreaField {...f('notes')} label="Payment Notes" rows={2} className="sm:col-span-2" placeholder="Receipt number, installment details..." />
+      </div>
     </FormModal>
   );
 }
@@ -112,6 +198,70 @@ export function InternDetailPage() {
                   {canEdit && allowed.length > 0 && <Button size="sm" variant="outline" className="mt-4" onClick={() => setModal('status')} data-testid="change-status">Change status</Button>}
                   {intern.status.startsWith('EXIT') || ['ASSET_CLEARANCE', 'FINAL_SETTLEMENT', 'CERTIFICATION'].includes(intern.status) ? <InlineAlert tone="warning" className="mt-4">This internship is in the exit process. Manage it in Exit & Offboarding.</InlineAlert> : null}
                 </SectionCard>
+                <SectionCard title="Academic Background & Financials" testId="academic-financials-card">
+                  <DetailList items={[
+                    { label: 'College / University', value: intern.institution || '-' },
+                    { label: 'Degree & Specialization', value: intern.degree || '-' },
+                    { label: 'Graduation Year', value: intern.graduationYear || '-' },
+                    { label: 'Location', value: intern.location || '-' },
+                    {
+                      label: 'Stipend Compensation',
+                      value: intern.compensation?.type === 'PAID'
+                        ? `₹${Number(intern.compensation.amount || 0).toLocaleString()} (${humanize(intern.compensation.frequency || 'MONTHLY')})`
+                        : 'Unpaid Internship (Academic Credit)'
+                    },
+                    ...(intern.internalNotes ? [{ label: 'Internal Notes', value: intern.internalNotes }] : [])
+                  ]} />
+                </SectionCard>
+                <SectionCard
+                  title="Candidate Payment & Program Fee"
+                  testId="candidate-payment-card"
+                  actions={canEdit && (
+                    <Button size="sm" variant="outline" icon={CreditCard} onClick={() => setModal('candidatePayment')} data-testid="update-candidate-payment-btn">
+                      Update Payment
+                    </Button>
+                  )}
+                >
+                  {(() => {
+                    const pay = intern.candidatePayment || {};
+                    const feeAmt = pay.feeAmount ?? (intern.programId?.feeAmount || 0);
+                    const paidAmt = pay.amountPaid ?? 0;
+                    const balance = Math.max(0, feeAmt - paidAmt);
+                    const payStatus = pay.paymentStatus || (feeAmt === 0 ? 'WAIVED' : 'PENDING');
+                    return (
+                      <DetailList items={[
+                        { label: 'Fee Type', value: pay.feeType || intern.programId?.feeType || 'FREE' },
+                        { label: 'Program Fee', value: feeAmt > 0 ? `₹${feeAmt.toLocaleString()}` : 'Free / Waived' },
+                        { label: 'Amount Paid', value: `₹${paidAmt.toLocaleString()}` },
+                        {
+                          label: 'Remaining Balance',
+                          value: balance > 0 ? (
+                            <span className="font-semibold text-rose-600">₹{balance.toLocaleString()}</span>
+                          ) : (
+                            <span className="font-semibold text-emerald-600">Cleared (₹0)</span>
+                          )
+                        },
+                        {
+                          label: 'Payment Status',
+                          value: (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                              payStatus === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
+                              payStatus === 'PARTIAL' ? 'bg-blue-100 text-blue-800' :
+                              payStatus === 'WAIVED' ? 'bg-slate-100 text-slate-800' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {payStatus}
+                            </span>
+                          )
+                        },
+                        { label: 'Payment Method', value: humanize(pay.paymentMethod || 'NONE') },
+                        { label: 'Transaction / UTR', value: pay.paymentReference || '-' },
+                        { label: 'Paid On', value: pay.paidAt ? fmtDate(pay.paidAt) : '-' },
+                        ...(pay.notes ? [{ label: 'Notes', value: pay.notes }] : [])
+                      ]} />
+                    );
+                  })()}
+                </SectionCard>
                 <SectionCard title="Recent tasks" className="lg:col-span-2">
                   <DataTable testId="recent-tasks" columns={[{ key: 'title', header: 'Task' }, { key: 'priority', header: 'Priority', render: (t) => <StatusBadge status={t.priority} /> }, { key: 'due', header: 'Due', render: (t) => fmtDate(t.dueDate) }, { key: 'status', header: 'Status', render: (t) => <StatusBadge status={t.status} /> }]} rows={intern.recentTasks || []} emptyTitle="No tasks assigned" caption="Recent tasks" />
                 </SectionCard>
@@ -141,6 +291,7 @@ export function InternDetailPage() {
             {modal === 'mentor' && <MentorModal intern={intern} onClose={() => setModal(null)} onDone={done} />}
             {modal === 'extend' && <ExtendModal intern={intern} onClose={() => setModal(null)} onDone={done} />}
             {modal === 'status' && <StatusModal intern={intern} onClose={() => setModal(null)} onDone={done} />}
+            {modal === 'candidatePayment' && <UpdateInternPaymentModal intern={intern} onClose={() => setModal(null)} onDone={done} />}
             {modal === 'assignDocs' && <AssignTemplateModal defaultInternId={intern._id} onClose={() => setModal(null)} onDone={done} />}
           </>
         );

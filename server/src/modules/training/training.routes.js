@@ -16,8 +16,8 @@ import { requirePermission, requireAnyPermission } from '../../middleware/rbac.j
 import { ah } from '../../utils/asyncHandler.js';
 
 import {
-  getAvailablePrograms, enrollTrainee, getMyTraineeProfile, submitTraineeTask,
-  completeModule, getAdminTrainees, getAdminTraineeDetail, createTraineeTask,
+  getAvailablePrograms, enrollTrainee, createAndEnrollTrainee, getMyTraineeProfile, submitTraineeTask,
+  completeModule, getAdminTrainees, getAdminTraineeDetail, updateAdminTrainee, createTraineeTask,
   reviewTraineeTask, recordAttendance, recordAssessment, updateProject,
   completeTraineeProgram, recordMentorFeedback
 } from './trainee.controller.js';
@@ -39,8 +39,11 @@ router.post('/trainee/modules/complete', ah(completeModule));
 router.put('/trainee/project', ah(updateProject));
 
 // Admin / Trainer Trainee Operations
+router.post('/trainees', requireAnyPermission('training.manage', 'programs.manage', 'interns.create', 'users.manage'), ah(createAndEnrollTrainee));
+router.post('/trainees/create-and-enroll', requireAnyPermission('training.manage', 'programs.manage', 'interns.create', 'users.manage'), ah(createAndEnrollTrainee));
 router.get('/trainees', requireAnyPermission('training.manage', 'programs.manage', 'interns.read'), ah(getAdminTrainees));
 router.get('/trainees/:id', requireAnyPermission('training.manage', 'programs.manage', 'interns.read'), ah(getAdminTraineeDetail));
+router.patch('/trainees/:id', requireAnyPermission('training.manage', 'programs.manage', 'interns.update'), ah(updateAdminTrainee));
 router.post('/trainees/tasks', requireAnyPermission('training.manage', 'programs.manage', 'tasks.manage'), ah(createTraineeTask));
 router.post('/trainees/:engagementId/tasks', requireAnyPermission('training.manage', 'programs.manage', 'tasks.manage'), ah(createTraineeTask));
 router.post('/trainees/tasks/:id/review', requireAnyPermission('training.manage', 'programs.manage', 'tasks.manage'), ah(reviewTraineeTask));

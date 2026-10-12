@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, QrCode, Plus, CheckCircle2, ShieldCheck, Ticket, Paperclip, Award, Trash2, ExternalLink, FileSpreadsheet, RefreshCw, Link2, AlertTriangle, Send, Eye, Download } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, QrCode, Plus, CheckCircle2, ShieldCheck, Ticket, Paperclip, Award, Trash2, ExternalLink, FileSpreadsheet, RefreshCw, Link2, AlertTriangle, Send, Eye, Download, PhoneCall } from 'lucide-react';
 import api, { downloadFile } from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -308,7 +308,23 @@ function PassCertificatePreviewModal({ pass, onClose }) {
         setError(null);
         const res = await api.get(`/growth/passes/${pass._id}/certificate?inline=1`, { responseType: 'blob' });
         if (!active) return;
-        url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+
+        // Ensure we handle Blob correctly without corrupting via new Blob([undefined])
+        const blob = res instanceof Blob
+          ? res
+          : (res?.data instanceof Blob ? res.data : new Blob([res], { type: 'application/pdf' }));
+
+        if (blob.type === 'application/json' || (blob.type !== 'application/pdf' && blob.size < 500)) {
+          const text = await blob.text();
+          try {
+            const errObj = JSON.parse(text);
+            throw new Error(errObj.error?.message || errObj.message || 'Certificate PDF generation failed');
+          } catch (e) {
+            if (e.message && !e.message.includes('PDF generation failed')) throw e;
+          }
+        }
+
+        url = URL.createObjectURL(blob);
         setBlobUrl(url);
       } catch (err) {
         if (!active) return;
@@ -350,6 +366,16 @@ function PassCertificatePreviewModal({ pass, onClose }) {
         <div className="flex w-full items-center justify-between">
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
           <div className="flex gap-2">
+            {blobUrl && (
+              <a
+                href={blobUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open Tab
+              </a>
+            )}
             <Button variant="outline" size="sm" icon={Send} onClick={handleEmail}>Email to Candidate</Button>
             <Button variant="primary" size="sm" icon={Download} onClick={handleDownload}>Download PDF</Button>
           </div>
@@ -357,16 +383,26 @@ function PassCertificatePreviewModal({ pass, onClose }) {
       )}
     >
       <div className="space-y-3">
-        <div className="min-h-[460px] h-[65vh] w-full rounded-lg bg-slate-100 flex flex-col items-center justify-center overflow-hidden border border-slate-200 relative">
+        <div className="min-h-[460px] h-[65vh] w-full rounded-lg bg-slate-900 flex flex-col items-center justify-center overflow-hidden border border-slate-200 relative">
           {loading && <LoadingBlock label="Rendering certificate preview..." />}
           {error && (
-            <div className="text-center p-6 space-y-2">
-              <p className="text-sm font-medium text-slate-800">{error}</p>
-              <Button size="sm" variant="outline" icon={Download} onClick={handleDownload}>Download to inspect</Button>
+            <div className="text-center p-6 space-y-2 bg-slate-50 w-full h-full flex flex-col items-center justify-center">
+              <p className="text-sm font-medium text-rose-800">{error}</p>
+              <Button size="sm" variant="outline" icon={Download} onClick={handleDownload}>Download PDF</Button>
             </div>
           )}
           {!loading && !error && blobUrl && (
-            <iframe src={`${blobUrl}#toolbar=0`} title={`Preview of ${pass.candidateName} Certificate`} className="w-full h-full border-0 rounded-lg" />
+            <object
+              data={`${blobUrl}#toolbar=0&navpanes=0`}
+              type="application/pdf"
+              className="w-full h-full rounded-lg"
+            >
+              <iframe
+                src={`${blobUrl}#toolbar=0`}
+                title={`Preview of ${pass.candidateName} Certificate`}
+                className="w-full h-full border-0 rounded-lg"
+              />
+            </object>
           )}
         </div>
       </div>
@@ -701,17 +737,6 @@ export function BootcampDetailPage() {
                   <Button variant="outline" onClick={() => setModal({ type: 'preview' })} data-testid="bootcamp-preview-btn">
                     Preview
                   </Button>
-                  <Button
-                    variant="outline"
-                    icon={FileSpreadsheet}
-                    onClick={() => setTab('googleForms')}
-                    data-testid="header-attach-gforms-btn"
-                  >
-                    {bootcamp.googleForm?.formUrl ? 'Google Form Linked' : 'Attach Google Form'}
-                  </Button>
-                  <Button variant="outline" icon={QrCode} onClick={() => setModal({ type: 'checkin' })} data-testid="detail-checkin-btn">
-                    Check-In Pass
-                  </Button>
                   <Button variant="primary" icon={Plus} onClick={() => setModal({ type: 'issue' })} data-testid="detail-register-btn">
                     Register Candidate
                   </Button>
@@ -762,20 +787,106 @@ export function BootcampDetailPage() {
               active={tab}
               onChange={setTab}
               tabs={[
-                { id: 'overview', label: 'Slots & Schedule', count: slots.length },
-                { id: 'passes', label: 'Registrations & Passes', count: passes.length },
-                { id: 'googleForms', label: 'Google Forms Integration', badge: bootcamp.googleForm?.formUrl ? 'Connected' : 'Setup' },
-                { id: 'attachments', label: 'Attachments & Media', count: (bootcamp.attachments || []).length }
+                { id: 'overview', label: 'Overview' },
+                { id: 'slots', label: 'Slots', count: slots.length },
+                { id: 'schedule', label: 'Schedule' },
+                { id: 'googleForms', label: 'Google Forms' },
+                { id: 'passes', label: 'Check-in Passes', count: passes.length }
               ]}
             />
 
             <TabPanel id="overview" active={tab}>
               <div className="space-y-6">
+                <SectionCard title="Cohort Overview & Details">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Scheduled Date</p>
+                      <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4 text-brand-600" />
+                        {fmtDate(bootcamp.date)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Location / Venue</p>
+                      <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4 text-brand-600" />
+                        {bootcamp.venue || 'Virtual Campus / Zoom'}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Capacity & Attendance</p>
+                      <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
+                        <Users className="h-4 w-4 text-brand-600" />
+                        {totalBooked} / {totalCap} Enrolled ({totalCheckedIn} Attended)
+                      </p>
+                    </div>
+                  </div>
+                  {bootcamp.description && (
+                    <div className="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-700 space-y-1">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">About this Bootcamp</p>
+                      <p className="leading-relaxed">{bootcamp.description}</p>
+                    </div>
+                  )}
+                </SectionCard>
+
+                {/* Attachments & Media inside Overview */}
+                <SectionCard
+                  title="Bootcamp Media & Attachments"
+                  actions={
+                    can('bootcamps.manage') && (
+                      <Button size="sm" variant="outline" icon={Plus} onClick={() => setModal({ type: 'uploadAttachment' })} data-testid="add-attachment-btn">
+                        Add Attachment
+                      </Button>
+                    )
+                  }
+                >
+                  {(bootcamp.attachments || []).length === 0 ? (
+                    <div className="py-6 text-center text-slate-500 text-xs">
+                      <Paperclip className="h-6 w-6 mx-auto mb-1.5 text-slate-400" />
+                      <p>No media or files attached yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {bootcamp.attachments.map((att) => {
+                        const isImageOrGif = att.mimeType?.startsWith('image/');
+                        return (
+                          <div key={att._id} className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+                            {isImageOrGif && (
+                              <div className="h-28 w-full rounded bg-slate-50 overflow-hidden flex items-center justify-center border border-slate-100">
+                                <img
+                                  src={`/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
+                                  alt={att.originalName}
+                                  className="max-h-full max-w-full object-contain"
+                                />
+                              </div>
+                            )}
+                            <p className="font-semibold text-slate-900 text-xs truncate" title={att.originalName}>{att.originalName}</p>
+                            <div className="flex gap-2 pt-1 border-t border-slate-100">
+                              <a
+                                href={`/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 text-center py-1 text-xs font-medium rounded border border-slate-300 text-slate-700 hover:bg-slate-50"
+                              >
+                                View Media
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SectionCard>
+              </div>
+            </TabPanel>
+
+            <TabPanel id="slots" active={tab}>
+              <div className="space-y-6">
                 <SectionCard
                   title="Scheduled Time Slots"
                   actions={
                     can('bootcamps.manage') && (
-                      <Button size="sm" variant="outline" icon={Plus} onClick={() => setModal({ type: 'addSlot' })} data-testid="add-slot-btn">
+                      <Button size="sm" variant="primary" icon={Plus} onClick={() => setModal({ type: 'addSlot' })} data-testid="add-slot-btn">
                         Add Slot
                       </Button>
                     )
@@ -833,6 +944,55 @@ export function BootcampDetailPage() {
               </div>
             </TabPanel>
 
+            <TabPanel id="schedule" active={tab}>
+              <div className="space-y-6">
+                <SectionCard
+                  title="Bootcamp Schedule & Agenda Timeline"
+                  actions={
+                    can('bootcamps.manage') && (
+                      <Button size="sm" variant="outline" icon={Plus} onClick={() => setModal({ type: 'addSlot' })} data-testid="schedule-add-session-btn">
+                        Add Session Slot
+                      </Button>
+                    )
+                  }
+                >
+                  {slots.length === 0 ? (
+                    <div className="py-8 text-center text-slate-500 text-sm">
+                      <Clock className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                      <p>No schedule sessions defined yet.</p>
+                      <p className="text-xs text-slate-400 mt-1">Add slots to generate the daily bootcamp agenda.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {slots.map((slot, idx) => (
+                        <div key={slot._id} className="flex gap-4 p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-300 transition shadow-xs">
+                          <div className="flex flex-col items-center justify-center px-3 py-2 rounded-lg bg-brand-50 border border-brand-100 text-brand-900 min-w-[100px] text-center">
+                            <span className="text-xs font-bold uppercase tracking-wider text-brand-700">Session {idx + 1}</span>
+                            <span className="font-mono text-sm font-semibold mt-0.5">{slot.startTime}</span>
+                            <span className="text-[10px] text-slate-500">to {slot.endTime}</span>
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-bold text-slate-900 text-base">{slot.slotName}</h4>
+                              <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-700">
+                                {slot.bookedCount} / {slot.capacity} Enrolled
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600">
+                              Venue: <strong className="text-slate-800">{bootcamp.venue || 'Virtual Campus / Zoom'}</strong> &bull; Date: <strong>{fmtDate(bootcamp.date)}</strong>
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              Attendance: <span className="font-semibold text-emerald-700">{slot.checkedInCount} participants checked in</span>
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+              </div>
+            </TabPanel>
+
             <TabPanel id="passes" active={tab}>
               {(() => {
                 const checkedInPasses = passes.filter((p) => p.status === 'CHECKED_IN');
@@ -876,30 +1036,54 @@ export function BootcampDetailPage() {
                   <SectionCard
                     title="Issued Passes & Check-In History"
                     actions={
-                      can('certificates.manage') && passes.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            icon={Award}
-                            onClick={handleBulkCertificates}
-                            data-testid="bulk-generate-certs-btn"
-                          >
-                            {selectedPasses.length > 0 ? `Generate Certificates (${selectedPasses.length})` : 'Generate All Checked-in Certificates'}
-                          </Button>
-                          {passes.some(p => p.certificateId) && (
+                      <div className="flex flex-wrap gap-2">
+                        {can('bootcamps.manage') && (
+                          <>
                             <Button
                               size="sm"
                               variant="outline"
-                              icon={Send}
-                              onClick={handleBulkSendCertificates}
-                              data-testid="bulk-send-certs-btn"
+                              icon={QrCode}
+                              onClick={() => setModal({ type: 'checkin' })}
+                              data-testid="scan-pass-header-btn"
                             >
-                              {selectedPasses.length > 0 ? `Email Certificates (${selectedPasses.length})` : 'Email All Issued Certificates'}
+                              Scan Pass
                             </Button>
-                          )}
-                        </div>
-                      )
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              icon={Plus}
+                              onClick={() => setModal({ type: 'issue' })}
+                              data-testid="issue-pass-header-btn"
+                            >
+                              Issue Pass
+                            </Button>
+                          </>
+                        )}
+                        {can('certificates.manage') && passes.length > 0 && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              icon={Award}
+                              onClick={handleBulkCertificates}
+                              data-testid="bulk-generate-certs-btn"
+                            >
+                              {selectedPasses.length > 0 ? `Generate Certificates (${selectedPasses.length})` : 'Generate All Checked-in Certificates'}
+                            </Button>
+                            {passes.some(p => p.certificateId) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                icon={Send}
+                                onClick={handleBulkSendCertificates}
+                                data-testid="bulk-send-certs-btn"
+                              >
+                                {selectedPasses.length > 0 ? `Email Certificates (${selectedPasses.length})` : 'Email All Issued Certificates'}
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     }
                   >
                     {passes.length === 0 ? (
@@ -923,6 +1107,7 @@ export function BootcampDetailPage() {
                               <th className="p-3">College & Course</th>
                               <th className="p-3">Source</th>
                               <th className="p-3">Status</th>
+                              <th className="p-3">Call Status</th>
                               <th className="p-3">Checked In At</th>
                               <th className="p-3">Social Verification</th>
                               <th className="p-3">Certificate</th>
@@ -980,6 +1165,44 @@ export function BootcampDetailPage() {
                                   }`}>
                                     {p.status}
                                   </span>
+                                </td>
+                                <td className="p-3">
+                                  <div className="space-y-1 min-w-[145px]">
+                                    <select
+                                      value={p.callStatus || 'NOT_CALLED'}
+                                      onChange={async (e) => {
+                                        const newCallStatus = e.target.value;
+                                        try {
+                                          await api.patch(`/growth/passes/${p._id}/call-status`, { callStatus: newCallStatus });
+                                          toast.success(`Call status updated to ${newCallStatus === 'ANSWERED' ? 'Call Answered' : newCallStatus === 'NOT_ANSWERED' ? 'Call Not Answered' : 'Not Called'}`);
+                                          state.reload({ silent: true });
+                                        } catch (err) {
+                                          toast.error(err.message || 'Failed to update call status');
+                                        }
+                                      }}
+                                      className={`w-full text-xs font-semibold rounded-md border px-2 py-1 focus:outline-none transition-colors ${
+                                        p.callStatus === 'ANSWERED'
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                          : p.callStatus === 'NOT_ANSWERED'
+                                          ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                          : 'bg-slate-50 text-slate-700 border-slate-200'
+                                      }`}
+                                      data-testid={`call-status-dropdown-${p.passCode}`}
+                                    >
+                                      <option value="NOT_CALLED">Not Called</option>
+                                      <option value="ANSWERED">Call Answered</option>
+                                      <option value="NOT_ANSWERED">Call Not Answered</option>
+                                    </select>
+                                    {p.candidatePhone && (
+                                      <a
+                                        href={`tel:${p.candidatePhone}`}
+                                        className="text-[11px] text-brand-700 hover:underline flex items-center gap-1 font-medium"
+                                        title={`Call ${p.candidatePhone}`}
+                                      >
+                                        <PhoneCall className="h-3 w-3" /> Dial {p.candidatePhone}
+                                      </a>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="p-3 text-xs text-slate-500">
                                   {p.checkedInAt ? fmtDateTime(p.checkedInAt) : '-'}
@@ -1193,84 +1416,7 @@ export function BootcampDetailPage() {
               <GoogleFormsPanel bootcamp={bootcamp} onReload={state.reload} />
             </TabPanel>
 
-            <TabPanel id="attachments" active={tab}>
-              <SectionCard
-                title="Bootcamp Attachments & Media"
-                actions={
-                  can('bootcamps.manage') && (
-                    <Button size="sm" variant="primary" icon={Plus} onClick={() => setModal({ type: 'uploadAttachment' })} data-testid="add-attachment-btn">
-                      Add Attachment
-                    </Button>
-                  )
-                }
-              >
-                {(bootcamp.attachments || []).length === 0 ? (
-                  <div className="py-8 text-center text-slate-500 text-sm">
-                    <Paperclip className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                    <p>No media or files attached to this bootcamp.</p>
-                    <p className="text-xs text-slate-400 mt-1">Upload GIFs, images, promotional graphics or syllabus documents.</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="bootcamp-attachments-grid">
-                    {bootcamp.attachments.map((att) => {
-                      const isImageOrGif = att.mimeType?.startsWith('image/');
-                      return (
-                        <div key={att._id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm space-y-3 flex flex-col justify-between">
-                          <div>
-                            {isImageOrGif ? (
-                              <div className="h-36 w-full rounded bg-slate-100 mb-3 overflow-hidden flex items-center justify-center border border-slate-100">
-                                <img
-                                  src={`/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
-                                  alt={att.originalName}
-                                  className="max-h-full max-w-full object-contain"
-                                />
-                              </div>
-                            ) : (
-                              <div className="h-36 w-full rounded bg-slate-50 mb-3 flex items-center justify-center text-slate-400 border border-slate-100">
-                                <Paperclip className="h-10 w-10" />
-                              </div>
-                            )}
-                            <p className="font-semibold text-slate-900 text-sm truncate" title={att.originalName}>{att.originalName}</p>
-                            {att.description && <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{att.description}</p>}
-                            <p className="text-[11px] text-slate-400 mt-1">
-                              {Math.round(att.size / 1024)} KB &bull; {fmtDate(att.uploadedAt)}
-                            </p>
-                          </div>
-                          <div className="flex gap-2 pt-2 border-t border-slate-100">
-                            <a
-                              href={`/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 text-center py-1.5 px-3 text-xs font-medium rounded border border-slate-300 text-slate-700 hover:bg-slate-50"
-                              data-testid={`preview-attachment-${att._id}`}
-                            >
-                              Preview
-                            </a>
-                            {can('bootcamps.manage') && (
-                              <Button
-                                size="xs"
-                                variant="outline"
-                                tone="danger"
-                                onClick={async () => {
-                                  if (window.confirm(`Remove attachment "${att.originalName}"?`)) {
-                                    await api.delete(`/growth/bootcamps/${bootcamp._id}/attachments/${att._id}`);
-                                    toast.success('Attachment removed');
-                                    state.reload();
-                                  }
-                                }}
-                                data-testid={`remove-attachment-${att._id}`}
-                              >
-                                Remove
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </SectionCard>
-            </TabPanel>
+
 
             {modal?.type === 'addSlot' && <AddSlotModal bootcampId={bootcamp._id} onClose={() => setModal(null)} onDone={() => { setModal(null); state.reload(); }} />}
             {modal?.type === 'issue' && <IssuePassModal bootcamp={bootcamp} slotId={modal.slotId} onClose={() => setModal(null)} onDone={() => { setModal(null); state.reload(); }} />}

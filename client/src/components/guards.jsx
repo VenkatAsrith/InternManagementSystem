@@ -53,8 +53,9 @@ export function Forbidden() {
  */
 export function Guard({ any, roles, children }) {
   const auth = useAuth();
-  const isSuper = auth.user?.role === 'SUPER_ADMIN';
-  const allowedByRole = !roles || roles.includes(auth.user?.role) || isSuper;
+  const currentRole = auth.effectiveRole || auth.activeRole || auth.user?.role;
+  const isSuper = auth.isSuperAdmin;
+  const allowedByRole = !roles || roles.includes(currentRole) || isSuper;
   const allowedByPerm = !any || auth.canAny(any) || isSuper;
   if (!allowedByRole || !allowedByPerm) return <Forbidden />;
   return children;

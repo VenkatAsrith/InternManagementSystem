@@ -24,11 +24,27 @@ const learningLessonSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+const learningDocumentSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, default: '' },
+  url: { type: String, default: '' },
+  fileType: { type: String, default: 'DOCUMENT' },
+  addedAt: { type: Date, default: Date.now }
+});
+
 const learningModuleSchema = new mongoose.Schema({
   pathId: { type: mongoose.Schema.Types.ObjectId, ref: 'LearningPath', required: true, index: true },
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
   title: { type: String, required: true },
   description: { type: String, default: '' },
+  dueDate: { type: Date },
+  reminder: {
+    enabled: { type: Boolean, default: false },
+    daysBefore: { type: Number, default: 2 },
+    reminderDate: { type: Date },
+    note: { type: String, default: '' }
+  },
+  documents: [learningDocumentSchema],
   order: { type: Number, default: 1 }
 }, { timestamps: true });
 
@@ -38,6 +54,14 @@ const learningPathSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, default: '' },
   targetRole: { type: String, default: 'Software Engineer Intern' },
+  dueDate: { type: Date },
+  reminder: {
+    enabled: { type: Boolean, default: false },
+    daysBefore: { type: Number, default: 2 },
+    reminderDate: { type: Date },
+    note: { type: String, default: '' }
+  },
+  documents: [learningDocumentSchema],
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 

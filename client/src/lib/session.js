@@ -2,7 +2,7 @@
 // (private windows, embedded previews) and the app must still render.
 // NOTE: the server never trusts anything stored here. Tampering with these values only gets the user
 // a 401 and a forced sign-out; permissions are re-read from GET /auth/me on every page load.
-const KEYS = { token: 'ims_token', refresh: 'ims_refresh', user: 'ims_user', org: 'ims_acting_org' };
+const KEYS = { token: 'ims_token', refresh: 'ims_refresh', user: 'ims_user', org: 'ims_acting_org', previewRole: 'ims_preview_role' };
 const listeners = new Set();
 
 const read = (k) => {
@@ -21,6 +21,7 @@ export const session = {
   getToken: () => read(KEYS.token),
   getRefresh: () => read(KEYS.refresh),
   getActingOrg: () => read(KEYS.org),
+  getPreviewRole: () => read(KEYS.previewRole),
   getUser() {
     try {
       const raw = read(KEYS.user);
@@ -35,6 +36,10 @@ export const session = {
   setActingOrg(orgId) {
     write(KEYS.org, orgId || null);
     emit({ type: 'org' });
+  },
+  setPreviewRole(role) {
+    write(KEYS.previewRole, role || null);
+    emit({ type: 'previewRole', role });
   },
   clear(reason) {
     Object.values(KEYS).forEach((k) => write(k, null));

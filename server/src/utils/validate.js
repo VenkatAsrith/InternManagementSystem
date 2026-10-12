@@ -86,7 +86,7 @@ export class Validator {
   }
 
   phone(field, { required = false } = {}) {
-    if (!this._has(field)) {
+    if (!this._has(field) || (!required && (this.src[field] === '' || this.src[field] === null || this.src[field] === undefined))) {
       if (required) this.fail(field, `${field} is required`);
       return this;
     }

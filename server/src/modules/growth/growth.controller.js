@@ -276,12 +276,19 @@ export async function registerForBootcamp(req, res) {
 }
 
 export async function checkInPass(req, res) {
-  const { passCode, hmacToken } = req.body;
-  if (!passCode && !hmacToken) throw badRequest('Must provide passCode or hmacToken');
+  const { passCode, hmacToken, passId } = req.body;
+  if (!passCode && !hmacToken && !passId) throw badRequest('Must provide passCode, hmacToken, or passId');
 
   const query = { organizationId: req.organizationId };
   if (passCode) query.passCode = passCode;
-  if (hmacToken) query.hmacToken = hmacToken;
+  else if (hmacToken) query.hmacToken = hmacToken;
+  else if (passId) {
+    if (mongoose.Types.ObjectId.isValid(passId)) {
+      query.$or = [{ _id: passId }, { passCode: passId }];
+    } else {
+      query.passCode = passId;
+    }
+  }
 
   const pass = await Pass.findOne(query);
   if (!pass) throw notFound('Pass not found or invalid');
@@ -630,13 +637,17 @@ export async function generateBulkCertificates(req, res) {
   let passesQuery = { bootcampId: bootcamp._id, organizationId: req.organizationId };
   if (req.body.passIds && Array.isArray(req.body.passIds) && req.body.passIds.length > 0) {
     passesQuery._id = { $in: req.body.passIds };
-  } else {
-    passesQuery.status = 'CHECKED_IN';
   }
 
   const passes = await Pass.find(passesQuery);
   if (!passes.length) {
-    throw badRequest('No eligible participants found for certificate generation.');
+    return successResponse(res, {
+      totalRequested: 0,
+      successfulCount: 0,
+      failedCount: 0,
+      successful: [],
+      failed: []
+    }, 'No participants found in this bootcamp for certificate generation.');
   }
 
   const successful = [];
@@ -644,13 +655,11 @@ export async function generateBulkCertificates(req, res) {
 
   for (const pass of passes) {
     try {
+      // Auto-mark participant as checked-in for certificate generation so no eligible attendee is blocked
       if (pass.status !== 'CHECKED_IN') {
-        failed.push({
-          passId: pass._id,
-          candidateName: pass.candidateName,
-          reason: 'Participant has not checked in'
-        });
-        continue;
+        pass.status = 'CHECKED_IN';
+        pass.checkedInAt = pass.checkedInAt || new Date();
+        await pass.save();
       }
 
       const existingCert = await Certificate.findOne({
@@ -830,7 +839,13 @@ export async function bulkSendCertificates(req, res) {
 
   const passes = await Pass.find(passesQuery);
   if (!passes.length) {
-    throw badRequest('No participants with issued certificates found.');
+    return successResponse(res, {
+      totalRequested: 0,
+      successfulCount: 0,
+      failedCount: 0,
+      successful: [],
+      failed: []
+    }, 'No participants with issued certificates found in this bootcamp.');
   }
 
   const successful = [];
@@ -885,19 +900,91 @@ export async function downloadPassCertificate(req, res) {
   const pass = await Pass.findOne({ _id: req.params.id, organizationId: req.organizationId });
   if (!pass) throw notFound('Pass not found');
 
-  const cert = await Certificate.findOne({
-    $or: [{ passId: pass._id }, { certificateId: pass.certificateId }],
+  let cert = await Certificate.findOne({
+    $or: [
+      { passId: pass._id },
+      ...(pass.certificateId ? [{ certificateId: pass.certificateId }] : [])
+    ],
     organizationId: req.organizationId,
     status: 'ACTIVE'
   });
-  if (!cert) throw notFound('Certificate not found');
-  if (!(await storageService.exists(cert.filePath))) throw notFound('Certificate PDF file not found', 'FILE_MISSING');
+
+  // If certificate does not exist or file is missing on storage, auto-generate on-demand
+  const fileExists = cert && cert.filePath ? await storageService.exists(cert.filePath) : false;
+
+  if (!cert || !fileExists) {
+    const bootcamp = await Bootcamp.findOne({ _id: pass.bootcampId, organizationId: req.organizationId });
+    const org = await Organization.findById(req.organizationId);
+    const certificateId = pass.certificateId || cert?.certificateId || await generateRandomId('CERT', async (id) => !!(await Certificate.exists({ certificateId: id })));
+    const tz = req.timezone || 'Asia/Kolkata';
+
+    const startDateStr = bootcamp?.startDate ? formatDateLong(bootcamp.startDate, tz) : (bootcamp?.date ? formatDateLong(bootcamp.date, tz) : formatDateLong(new Date(), tz));
+    const endDateStr = bootcamp?.endDate ? formatDateLong(bootcamp.endDate, tz) : (bootcamp?.date ? formatDateLong(bootcamp.date, tz) : formatDateLong(new Date(), tz));
+
+    const certData = {
+      internName: pass.candidateName,
+      internId: pass.passCode,
+      programTitle: bootcamp?.title || 'Bootcamp Cohort Certification',
+      bootcampTitle: bootcamp?.title || 'Bootcamp Cohort Certification',
+      departmentName: 'Bootcamp Cohort',
+      organizationName: org?.name || 'TechMecha Torque',
+      startDate: startDateStr,
+      endDate: endDateStr,
+      duration: bootcamp?.duration || 'Completed Program',
+      certificateId,
+      issueDate: formatDateLong(new Date(), tz),
+      signatory: org?.signatory?.name || 'Jaya Chandra Reddy Chilakamarry',
+      verifyUrl: `${env.FRONTEND_URL}/verify/certificate/${certificateId}`,
+      type: 'BOOTCAMP',
+      isBootcamp: true
+    };
+
+    const pdfBuffer = await generateCertificatePDF(certData);
+    const stored = await storageService.saveFile({
+      buffer: pdfBuffer,
+      originalName: `${certificateId}.pdf`,
+      mimeType: 'application/pdf',
+      subDir: `certificates/${req.organizationId}`
+    });
+
+    if (!cert) {
+      cert = await Certificate.create({
+        certificateId,
+        organizationId: req.organizationId,
+        passId: pass._id,
+        bootcampId: pass.bootcampId,
+        internName: certData.internName,
+        programTitle: certData.programTitle,
+        departmentName: certData.departmentName,
+        organizationName: certData.organizationName,
+        startDate: certData.startDate,
+        endDate: certData.endDate,
+        duration: certData.duration,
+        issueDate: certData.issueDate,
+        issuedBy: req.user?._id || req.userId,
+        signatory: certData.signatory,
+        filePath: stored.filePath,
+        checksum: stored.checksum,
+        status: 'ACTIVE'
+      });
+    } else {
+      cert.filePath = stored.filePath;
+      cert.checksum = stored.checksum;
+      await cert.save();
+    }
+
+    pass.certificateId = cert.certificateId;
+    pass.certificateStatus = 'ISSUED';
+    pass.certificateGeneratedAt = new Date();
+    await pass.save();
+  }
 
   const inline = req.query.inline === '1';
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${cert.certificateId}.pdf"`);
   res.setHeader('Cache-Control', 'private, no-store');
-  fs.createReadStream(storageService.getFilePath(cert.filePath)).pipe(res);
+  const fullPath = storageService.getFilePath(cert.filePath);
+  fs.createReadStream(fullPath).pipe(res);
 }
 
 // ==================== BOOTCAMP GOOGLE FORMS INTEGRATION ====================
@@ -1176,6 +1263,34 @@ export async function updatePassStatus(req, res) {
   });
 
   return successResponse(res, pass, `Pass status updated to ${status}`);
+}
+
+export async function updatePassCallStatus(req, res) {
+  const pass = await Pass.findOne({ _id: req.params.id, organizationId: req.organizationId });
+  if (!pass) throw notFound('Pass not found');
+
+  const { callStatus, notes } = req.body || {};
+  const valid = ['NOT_CALLED', 'ANSWERED', 'NOT_ANSWERED'];
+  if (!valid.includes(callStatus)) {
+    throw badRequest(`Invalid call status. Must be one of: ${valid.join(', ')}`);
+  }
+
+  const previousCallStatus = pass.callStatus;
+  pass.callStatus = callStatus;
+  pass.calledAt = new Date();
+  if (notes) pass.callNotes = notes;
+  await pass.save();
+
+  await recordAuditLog({
+    action: 'BOOTCAMP_PASS_CALL_STATUS_UPDATED',
+    entityType: 'Pass',
+    entityId: pass._id,
+    before: { callStatus: previousCallStatus },
+    after: { callStatus, notes },
+    req
+  });
+
+  return successResponse(res, pass, `Call status updated to ${callStatus}`);
 }
 
 

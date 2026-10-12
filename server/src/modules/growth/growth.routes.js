@@ -27,7 +27,8 @@ import {
   downloadPassCertificate,
   configureBootcampGoogleForm,
   syncBootcampGoogleFormResponses,
-  updatePassStatus
+  updatePassStatus,
+  updatePassCallStatus
 } from './growth.controller.js';
 import { authenticate, requireOrgContext } from '../../middleware/auth.js';
 import { requirePermission, requireAnyPermission } from '../../middleware/rbac.js';
@@ -64,6 +65,7 @@ router.delete('/bootcamps/:id/attachments/:attachmentId', requirePermission('boo
 // Passes Social Verification & Bulk Certificates
 router.patch('/passes/:id/social-verification', requireAnyPermission('bootcamps.manage', 'passes.generate'), ah(updateSocialVerification));
 router.patch('/passes/:id/status', requirePermission('bootcamps.manage'), ah(updatePassStatus));
+router.patch('/passes/:id/call-status', requireAnyPermission('bootcamps.manage', 'passes.generate'), ah(updatePassCallStatus));
 router.post('/bootcamps/:id/bulk-certificates', requireAnyPermission('certificates.manage', 'bootcamps.manage'), ah(generateBulkCertificates));
 router.post('/bootcamps/:id/bulk-send-certificates', requireAnyPermission('certificates.manage', 'bootcamps.manage'), ah(bulkSendCertificates));
 router.post('/passes/:id/send-certificate', requireAnyPermission('certificates.manage', 'bootcamps.manage'), ah(sendPassCertificate));
