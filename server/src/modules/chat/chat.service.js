@@ -20,6 +20,7 @@ export function initChatSocket(httpServer) {
   const allowedOrigins = new Set([
     env.CLIENT_URL,
     env.FRONTEND_URL,
+    'https://internmanagementsystem-xm84.onrender.com',
     ...(process.env.CORS_ORIGINS || '').split(',').map(s => s.trim())
   ].filter(Boolean));
 
@@ -27,9 +28,10 @@ export function initChatSocket(httpServer) {
     cors: {
       origin(origin, cb) {
         if (!origin) return cb(null, true);
-        if (allowedOrigins.has(origin)) return cb(null, true);
-        if (env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return cb(null, true);
-        return cb(null, false);
+        if (allowedOrigins.has(origin) || allowedOrigins.has('*')) return cb(null, true);
+        if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return cb(null, true);
+        if (origin.endsWith('.onrender.com') || origin.endsWith('.vercel.app') || origin.endsWith('.netlify.app')) return cb(null, true);
+        return cb(null, true);
       },
       credentials: true
     },

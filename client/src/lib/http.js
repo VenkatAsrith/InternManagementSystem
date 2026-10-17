@@ -27,8 +27,11 @@ export class ApiError extends Error {
   }
 }
 
-const raw = axios.create({ baseURL: '/api/v1', timeout: 30000 });
-const api = axios.create({ baseURL: '/api/v1', timeout: 30000, headers: { 'Content-Type': 'application/json' } });
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://internmanagementsystem-xm84.onrender.com').replace(/\/+$/, '');
+const apiBase = `${API_BASE_URL}/api/v1`;
+
+const raw = axios.create({ baseURL: apiBase, timeout: 30000 });
+const api = axios.create({ baseURL: apiBase, timeout: 30000, headers: { 'Content-Type': 'application/json' } });
 
 function actingOrgHeader(headers) {
   // A platform administrator acts inside one tenant at a time by naming it explicitly.

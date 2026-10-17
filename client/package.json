@@ -18,7 +18,8 @@
     "react-router-dom": "^6.28.1",
     "recharts": "^2.15.0",
     "socket.io-client": "^4.8.4",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "tmt-ims": "file:.."
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

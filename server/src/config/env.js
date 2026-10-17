@@ -33,6 +33,17 @@ const int = (key, fallback) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+function resolveMongoUri(uri) {
+  const target = uri || process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/intern_management_system';
+  if (target.startsWith('mongodb+srv://') && !target.split('?')[0].includes('.mongodb.net/')) {
+    const parts = target.split('?');
+    const base = parts[0].replace(/\/+$/, '');
+    const query = parts[1] ? `?${parts[1]}` : '?retryWrites=true&w=majority';
+    return `${base}/intern_management_system${query}`;
+  }
+  return target;
+}
+
 export const env = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: int('PORT', 5000),
@@ -41,7 +52,7 @@ export const env = {
   FRONTEND_URL: process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:3000',
 
   // Database
-  MONGO_URI: process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/intern_management_system',
+  MONGO_URI: resolveMongoUri(),
 
   // System Administrator Credentials (Loaded dynamically from environment, never hardcoded in logic)
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || '',

@@ -28,7 +28,8 @@ export function useChatSocket({ onMessage, onRead, onTyping, onNotification, onP
       return;
     }
 
-    const socket = io({
+    const socketUrl = (import.meta.env.VITE_API_URL || 'https://internmanagementsystem-xm84.onrender.com').replace(/\/+$/, '');
+    const socket = io(socketUrl, {
       path: '/socket.io',
       auth: { token },
       transports: ['websocket', 'polling'],

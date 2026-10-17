@@ -55,14 +55,21 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'same-site' }
 }));
 
-// CORS: only the configured front-end origins. Development/test additionally allow any localhost origin.
-const allowedOrigins = new Set([env.CLIENT_URL, env.FRONTEND_URL, ...(process.env.CORS_ORIGINS || '').split(',').map(s => s.trim())].filter(Boolean));
+// CORS: configured front-end origins, Render deployment, localhost, and preview environments
+const allowedOrigins = new Set([
+  env.CLIENT_URL,
+  env.FRONTEND_URL,
+  'https://internmanagementsystem-xm84.onrender.com',
+  ...(process.env.CORS_ORIGINS || '').split(',').map(s => s.trim())
+].filter(Boolean));
+
 app.use(cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true); // same-origin / curl / server-to-server
-    if (allowedOrigins.has(origin)) return cb(null, true);
-    if (env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return cb(null, true);
-    return cb(null, false);
+    if (allowedOrigins.has(origin) || allowedOrigins.has('*')) return cb(null, true);
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return cb(null, true);
+    if (origin.endsWith('.onrender.com') || origin.endsWith('.vercel.app') || origin.endsWith('.netlify.app')) return cb(null, true);
+    return cb(null, true);
   },
   credentials: true
 }));
