@@ -17,7 +17,11 @@ const isProd = process.env.NODE_ENV === 'production';
 
 // Production safety verification (§11)
 if (isProd) {
-  const required = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'MONGO_URI'];
+  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+  if (!mongoUri) {
+    throw new Error('CRITICAL STARTUP ERROR: Missing mandatory production environment variable: MONGO_URI or MONGODB_URI');
+  }
+  const required = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
   const missing = required.filter(k => !process.env[k]);
   if (missing.length > 0) {
     throw new Error(`CRITICAL STARTUP ERROR: Missing mandatory production environment variables: ${missing.join(', ')}`);
@@ -37,7 +41,11 @@ export const env = {
   FRONTEND_URL: process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:3000',
 
   // Database
-  MONGO_URI: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/intern_management_system',
+  MONGO_URI: process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/intern_management_system',
+
+  // System Administrator Credentials (Loaded dynamically from environment, never hardcoded in logic)
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || '',
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || '',
 
   // JWT & Authentication
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || 'ims_jwt_super_secret_access_key_2026_!@#$%^',

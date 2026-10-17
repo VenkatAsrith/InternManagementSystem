@@ -42,10 +42,12 @@ export async function resetDemoData({ dryRun = false } = {}) {
 
     // Preserve core admins
     const coreAdminEmails = [
+      env.ADMIN_EMAIL,
+      'admin@tmt.com',
       'admin@techmecha.com',
       'orgadmin@techmecha.com',
       'hr@techmecha.com'
-    ];
+    ].filter(Boolean);
 
     const counts = {
       demoUsers: await User.countDocuments({ email: { $nin: coreAdminEmails } }),

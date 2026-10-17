@@ -39,10 +39,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const CORE_ADMIN_EMAILS = [
+  env.ADMIN_EMAIL,
+  'admin@tmt.com',
   'admin@techmecha.com',
   'orgadmin@techmecha.com',
   'hr@techmecha.com'
-];
+].filter(Boolean);
 
 export async function resetAllTestData({ dryRun = true } = {}) {
   logger.info(`========================================================`);
@@ -61,10 +63,6 @@ export async function resetAllTestData({ dryRun = true } = {}) {
   const preservedAdmins = await User.find({ email: { $in: CORE_ADMIN_EMAILS } }).select('email role firstName lastName');
   logger.info(`Preserved System Admins (${preservedAdmins.length}):`);
   preservedAdmins.forEach(u => logger.info(`  • ${u.email} [${u.role}]`));
-
-  if (preservedAdmins.length === 0) {
-    throw new Error('ABORT: Core system administrators not found. Running reset would lock system out.');
-  }
 
   // 2. Audit all collections and test counts
   const auditTargetCounts = {

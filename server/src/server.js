@@ -6,9 +6,11 @@ import { logger } from './config/logger.js';
 import { expireStaleOffers } from './modules/offers/offer.provisioning.js';
 import { initChatSocket } from './modules/chat/chat.service.js';
 import { MeetingReminderService } from './modules/meetings/meetingReminder.service.js';
+import { bootstrapSystem } from './database/bootstrap.js';
 
 async function startServer() {
   await connectDB();
+  await bootstrapSystem();
 
   const server = http.createServer(app);
   initChatSocket(server);

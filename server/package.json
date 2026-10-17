@@ -10,6 +10,8 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit",
     "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit",
     "seed": "node src/database/seed.js",
+    "bootstrap": "node src/database/bootstrap.js",
+    "bootstrap:clean": "node src/database/bootstrap.js --clean",
     "reset:demo": "node src/database/resetDemoData.js --confirm",
     "reset:all": "node src/database/resetAllTestData.js --confirm",
     "reset:dry": "node src/database/resetAllTestData.js"
