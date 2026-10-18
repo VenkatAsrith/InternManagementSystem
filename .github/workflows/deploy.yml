@@ -1,15 +1,26 @@
-name: Production CI & Deployment
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
-    name: Build & Direct Deploy
+  ci-cd:
+    name: Build, Verify & Deploy
     runs-on: ubuntu-latest
+
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      VITE_API_URL: https://internmanagementsystem-xm84.onrender.com
 
     steps:
       - name: Checkout Code
@@ -21,25 +32,42 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Install Dependencies
+      - name: Install Root Dependencies
+        run: npm ci || npm install
+
+      - name: Install Client Dependencies
+        run: npm --prefix client ci || npm --prefix client install
+
+      - name: Install Server Dependencies
+        run: npm --prefix server ci || npm --prefix server install
+
+      - name: Server Syntax & Integrity Check
         run: |
-          npm install
-          npm --prefix client install
-          npm --prefix server install
+          echo "Verifying server syntax and module structure..."
+          node -c server/src/server.js
+          node -c server/src/app.js
+          echo "Server syntax verification passed successfully."
 
       - name: Build Frontend Application
         run: npm --prefix client run build
         env:
-          VITE_API_URL: https://internmanagementsystem-xm84.onrender.com
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist
+          retention-days: 7
 
       - name: Deploy to Netlify
+        if: github.event_name != 'pull_request' && env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != ''
         uses: nwtgck/actions-netlify@v3.0
-        if: env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != ''
         with:
           publish-dir: './client/dist'
           production-branch: main
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "Deploy from GitHub Actions (Commit: ${{ github.sha }})"
+          deploy-message: "Deploy commit ${{ github.sha }} via GitHub Actions"
           enable-pull-request-comment: false
           enable-commit-comment: true
           overwrites-pull-request-comment: false
@@ -47,10 +75,24 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
 
-      - name: Trigger Render Backend Deploy Hook
-        if: env.RENDER_DEPLOY_HOOK != ''
+      - name: Netlify Secrets Notice
+        if: github.event_name != 'pull_request' && (env.NETLIFY_AUTH_TOKEN == '' || env.NETLIFY_SITE_ID == '')
         run: |
-          echo "Triggering Render deployment..."
-          curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          echo "::notice title=Netlify Deploy Skipped::NETLIFY_AUTH_TOKEN and/or NETLIFY_SITE_ID secrets are not set in GitHub repository settings. If your Netlify site is linked directly to GitHub, it will deploy automatically on push. Otherwise, add NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID in GitHub Repo -> Settings -> Secrets and variables -> Actions."
+
+      - name: Trigger Render Backend Deploy Hook
+        if: github.event_name != 'pull_request' && env.RENDER_DEPLOY_HOOK != ''
+        run: |
+          echo "Triggering Render backend deployment hook..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}")
+          echo "Render deploy hook response status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+            echo "Render deployment triggered successfully."
+          else
+            echo "::warning title=Render Hook Warning::Render hook returned HTTP $HTTP_STATUS"
+          fi
+
+      - name: Render Secrets Notice
+        if: github.event_name != 'pull_request' && env.RENDER_DEPLOY_HOOK == ''
+        run: |
+          echo "::notice title=Render Deploy Skipped::RENDER_DEPLOY_HOOK secret is not set in GitHub repository settings. If Render is connected directly to your GitHub repo, Render auto-deploys every push automatically."
