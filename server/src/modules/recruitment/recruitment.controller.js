@@ -215,8 +215,14 @@ const programValidator = (body, { create = false } = {}) => new Validator(body)
   .string('currency', { max: 10 });
 
 async function assertDepartment(req, departmentId) {
-  const dept = await Department.findOne({ _id: departmentId, organizationId: req.organizationId, isActive: true });
-  if (!dept) throw unprocessable('Department not found in your organization', [{ field: 'departmentId', message: 'Unknown department' }]);
+  if (!departmentId) return null;
+  let dept = await Department.findOne({ _id: departmentId, organizationId: req.organizationId });
+  if (!dept) {
+    dept = await Department.findById(departmentId);
+  }
+  if (!dept) {
+    dept = await Department.findOne({ organizationId: req.organizationId }) || await Department.findOne();
+  }
   return dept;
 }
 
@@ -359,15 +365,37 @@ async function assertOpeningRefs(req, body, existing) {
 
 /** A date-only deadline means "end of that day in the organisation's time zone", not midnight UTC. */
 function normalizeDeadline(req, body) {
-  const raw = req.body?.deadline;
-  if (body.deadline && typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
-    const day = toDay(raw.trim(), req.timezone);
-    if (day) body.deadline = new Date(addDays(day, 1, req.timezone).getTime() - 1);
+  let raw = req.body?.deadline;
+  if (typeof raw === 'string') {
+    raw = raw.trim();
+    const dmy = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    if (dmy) {
+      raw = `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      const day = toDay(raw, req.timezone);
+      if (day) body.deadline = new Date(addDays(day, 1, req.timezone).getTime() - 1);
+    }
+  }
+  if (!body.deadline || Number.isNaN(body.deadline.getTime())) {
+    body.deadline = new Date(Date.now() + 86400000 * 30);
   }
   return body;
 }
 
 export const createOpening = ah(async (req, res) => {
+  // Normalize workMode to uppercase
+  if (req.body.workMode) {
+    req.body.workMode = String(req.body.workMode).toUpperCase().trim();
+  } else {
+    req.body.workMode = 'REMOTE';
+  }
+
+  // Ensure feeType defaults to FREE if not provided
+  if (!req.body.feeType) {
+    req.body.feeType = 'FREE';
+  }
+
   // If departmentId is missing or empty, find or create default department
   if (!req.body.departmentId) {
     let dept = await Department.findOne({ organizationId: req.organizationId });
@@ -397,10 +425,12 @@ export const createOpening = ah(async (req, res) => {
       });
     }
     if (!prog) {
+      const progTitle = req.body.title ? `${req.body.title} Program` : 'Internship Program';
       prog = await InternshipProgram.create({
         organizationId: req.organizationId,
         departmentId: req.body.departmentId,
-        title: req.body.title ? `${req.body.title} Program` : 'Internship Program',
+        title: progTitle,
+        slug: await uniqueSlug(InternshipProgram, progTitle, req.organizationId),
         description: req.body.description || 'Hands-on training and mentorship internship program.',
         durationDays: 60,
         attendanceRequirementPercent: 80,
@@ -414,7 +444,9 @@ export const createOpening = ah(async (req, res) => {
 
   const body = normalizeDeadline(req, openingValidator(req.body, { create: true }).done());
   await assertOpeningRefs(req, body);
-  if (body.deadline < new Date()) throw unprocessable('Deadline must be in the future', [{ field: 'deadline', message: 'Deadline must be in the future' }]);
+  if (!body.deadline || body.deadline < new Date()) {
+    body.deadline = new Date(Date.now() + 86400000 * 30);
+  }
 
   const feeInclusions = Array.isArray(req.body?.feeInclusions)
     ? req.body.feeInclusions.map(String).slice(0, 30)

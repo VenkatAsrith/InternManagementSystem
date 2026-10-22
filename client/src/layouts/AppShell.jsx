@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bell, ChevronDown, ExternalLink, KeyRound, LogOut, Menu, X, CheckCheck, Building2, Compass, Shield, LayoutDashboard, GraduationCap, Users, Rocket, CalendarDays, IndianRupee, FileText, ScrollText } from 'lucide-react';
+import { Bell, ChevronDown, ExternalLink, KeyRound, LogOut, Menu, X, CheckCheck, Building2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { visibleNav } from '../lib/access';
@@ -145,131 +145,24 @@ function Notifications() {
   );
 }
 
-const SYSTEM_ROLES = [
-  { role: 'SUPER_ADMIN', label: 'Super Admin', desc: 'Platform governance & cross-tenant access', icon: Shield, badge: 'SUPER' },
-  { role: 'ORGANIZATION_ADMIN', label: 'Organization Admin', desc: 'Complete tenant operations, settings & management', icon: Building2, badge: 'ORG ADMIN' },
-  { role: 'INTERN', label: 'Intern', desc: 'Intern workspace, daily tasks, documents & projects', icon: GraduationCap, badge: 'INTERN' },
-  { role: 'INTERN_TRAINEE', label: 'Intern Trainee', desc: 'Trainee program track, learning modules & stipend', icon: Rocket, badge: 'TRAINEE' }
-];
-
-function RoleSwitcher() {
-  const [open, setOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
-  const box = useRef(null);
-  const auth = useAuth();
-  const toast = useToast();
-  const location = useLocation();
-  useOutsideClose(box, open, () => setOpen(false));
-
-  const canSwitch = auth.isSuperAdmin || auth.isPreviewMode;
-  const currentRole = auth.effectiveRole || auth.activeRole || auth.user?.role;
-
-  const handleSelectRole = async (targetRole) => {
-    if (switching || targetRole === currentRole) {
-      setOpen(false);
-      return;
-    }
-    setSwitching(true);
-    try {
-      if (targetRole === (auth.originalRole || auth.user?.role) && auth.isPreviewMode) {
-        await auth.exitPreview();
-        toast.success('Exited role preview mode. Restored Global Administrator view.');
-      } else {
-        await auth.switchRole(targetRole);
-        toast.success(`Switched role preview to ${targetRole}.`);
-      }
-      setOpen(false);
-      // If current path is not allowed for the new role, redirect to authorized landing
-      const dummyAuth = { ...auth, effectiveRole: targetRole, activeRole: targetRole, isSuperAdmin: targetRole === 'SUPER_ADMIN' };
-      const nextHome = landingPath(dummyAuth);
-      window.location.assign(nextHome);
-    } catch (err) {
-      toast.error(err.message || 'Failed to switch role');
-    } finally {
-      setSwitching(false);
-    }
-  };
-
-  if (!canSwitch) {
-    return (
-      <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
-        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-        <span className="font-mono text-[11px] font-semibold">{currentRole}</span>
-      </div>
-    );
-  }
-
+function RoleBadge() {
+  const { user } = useAuth();
+  const roleName = user?.role ? user.role.replace(/_/g, ' ') : '';
+  if (!roleName) return null;
   return (
-    <div className="relative" ref={box}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-haspopup="true"
-        data-testid="role-switcher-button"
-        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-600 transition-colors shadow-2xs"
-      >
-        <Compass className="h-4 w-4 text-brand-700" />
-        <span className="hidden sm:inline">Role:</span>
-        <span className="font-semibold text-brand-900">{currentRole}</span>
-        {auth.isPreviewMode && (
-          <span className="hidden sm:inline rounded bg-amber-100 px-1 py-0.2 text-[9px] font-bold text-amber-800 border border-amber-300">
-            PREVIEW
-          </span>
-        )}
-        <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-      </button>
-
-      {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl" data-testid="role-switcher-menu">
-          <div className="border-b border-slate-100 px-3 py-2 bg-slate-50">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Universal Role Experience Switcher</p>
-            <p className="text-xs text-slate-600">Simulate or preview any role's exact authorized UI and permissions</p>
-          </div>
-          <div className="divide-y divide-slate-50 py-1 max-h-80 overflow-y-auto">
-            {SYSTEM_ROLES.map((r) => {
-              const isSelected = r.role === currentRole;
-              return (
-                <button
-                  key={r.role}
-                  type="button"
-                  disabled={switching}
-                  onClick={() => handleSelectRole(r.role)}
-                  className={`flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors ${isSelected ? 'bg-brand-50/80' : 'hover:bg-slate-50'}`}
-                  data-testid={`switch-to-role-${r.role.toLowerCase().replace(/_/g, '-')}`}
-                >
-                  <r.icon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isSelected ? 'text-brand-700' : 'text-slate-600'}`} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className={`text-xs ${isSelected ? 'font-bold text-brand-900' : 'font-semibold text-slate-900'}`}>
-                        {r.label}
-                      </span>
-                      {isSelected ? (
-                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-brand-600 text-white">Active</span>
-                      ) : (
-                        <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                          {r.badge}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-500 truncate">{r.desc}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+    <div className="hidden sm:flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-2xs">
+      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+      <span className="font-mono text-[11px] font-semibold">{roleName}</span>
     </div>
   );
 }
 
 function UserMenu() {
-  const { user, logout, activeRole, isPreviewMode, effectiveRole } = useAuth();
+  const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const box = useRef(null);
   useOutsideClose(box, open, () => setOpen(false));
-  const displayRole = effectiveRole || activeRole || user?.role;
+  const displayRole = user?.role ? user.role.replace(/_/g, ' ') : '';
 
   return (
     <div className="relative" ref={box}>
@@ -285,7 +178,7 @@ function UserMenu() {
         <span className="hidden text-left sm:block">
           <span data-testid="user-name" className="block max-w-[10rem] truncate text-sm font-semibold leading-tight text-slate-900">{fullName(user)}</span>
           <span data-testid="user-role" className="block font-mono text-[11px] leading-tight text-slate-600">
-            {displayRole} {isPreviewMode ? '(Preview)' : ''}
+            {displayRole}
           </span>
         </span>
         <ChevronDown className="hidden h-4 w-4 text-slate-600 sm:block" aria-hidden="true" />
@@ -294,7 +187,7 @@ function UserMenu() {
         <div className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl" data-testid="user-menu">
           <div className="border-b border-slate-100 px-4 py-2.5 sm:hidden">
             <p className="text-sm font-semibold text-slate-900">{fullName(user)}</p>
-            <p className="font-mono text-xs text-slate-600">{displayRole} {isPreviewMode ? '(Preview)' : ''}</p>
+            <p className="font-mono text-xs text-slate-600">{displayRole}</p>
           </div>
           <Link to="/account" onClick={() => setOpen(false)} data-testid="menu-account" className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-800 hover:bg-slate-50 focus:outline-none focus-visible:bg-slate-100">
             <KeyRound className="h-4 w-4" aria-hidden="true" /> Account & security
@@ -314,7 +207,7 @@ export function AppShell() {
   const location = useLocation();
   const [drawer, setDrawer] = useState(false);
   const main = useRef(null);
-  const groups = useMemo(() => visibleNav(auth), [auth.permissions, auth.user, auth.activeRole, auth.isPreviewMode, auth.effectiveRole]);
+  const groups = useMemo(() => visibleNav(auth), [auth.permissions, auth.user]);
   const actingOrg = session.getActingOrg();
 
   // Close the mobile drawer and move focus to the page on navigation (keyboard / screen-reader users).
@@ -335,16 +228,6 @@ export function AppShell() {
     session.setActingOrg(null);
     toast.info('You left the organization and are back in the platform view.');
     window.location.assign('/admin/global-command');
-  };
-
-  const handleExitPreview = async () => {
-    try {
-      await auth.exitPreview();
-      toast.success('Exited preview mode. Restored Global Administrator workspace.');
-      window.location.assign('/admin/global-command');
-    } catch (err) {
-      toast.error(err.message || 'Failed to exit preview');
-    }
   };
 
   return (
@@ -378,7 +261,7 @@ export function AppShell() {
             <span className="hidden truncate text-sm text-slate-700 sm:block" data-testid="org-name"><Building2 className="mr-1.5 inline h-4 w-4 -mt-0.5" aria-hidden="true" />{auth.organization?.name || 'Platform'}</span>
           </div>
           <div className="flex items-center gap-2">
-            <RoleSwitcher />
+            <RoleBadge />
             <Link to="/internships" target="_blank" rel="noopener noreferrer" className="hidden items-center gap-1 rounded text-xs font-medium text-slate-700 hover:text-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-600 md:inline-flex">Public portal <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /><span className="sr-only">(opens in a new tab)</span></Link>
             <Notifications />
             <UserMenu />
@@ -389,27 +272,6 @@ export function AppShell() {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950 sm:px-6" data-testid="acting-org-banner" role="status">
             <span>You are acting inside an organization as platform administrator. Every change is audited.</span>
             <button type="button" onClick={leaveOrg} data-testid="leave-org" className="rounded font-semibold underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-900">Leave organization</button>
-          </div>
-        )}
-
-        {auth.isPreviewMode && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs text-indigo-950 sm:px-6 shadow-2xs" data-testid="role-preview-banner" role="status">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded bg-indigo-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                Role Preview Active
-              </span>
-              <span>
-                You are viewing IMS as <strong>{auth.activeRole}</strong>. Navigation, dashboard views, and permission gates strictly enforce this role's capabilities.
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleExitPreview}
-              data-testid="exit-role-preview"
-              className="inline-flex items-center gap-1.5 rounded-md bg-white border border-indigo-300 px-2.5 py-1 text-xs font-semibold text-indigo-900 hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 shadow-2xs"
-            >
-              Exit Preview &amp; Restore Global Admin
-            </button>
           </div>
         )}
 

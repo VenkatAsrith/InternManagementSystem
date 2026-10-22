@@ -13,7 +13,7 @@ const VISIBILITY = ['PRIVATE', 'INTERN_VISIBLE', 'MANAGER_ONLY', 'HR_ONLY'];
 
 export const getFeedback = ah(async (req, res) => {
   const query = { organizationId: req.organizationId };
-  if (req.userRole === ROLES.INTERN) {
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole)) {
     const intern = await getOwnIntern(req);
     query.internId = intern._id;
     query.visibility = 'INTERN_VISIBLE';

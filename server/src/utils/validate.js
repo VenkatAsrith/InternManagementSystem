@@ -141,7 +141,20 @@ export class Validator {
       return this;
     }
     const raw = this.src[field];
-    const value = raw instanceof Date ? raw : new Date(raw);
+    let value;
+    if (raw instanceof Date) {
+      value = raw;
+    } else if (typeof raw === 'string') {
+      const s = raw.trim();
+      const dmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+      if (dmy) {
+        value = new Date(`${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`);
+      } else {
+        value = new Date(s);
+      }
+    } else {
+      value = new Date(raw);
+    }
     if (Number.isNaN(value.getTime())) return this.fail(field, `${field} must be a valid date`);
     if (min && value < min) return this.fail(field, `${field} is too early`);
     if (max && value > max) return this.fail(field, `${field} is too late`);

@@ -97,6 +97,15 @@ export const getMyInternProfile = ah(async (req, res) => {
     .populate('userId', 'firstName lastName email phone avatarUrl')
     .populate('departmentId', 'name code').populate('programId').populate('mentorId', 'firstName lastName email');
 
+  if (!intern && (req.userRole === ROLES.INTERN_TRAINEE || req.userRole === ROLES.INTERN)) {
+    const own = await getOwnIntern(req, { required: false });
+    if (own) {
+      intern = await Intern.findById(own._id)
+        .populate('userId', 'firstName lastName email phone avatarUrl')
+        .populate('departmentId', 'name code').populate('programId').populate('mentorId', 'firstName lastName email');
+    }
+  }
+
   let viewingAsAdmin = false;
   if (!intern && (req.userRole === ROLES.SUPER_ADMIN || req.can?.('interns.read') || req.userRole === ROLES.ORGANIZATION_ADMIN)) {
     const adminQuery = req.query.internId
@@ -620,10 +629,11 @@ export const getInternTimeline = ah(async (req, res) => {
     organizationId: req.organizationId,
     entityId: { $in: [String(intern._id), String(intern.userId), String(intern.applicationId), String(intern.offerId)] }
   }).sort({ timestamp: 1 }).limit(500);
-  // Interns see the events but not internal metadata such as IP addresses or before/after snapshots.
+  // Interns and trainees see the events but not internal metadata such as IP addresses or before/after snapshots.
+  const isParticipant = [ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole);
   const timeline = logs.map(log => ({
-    action: log.action, timestamp: log.timestamp, actorRole: log.actorRole, actorEmail: req.userRole === ROLES.INTERN ? undefined : log.actorEmail,
-    details: req.userRole === ROLES.INTERN ? {} : (log.after || {})
+    action: log.action, timestamp: log.timestamp, actorRole: log.actorRole, actorEmail: isParticipant ? undefined : log.actorEmail,
+    details: isParticipant ? {} : (log.after || {})
   }));
   return successResponse(res, timeline);
 });
@@ -633,7 +643,7 @@ export const getInternWorkRecord = ah(async (req, res) => {
     { path: 'userId', select: 'firstName lastName email avatarUrl' }, { path: 'departmentId', select: 'name code' },
     { path: 'programId', select: 'title durationDays' }, { path: 'mentorId', select: 'firstName lastName email' }
   ]);
-  const isSelf = req.userRole === ROLES.INTERN;
+  const isSelf = [ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole);
   const [tasks, journals, attendance, meetings, reviews] = await Promise.all([
     Task.find({ organizationId: req.organizationId, assignedTo: intern.userId._id }).sort({ createdAt: -1 }),
     JournalEntry.find({ internId: intern._id }).sort({ date: -1 }),

@@ -50,7 +50,7 @@ function parseScores(input, metrics, { requireAll }) {
 /** Interns only see what is theirs to see: in-progress reviews show no mentor/manager content until FINALIZED. */
 function shape(review, req) {
   const obj = review.toObject ? review.toObject() : review;
-  if (req.userRole === ROLES.INTERN && obj.status !== S.FINALIZED) {
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole) && obj.status !== S.FINALIZED) {
     delete obj.mentorAssessment; delete obj.managerReview;
     obj.metrics = (obj.metrics || []).map(m => ({ metricName: m.metricName, weightPercent: m.weightPercent }));
     obj.finalScore = null;
@@ -103,7 +103,7 @@ export const createPerformanceReview = ah(async (req, res) => {
 export const getPerformanceReviews = ah(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 50, maxLimit: 200 });
   const query = await reviewScope(req);
-  if (isObjectId(req.query.internId) && req.userRole !== ROLES.INTERN) query.internId = { $in: query.internId.$in.filter(id => String(id) === req.query.internId) };
+  if (isObjectId(req.query.internId) && ![ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole)) query.internId = { $in: query.internId.$in.filter(id => String(id) === req.query.internId) };
   if (Object.values(S).includes(req.query.status)) query.status = req.query.status;
   const [reviews, total] = await Promise.all([
     PerformanceReview.find(query)

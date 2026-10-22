@@ -85,7 +85,7 @@ export const uploadDocument = ah(async (req, res) => {
 
   // Whose file is this? Interns upload for themselves; staff upload for a named intern or as general organization documents.
   let intern = null;
-  if (req.userRole === ROLES.INTERN) {
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole)) {
     intern = await getOwnIntern(req);
   } else if (body.internId) {
     intern = await loadScopedIntern(req, body.internId);
@@ -164,7 +164,7 @@ export const getDocuments = ah(async (req, res) => {
 
   if (isObjectId(req.query.projectId)) {
     query.projectId = req.query.projectId;
-  } else if (req.userRole === ROLES.INTERN || !canSeeAll(req)) {
+  } else if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole) || !canSeeAll(req)) {
     query.ownerId = req.userId;
   } else if (isObjectId(req.query.internId)) query.internId = req.query.internId;
 

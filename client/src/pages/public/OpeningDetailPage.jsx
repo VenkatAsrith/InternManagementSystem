@@ -31,8 +31,8 @@ export function OpeningDetailPage() {
               { label: 'Work mode', value: o.workMode?.replace('_', ' ') },
               { label: 'Location', value: o.location || 'Not specified' },
               { label: 'Duration', value: o.duration },
+              { label: 'Program Cost', value: 'Free (No fee charged)' },
               { label: 'Stipend', value: o.stipend || 'Not specified' },
-              { label: 'Positions', value: o.openPositions },
               { label: 'Apply by', value: fmtDate(o.deadline), testId: 'opening-deadline' }
             ]} /></div>
             <Link to={`/apply/${o.slug}`} data-testid="apply-button" className="mt-6 inline-flex h-11 items-center gap-2 rounded-lg bg-brand-600 px-6 text-base font-medium text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2">Apply for this internship <ArrowRight className="h-5 w-5" aria-hidden="true" /></Link>

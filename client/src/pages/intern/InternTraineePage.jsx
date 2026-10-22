@@ -144,70 +144,105 @@ function TraineeDocumentsTab() {
   );
 }
 
-function TraineeFinanceTab() {
-  const toast = useToast();
-  const finState = useFetch(() => api.get('/finance/me'), []);
-  const d = finState.data || {};
-  const payments = d.payments || [];
+function TraineeFinanceTab({ engagement }) {
+  const cp = engagement?.candidatePayment || {};
+  const feeType = cp.feeType || engagement?.programId?.feeType || 'PAID';
+  const feeAmount = cp.feeAmount !== undefined ? cp.feeAmount : (engagement?.programId?.grossFee || 0);
+  const amountPaid = cp.amountPaid || 0;
+  const balance = feeType === 'FREE' ? 0 : Math.max(0, feeAmount - amountPaid);
+  const paymentStatus = cp.paymentStatus || (feeType === 'FREE' ? 'PAID' : 'PENDING');
 
-  const handleDownloadPayslip = async (p) => {
-    try {
-      await downloadFile(`/finance/payments/${p._id}/payslip`, `${p.paymentId || 'payslip'}.pdf`);
-    } catch (e) {
-      toast.error(e.message || 'Failed to download payslip');
-    }
+  const handlePrintReceipt = () => {
+    window.print();
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Total Paid" value={fmtMoney(d.totalEarned || 0, d.currency || 'INR')} tone="emerald" />
-        <StatCard label="Pending Balance" value={fmtMoney(d.pendingBalance || 0, d.currency || 'INR')} tone="amber" />
-        <StatCard
-          label="Stipend Plan"
-          value={
-            d.compensationPlan
-              ? `${fmtMoney(d.compensationPlan.baseAmount, d.compensationPlan.currency)} ${humanize(
-                  d.compensationPlan.compensationType
-                ).toLowerCase()}`
-              : 'Configured by Admin'
-          }
-        />
-      </div>
+      {/* Program Cost & Enrollment Fee Section */}
+      <SectionCard
+        title="Training Program Fee Schedule"
+        actions={
+          amountPaid > 0 && (
+            <Button size="sm" variant="outline" icon={Download} onClick={handlePrintReceipt}>
+              Print Receipt
+            </Button>
+          )
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-4 mb-4">
+          <StatCard
+            label="Total Program Fee"
+            value={feeType === 'FREE' ? 'Free Program' : fmtMoney(feeAmount, 'INR')}
+            tone={feeType === 'FREE' ? 'emerald' : 'indigo'}
+          />
+          <StatCard
+            label="Amount Paid"
+            value={feeType === 'FREE' ? '₹0' : fmtMoney(amountPaid, 'INR')}
+            tone="emerald"
+          />
+          <StatCard
+            label="Outstanding Balance"
+            value={fmtMoney(balance, 'INR')}
+            tone={balance > 0 ? 'rose' : 'slate'}
+            hint={balance > 0 ? 'Payment due' : 'Account cleared'}
+          />
+          <StatCard
+            label="Payment Status"
+            value={humanize(paymentStatus)}
+            tone={paymentStatus === 'PAID' ? 'emerald' : 'amber'}
+          />
+        </div>
 
-      <SectionCard title="Stipend & Payout Statements">
-        {payments.length === 0 ? (
-          <p className="text-xs text-slate-500 py-6 text-center">
-            No payment statements generated yet. Statements will appear after payroll runs.
-          </p>
-        ) : (
-          <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden bg-white">
-            {payments.map((p) => (
-              <div key={p._id || p.paymentId} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 text-xs">
-                <div>
-                  <p className="font-semibold text-slate-900 text-sm">Cycle: {p.cycle}</p>
-                  <p className="text-slate-500">
-                    Payable: {fmtMoney(p.netPayable, p.currency)} &bull; {p.paidAt ? `Paid on ${fmtDate(p.paidAt)}` : 'Processing'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={p.status} />
-                  {p.status === 'PAID' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      icon={Download}
-                      onClick={() => handleDownloadPayslip(p)}
-                    >
-                      Payslip
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-5 space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+            Payment & Receipt Acknowledgment
+          </h4>
+          <div className="grid gap-3 sm:grid-cols-2 text-xs">
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">Program Track:</span>
+              <span className="font-semibold text-slate-900">{engagement?.programId?.title || 'Training Program'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">Payment Model:</span>
+              <span className="font-semibold text-slate-900">{feeType === 'FREE' ? 'Free / Scholarship' : 'Paid Curriculum'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">Payment Mode:</span>
+              <span className="font-semibold text-slate-900">{humanize(cp.paymentMethod || 'Online / UPI')}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">Transaction / UTR:</span>
+              <span className="font-mono font-semibold text-slate-900">{cp.paymentReference || 'Pending confirmation'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">Payment Timestamp:</span>
+              <span className="font-semibold text-slate-900">{cp.paidAt ? fmtDate(cp.paidAt) : 'N/A'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">Receipt Clearance:</span>
+              <StatusBadge status={paymentStatus} />
+            </div>
           </div>
-        )}
+          {cp.notes && (
+            <p className="text-xs text-slate-600 bg-white p-2.5 rounded border border-slate-200 mt-2">
+              <strong>Admin Notes:</strong> {cp.notes}
+            </p>
+          )}
+        </div>
       </SectionCard>
+
+      {/* Fee Payment Instructions if Balance is Due */}
+      {balance > 0 && (
+        <SectionCard title="Payment Instructions & Clearance">
+          <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60 space-y-2 text-xs text-amber-900">
+            <p className="font-semibold text-sm">Outstanding Fee Balance: ₹{balance.toLocaleString('en-IN')}</p>
+            <p>
+              Please settle your remaining training fee installment with your program coordinator or organization finance desk.
+              Once paid, your coordinator will record your transaction reference (UTR) to mark your fee as cleared.
+            </p>
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }
@@ -297,7 +332,16 @@ function ProgramCatalog({ programs, onEnrolled }) {
                   {p.mode}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">{p.durationWeeks} Weeks Cohort</p>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  Period: {p.durationWeeks || 8} Weeks
+                </span>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                  p.feeType === 'FREE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                }`}>
+                  Cost: {p.feeType === 'FREE' ? 'Free (No Cost)' : (p.grossFee ? `₹${p.grossFee.toLocaleString('en-IN')}` : 'Paid Program')}
+                </span>
+              </div>
               {p.description && <p className="text-xs text-slate-600 mt-2 line-clamp-3">{p.description}</p>}
 
               {p.skills && p.skills.length > 0 && (
@@ -367,7 +411,7 @@ export function InternTraineePage() {
           <>
             <PageHeader
               title={`Trainee Dashboard — ${program?.title}`}
-              description={`${program?.durationWeeks} Weeks • ${program?.mode} • Enrolled ${fmtDate(engagement.enrolledAt)}`}
+              description={`Period: ${program?.durationWeeks || 8} Weeks (${fmtDate(engagement.startDate || engagement.enrolledAt)}${engagement.expectedEndDate ? ` – ${fmtDate(engagement.expectedEndDate)}` : ''}) • ${program?.mode || 'Hybrid'} • Cost: ${engagement?.candidatePayment?.feeType === 'FREE' || program?.feeType === 'FREE' ? 'Free Program' : (engagement?.candidatePayment?.feeAmount ? `₹${engagement.candidatePayment.feeAmount.toLocaleString('en-IN')}` : (program?.grossFee ? `₹${program.grossFee.toLocaleString('en-IN')}` : 'Free'))}`}
               actions={
                 <div className="flex items-center gap-2">
                   <StatusBadge status={engagement.status || 'ACTIVE'} />
@@ -419,7 +463,7 @@ export function InternTraineePage() {
                     : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <IndianRupee className="h-4 w-4" /> Stipend & Payments
+                <IndianRupee className="h-4 w-4" /> Program Fee & Payments
               </button>
             </div>
 
@@ -560,7 +604,7 @@ export function InternTraineePage() {
 
             {activeTab === 'documents' && <TraineeDocumentsTab />}
 
-            {activeTab === 'finance' && <TraineeFinanceTab />}
+            {activeTab === 'finance' && <TraineeFinanceTab engagement={engagement} />}
 
             {modal?.type === 'submitTask' && (
               <TaskSubmitModal

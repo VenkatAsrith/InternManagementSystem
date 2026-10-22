@@ -307,6 +307,46 @@ export const createAndEnrollTrainee = ah(async (req, res) => {
   });
 
   if (!engagement) {
+    if (!internDoc) {
+      try {
+        const { Department } = await import('../organizations/organization.model.js');
+        const { InternshipProgram } = await import('../recruitment/recruitment.model.js');
+        let targetDeptId = departmentId;
+        if (!targetDeptId) {
+          const anyDept = await Department.findOne({ organizationId: req.organizationId });
+          targetDeptId = anyDept?._id;
+        }
+        let targetProgId = program._id;
+        const progExists = await InternshipProgram.exists({ _id: program._id });
+        if (!progExists) {
+          const anyProg = await InternshipProgram.findOne({ organizationId: req.organizationId });
+          targetProgId = anyProg?._id;
+        }
+        if (targetDeptId && targetProgId) {
+          internDoc = await Intern.create({
+            internId: traineeId,
+            userId: user._id,
+            organizationId: req.organizationId,
+            departmentId: targetDeptId,
+            programId: targetProgId,
+            mentorId: mentorId || program.trainerId || undefined,
+            managerId: managerId || req.userId,
+            workMode: workMode || 'REMOTE',
+            startDate: start,
+            expectedEndDate: end,
+            status: 'ACTIVE',
+            source: source || 'APPLICATION',
+            institution: institution || '',
+            degree: degree || '',
+            location: location || '',
+            compensation: compensationObj
+          });
+        }
+      } catch {
+        // Fall back gracefully if already exists
+      }
+    }
+
     engagement = await TrainingEngagement.create({
       organizationId: req.organizationId,
       personId: person._id,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, GraduationCap, AlertTriangle, CheckCircle2, UserCheck, UserPlus, BookOpen,
-  Clock, ShieldAlert, Key, Copy, Check, Video, IndianRupee, Layers, Briefcase
+  Clock, ShieldAlert, Key, Copy, Check, Video, IndianRupee, Layers, Briefcase, CreditCard
 } from 'lucide-react';
 import api from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
@@ -19,16 +19,10 @@ import {
 function CreateTraineeModal({ programs, onClose, onDone }) {
   const toast = useToast();
   const { mentors } = useStaffUsers();
-  const [enrollMode, setEnrollMode] = useState('NEW'); // 'NEW' | 'EXISTING_INTERN'
-  const [source, setSource] = useState('APPLICATION');
-  const [compensationType, setCompensationType] = useState('UNPAID');
   const [feeType, setFeeType] = useState('PAID');
-  const [hasConcession, setHasConcession] = useState(false);
-  const internsFetch = useFetch(() => api.get('/interns', { params: { limit: 100 } }), []);
 
   const defaultProgram = programs[0];
   const form = useForm({
-    internId: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -42,13 +36,6 @@ function CreateTraineeModal({ programs, onClose, onDone }) {
     startDate: new Date().toISOString().slice(0, 10),
     expectedEndDate: new Date(Date.now() + 86400000 * ((defaultProgram?.durationWeeks || 8) * 7)).toISOString().slice(0, 10),
     mentorId: '',
-    // Referral fields
-    referredById: '',
-    referralName: '',
-    referralEmail: '',
-    relationship: 'College Senior / Colleague',
-    referralNotes: '',
-    referralDate: new Date().toISOString().slice(0, 10),
     // Candidate Payment / Program Fee fields
     feeAmount: defaultProgram?.grossFee || 10000,
     amountPaid: 0,
@@ -56,16 +43,6 @@ function CreateTraineeModal({ programs, onClose, onDone }) {
     paymentMethod: 'UPI',
     paymentReference: '',
     paymentNotes: '',
-    // Intern Stipend fields
-    stipendAmount: 10000,
-    currency: 'INR',
-    stipendFrequency: 'MONTHLY',
-    // Concessions
-    concessionType: 'Fee Discount / Scholarship',
-    amountOrPercentage: '50%',
-    concessionReason: '',
-    approvalStatus: 'APPROVED',
-    internalRemarks: '',
     internalNotes: ''
   });
   const f = form.field;
@@ -82,28 +59,6 @@ function CreateTraineeModal({ programs, onClose, onDone }) {
     }
   };
 
-  const handleSelectIntern = (e) => {
-    const selId = e.target.value;
-    form.set('internId', selId);
-    if (!selId) return;
-    const intern = (internsFetch.data || []).find((i) => i._id === selId);
-    if (intern) {
-      form.set('firstName', intern.userId?.firstName || '');
-      form.set('lastName', intern.userId?.lastName || '');
-      form.set('email', intern.userId?.email || '');
-      form.set('phone', intern.userId?.phone || '');
-      form.set('institution', intern.institution || '');
-      form.set('degree', intern.degree || '');
-      form.set('graduationYear', intern.graduationYear || '');
-      form.set('location', intern.location || '');
-      form.set('workMode', intern.workMode || 'REMOTE');
-      if (intern.mentorId?._id) form.set('mentorId', intern.mentorId._id);
-      if (intern.compensation?.type) setCompensationType(intern.compensation.type);
-      if (intern.compensation?.amount) form.set('stipendAmount', intern.compensation.amount);
-      if (intern.source) setSource(intern.source);
-    }
-  };
-
   const remainingFee = feeType === 'FREE' ? 0 : Math.max(0, Number(form.values.feeAmount || 0) - Number(form.values.amountPaid || 0));
 
   const handleSubmit = async (v) => {
@@ -113,7 +68,6 @@ function CreateTraineeModal({ programs, onClose, onDone }) {
       email: v.email.trim(),
       phone: v.phone.trim(),
       programId: v.programId,
-      internId: enrollMode === 'EXISTING_INTERN' ? v.internId || undefined : undefined,
       institution: v.institution?.trim() || undefined,
       degree: v.degree?.trim() || undefined,
       graduationYear: v.graduationYear?.trim() || undefined,
@@ -121,10 +75,10 @@ function CreateTraineeModal({ programs, onClose, onDone }) {
       workMode: v.workMode,
       startDate: v.startDate,
       expectedEndDate: v.expectedEndDate,
-      source,
+      source: 'TRAINEE_ENROLLMENT',
       mentorId: v.mentorId || undefined,
       internalNotes: v.internalNotes?.trim() || undefined,
-      // Candidate payment (Fee candidate pays)
+      // Candidate payment (Fee candidate pays for program)
       candidatePayment: {
         feeType,
         feeAmount: feeType === 'PAID' ? Number(v.feeAmount || 0) : 0,
@@ -135,47 +89,17 @@ function CreateTraineeModal({ programs, onClose, onDone }) {
         paidAt: Number(v.amountPaid) > 0 ? new Date() : undefined,
         notes: v.paymentNotes?.trim() || ''
       },
-      // Compensation / Stipend (Company pays intern)
       compensation: {
-        type: compensationType,
-        amount: compensationType === 'PAID' ? Number(v.stipendAmount || 0) : 0,
-        currency: v.currency || 'INR',
-        frequency: v.stipendFrequency || 'MONTHLY',
+        type: 'UNPAID',
+        amount: 0,
+        currency: 'INR',
+        frequency: 'MONTHLY',
         startDate: v.startDate
       }
     };
 
-    if (source === 'REFERRAL') {
-      payload.referral = {
-        referredById: v.referredById || undefined,
-        referralName: v.referralName?.trim() || undefined,
-        referralEmail: v.referralEmail?.trim() || undefined,
-        relationship: v.relationship?.trim() || undefined,
-        notes: v.referralNotes?.trim() || undefined,
-        date: v.referralDate ? new Date(v.referralDate) : new Date()
-      };
-    }
-
-    if (hasConcession) {
-      payload.concession = {
-        concessionType: v.concessionType,
-        amountOrPercentage: v.amountOrPercentage?.trim(),
-        reason: v.concessionReason?.trim(),
-        approvalStatus: v.approvalStatus,
-        internalRemarks: v.internalRemarks?.trim()
-      };
-    }
-
     return await api.post('/training/trainees/create-and-enroll', payload);
   };
-
-  const internOptions = [
-    { value: '', label: 'Select an existing intern...' },
-    ...((internsFetch.data || []).map((i) => ({
-      value: i._id,
-      label: `${fullName(i.userId)} (${i.internId} - ${i.userId?.email})`
-    })))
-  ];
 
   return (
     <FormModal
@@ -204,59 +128,8 @@ function CreateTraineeModal({ programs, onClose, onDone }) {
       }}
     >
       <FormGrid>
-        {/* Source Mode Toggle */}
-        <div className="sm:col-span-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
-          <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 mb-2">
-            Enrollment Pathway
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label
-              className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer text-xs font-medium ${
-                enrollMode === 'NEW' ? 'border-indigo-600 bg-white shadow-xs text-indigo-950 font-semibold' : 'border-slate-200 bg-white/60 text-slate-700'
-              }`}
-            >
-              <input
-                type="radio"
-                name="enrollMode"
-                value="NEW"
-                checked={enrollMode === 'NEW'}
-                onChange={() => setEnrollMode('NEW')}
-                className="text-indigo-600 focus:ring-indigo-500"
-              />
-              New Trainee Candidate
-            </label>
-            <label
-              className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer text-xs font-medium ${
-                enrollMode === 'EXISTING_INTERN' ? 'border-indigo-600 bg-white shadow-xs text-indigo-950 font-semibold' : 'border-slate-200 bg-white/60 text-slate-700'
-              }`}
-            >
-              <input
-                type="radio"
-                name="enrollMode"
-                value="EXISTING_INTERN"
-                checked={enrollMode === 'EXISTING_INTERN'}
-                onChange={() => setEnrollMode('EXISTING_INTERN')}
-                className="text-indigo-600 focus:ring-indigo-500"
-              />
-              Enroll Existing Intern
-            </label>
-          </div>
-        </div>
-
-        {enrollMode === 'EXISTING_INTERN' && (
-          <div className="sm:col-span-2">
-            <SelectField
-              label="Select Active Intern"
-              value={form.values.internId}
-              onChange={handleSelectIntern}
-              options={internOptions}
-              hint="Autofills personal, academic, and compensation details directly from the intern record."
-            />
-          </div>
-        )}
-
         {/* Section 1: Basic Identity */}
-        <div className="sm:col-span-2 pt-2 border-t border-slate-200">
+        <div className="sm:col-span-2 pt-1">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">1. Candidate Identity</h4>
         </div>
         <TextField {...f('firstName')} label="First Name" required placeholder="e.g. John" />
@@ -305,41 +178,12 @@ function CreateTraineeModal({ programs, onClose, onDone }) {
         <TextField {...f('startDate')} label="Start Date" type="date" required />
         <TextField {...f('expectedEndDate')} label="Expected End Date" type="date" required />
 
-        {/* Section 4: Source & Referral */}
-        <div className="sm:col-span-2 pt-2 border-t border-slate-200">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">4. Acquisition Source & Referral</h4>
-        </div>
-        <div className="sm:col-span-2">
-          <SelectField
-            label="Acquisition Source"
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            options={[
-              { value: 'APPLICATION', label: 'Job Portal / Application' },
-              { value: 'REFERRAL', label: 'Employee / Candidate Referral' },
-              { value: 'CAMPUS', label: 'Campus Placement Drive' },
-              { value: 'WALK_IN', label: 'Walk-in Candidate' },
-              { value: 'PARTNER', label: 'Partner Institution' },
-              { value: 'INTERNAL_TRANSFER', label: 'Internal Transfer' },
-              { value: 'OTHER', label: 'Other Source' }
-            ]}
-          />
-        </div>
-        {source === 'REFERRAL' && (
-          <>
-            <TextField {...f('referralName')} label="Referred By Name" placeholder="Referrer Name" />
-            <TextField {...f('referralEmail')} label="Referrer Email" type="email" placeholder="referrer@company.com" />
-            <TextField {...f('relationship')} label="Relationship" placeholder="College Senior / Colleague" />
-            <TextField {...f('referralNotes')} label="Referral Notes" placeholder="Special recommendation notes..." />
-          </>
-        )}
-
-        {/* Section 5: Candidate Payment (Fee candidate pays for training) */}
+        {/* Section 4: Candidate Payment (Fee candidate pays for training) */}
         <div className="sm:col-span-2 pt-2 border-t border-slate-200">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
               <IndianRupee className="h-4 w-4 text-emerald-600" />
-              5. Candidate Payment (Training Fee Collection)
+              4. Candidate Payment (Training Fee Collection)
             </h4>
             <div className="flex items-center gap-2">
               <label className="text-xs font-medium text-slate-600">Fee Inclusion:</label>
@@ -387,81 +231,105 @@ function CreateTraineeModal({ programs, onClose, onDone }) {
           </>
         )}
 
-        {/* Section 6: Intern Stipend / Compensation */}
+        {/* Section 5: Internal Notes */}
         <div className="sm:col-span-2 pt-2 border-t border-slate-200">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-              6. Intern Stipend / Allowance (Optional)
-            </h4>
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-slate-600">Stipend Plan:</label>
-              <select
-                value={compensationType}
-                onChange={(e) => setCompensationType(e.target.value)}
-                className="text-xs font-semibold rounded border border-slate-300 py-1 px-2 text-slate-800 bg-white"
-              >
-                <option value="UNPAID">Unpaid (No stipend)</option>
-                <option value="PAID">Paid Stipend</option>
-              </select>
+          <TextAreaField {...f('internalNotes')} label="Internal Tracking Notes" rows={2} placeholder="Private internal comments, special academic provisions, or onboarding notes..." />
+        </div>
+      </FormGrid>
+    </FormModal>
+  );
+}
+
+function UpdateTraineePaymentModal({ trainee, onClose, onDone }) {
+  const toast = useToast();
+  const cp = trainee?.candidatePayment || {};
+  const form = useForm({
+    feeType: cp.feeType || 'PAID',
+    feeAmount: cp.feeAmount !== undefined ? cp.feeAmount : (trainee?.programId?.grossFee || 10000),
+    amountPaid: cp.amountPaid || 0,
+    paymentStatus: cp.paymentStatus || 'PENDING',
+    paymentMethod: cp.paymentMethod || 'UPI',
+    paymentReference: cp.paymentReference || '',
+    notes: cp.notes || ''
+  });
+  const f = form.field;
+  const rem = form.values.feeType === 'FREE' ? 0 : Math.max(0, Number(form.values.feeAmount || 0) - Number(form.values.amountPaid || 0));
+
+  const handleSubmit = async (v) => {
+    return await api.patch(`/training/trainees/${trainee._id}`, {
+      candidatePayment: {
+        feeType: v.feeType,
+        feeAmount: v.feeType === 'FREE' ? 0 : Number(v.feeAmount || 0),
+        amountPaid: v.feeType === 'FREE' ? 0 : Number(v.amountPaid || 0),
+        paymentStatus: v.feeType === 'FREE' ? 'PAID' : v.paymentStatus,
+        paymentMethod: v.paymentMethod,
+        paymentReference: v.paymentReference.trim(),
+        paidAt: Number(v.amountPaid) > 0 ? new Date() : undefined,
+        notes: v.notes.trim()
+      }
+    });
+  };
+
+  return (
+    <FormModal
+      open
+      onClose={onClose}
+      size="md"
+      testId="update-trainee-payment-modal"
+      title={`Update Training Fee — ${fullName(trainee?.userId)}`}
+      description={`Record fee payments, update receipt transaction references, and manage payment statuses for ${trainee?.programId?.title || 'Program'}.`}
+      submitLabel="Save Payment Record"
+      form={form}
+      rules={{
+        feeAmount: rules.number('Fee amount', { min: 0 }),
+        amountPaid: rules.number('Amount paid', { min: 0 })
+      }}
+      onSubmit={handleSubmit}
+      onDone={() => {
+        toast.success('Fee record updated successfully');
+        onDone();
+      }}
+    >
+      <FormGrid>
+        <SelectField
+          {...f('feeType')}
+          label="Fee Model"
+          options={[{ value: 'PAID', label: 'Paid Program' }, { value: 'FREE', label: 'Free / Waived' }]}
+        />
+        {form.values.feeType === 'PAID' && (
+          <>
+            <TextField {...f('feeAmount')} label="Program Gross Fee (₹)" type="number" min="0" required />
+            <TextField {...f('amountPaid')} label="Amount Collected (₹)" type="number" min="0" required />
+            <SelectField
+              {...f('paymentStatus')}
+              label="Payment Status"
+              options={[
+                { value: 'PENDING', label: 'Pending (Unpaid)' },
+                { value: 'PARTIAL', label: 'Partial Payment' },
+                { value: 'PAID', label: 'Paid in Full' },
+                { value: 'WAIVED', label: 'Waived / Full Scholarship' },
+                { value: 'OVERDUE', label: 'Overdue' }
+              ]}
+            />
+            <SelectField
+              {...f('paymentMethod')}
+              label="Payment Method"
+              options={[
+                { value: 'UPI', label: 'UPI / Google Pay / PhonePe' },
+                { value: 'BANK_TRANSFER', label: 'Bank Transfer / NEFT / IMPS' },
+                { value: 'CARD', label: 'Credit / Debit Card' },
+                { value: 'CASH', label: 'Cash Receipt' },
+                { value: 'OTHER', label: 'Other Mode' }
+              ]}
+            />
+            <TextField {...f('paymentReference')} label="Transaction ID / UTR" placeholder="UTR-2026-987654" className="sm:col-span-2" />
+            <div className="sm:col-span-2 flex justify-between items-center px-3.5 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <span className="text-xs text-emerald-800 font-semibold">Outstanding Balance:</span>
+              <span className="text-base font-bold text-emerald-950">₹{rem.toLocaleString('en-IN')}</span>
             </div>
-          </div>
-        </div>
-        {compensationType === 'PAID' && (
-          <>
-            <TextField {...f('stipendAmount')} label="Stipend Amount (₹)" type="number" min="0" placeholder="10000" />
-            <SelectField
-              {...f('stipendFrequency')}
-              label="Payment Frequency"
-              options={[
-                { value: 'MONTHLY', label: 'Monthly' },
-                { value: 'WEEKLY', label: 'Weekly' },
-                { value: 'ONE_TIME', label: 'One Time Completion' }
-              ]}
-            />
           </>
         )}
-
-        {/* Section 7: Concessions & Special Waivers */}
-        <div className="sm:col-span-2 pt-2 border-t border-slate-200">
-          <label className="flex items-center gap-2 cursor-pointer text-xs font-bold uppercase tracking-wider text-slate-800">
-            <input
-              type="checkbox"
-              checked={hasConcession}
-              onChange={(e) => setHasConcession(e.target.checked)}
-              className="rounded text-brand-600 focus:ring-brand-500"
-            />
-            Apply Special Concession / Merit Scholarship
-          </label>
-        </div>
-
-        {hasConcession && (
-          <>
-            <SelectField
-              {...f('concessionType')}
-              label="Concession Type"
-              options={[
-                { value: 'Fee Discount / Scholarship', label: 'Fee Discount / Merit Scholarship' },
-                { value: 'Full Fee Waiver', label: 'Full Fee Waiver (100%)' },
-                { value: 'Special Deadline Extension', label: 'Special Deadline Extension' },
-                { value: 'Financial Aid / Hardship', label: 'Financial Aid / Hardship' },
-                { value: 'Other Authorized Arrangement', label: 'Other Authorized Arrangement' }
-              ]}
-            />
-            <TextField {...f('amountOrPercentage')} label="Discount / Concession Value" placeholder="e.g. 50% or ₹15,000" />
-            <TextField {...f('concessionReason')} label="Justification / Academic Reason" required placeholder="Academic merit approved by Department Head" className="sm:col-span-2" />
-            <SelectField
-              {...f('approvalStatus')}
-              label="Approval Status"
-              options={[
-                { value: 'APPROVED', label: 'Approved (Management Authorized)' },
-                { value: 'PENDING', label: 'Pending Verification' }
-              ]}
-            />
-            <TextField {...f('internalRemarks')} label="Internal Remarks (Private)" placeholder="Internal tracking notes..." className="sm:col-span-2" />
-          </>
-        )}
-
-        <TextAreaField {...f('internalNotes')} label="Internal Tracking Notes" rows={2} className="sm:col-span-2" placeholder="Private internal comments..." />
+        <TextAreaField {...f('notes')} label="Payment Notes & Receipt Remarks" rows={2} className="sm:col-span-2" placeholder="Receipt number, invoice details, remarks..." />
       </FormGrid>
     </FormModal>
   );
@@ -521,8 +389,6 @@ function TrainingProgramModal({ open, onClose, program, onSaved }) {
     endDate: program?.endDate ? String(program.endDate).slice(0, 10) : '',
     feeType: program?.feeType || 'PAID',
     grossFee: program?.grossFee ?? 5000,
-    amountPaid: program?.amountPaid ?? 0,
-    paymentStatus: program?.paymentStatus || 'PENDING',
     trainer: program?.trainer || '',
     description: program?.description || '',
     capacity: program?.capacity ?? 50,
@@ -532,7 +398,6 @@ function TrainingProgramModal({ open, onClose, program, onSaved }) {
     status: program?.status || 'ACTIVE'
   });
   const f = form.field;
-  const remaining = form.values.feeType === 'FREE' ? 0 : Math.max(0, Number(form.values.grossFee || 0) - Number(form.values.amountPaid || 0));
 
   return (
     <FormModal
@@ -548,7 +413,6 @@ function TrainingProgramModal({ open, onClose, program, onSaved }) {
         code: [rules.required('Code'), rules.max(50, 'Code')],
         duration: rules.required('Duration'),
         grossFee: (v, a) => a.feeType === 'PAID' ? rules.number('Fee', { min: 0 })(v) : null,
-        amountPaid: rules.number('Amount paid', { min: 0 }),
         capacity: rules.number('Capacity', { min: 1, max: 1000 })
       }}
       onSubmit={async (v) => {
@@ -564,8 +428,6 @@ function TrainingProgramModal({ open, onClose, program, onSaved }) {
           endDate: v.endDate ? new Date(v.endDate) : undefined,
           feeType: v.feeType,
           grossFee: v.feeType === 'FREE' ? 0 : Number(v.grossFee || 0),
-          amountPaid: Number(v.amountPaid || 0),
-          paymentStatus: v.feeType === 'FREE' ? 'PAID' : v.paymentStatus,
           trainer: v.trainer.trim(),
           description: v.description.trim(),
           capacity: Number(v.capacity) || 50,
@@ -601,23 +463,11 @@ function TrainingProgramModal({ open, onClose, program, onSaved }) {
         />
         <SelectField
           {...f('feeType')}
-          label="Fee Type"
-          options={[{ value: 'FREE', label: 'Free' }, { value: 'PAID', label: 'Paid' }]}
+          label="Program Fee Model"
+          options={[{ value: 'PAID', label: 'Paid Curriculum' }, { value: 'FREE', label: 'Free / Sponsored' }]}
         />
         {form.values.feeType === 'PAID' && (
-          <>
-            <TextField {...f('grossFee')} label="Fee (₹)" type="number" min="0" required />
-            <SelectField
-              {...f('paymentStatus')}
-              label="Payment Status"
-              options={[{ value: 'PENDING', label: 'Pending' }, { value: 'PARTIAL', label: 'Partial' }, { value: 'PAID', label: 'Paid' }]}
-            />
-            <TextField {...f('amountPaid')} label="Amount Paid (₹)" type="number" min="0" />
-            <div className="flex flex-col justify-center px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
-              <span className="text-xs text-slate-500 font-medium">Remaining Balance</span>
-              <span className="text-base font-semibold text-slate-900">₹{remaining.toLocaleString('en-IN')}</span>
-            </div>
-          </>
+          <TextField {...f('grossFee')} label="Program Tuition Fee (₹)" type="number" min="0" required placeholder="5000" />
         )}
         <TextField {...f('capacity')} label="Capacity" type="number" min="1" />
         <TextField {...f('location')} label="Location / Venue" placeholder="Online Zoom / Tech Campus" />
@@ -632,12 +482,16 @@ export function TraineesPage() {
   const navigate = useNavigate();
   const { can } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'programs' ? 'programs' : 'trainees';
+  const qTab = searchParams.get('tab');
+  const initialTab = ['trainees', 'programs', 'payments'].includes(qTab) ? qTab : 'trainees';
   const [tab, setTab] = useState(initialTab);
 
   const [programId, setProgramId] = useState('');
   const [status, setStatus] = useState('');
   const [atRiskOnly, setAtRiskOnly] = useState(false);
+  const [paymentProgramId, setPaymentProgramId] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
+  const [paymentTrainee, setPaymentTrainee] = useState(null);
   const [modal, setModal] = useState(null);
   const [trainingProgramModal, setTrainingProgramModal] = useState(null);
   const [newCreds, setNewCreds] = useState(null);
@@ -657,15 +511,52 @@ export function TraineesPage() {
     [programId, status, atRiskOnly]
   );
 
+  useEffect(() => {
+    const currentTab = searchParams.get('tab');
+    if (currentTab && ['trainees', 'programs', 'payments'].includes(currentTab)) {
+      setTab(currentTab);
+    } else if (!currentTab) {
+      setTab('trainees');
+    }
+  }, [searchParams]);
+
   const handleTabChange = (t) => {
     setTab(t);
-    setSearchParams(t === 'programs' ? { tab: 'programs' } : {});
+    setSearchParams(t === 'trainees' ? {} : { tab: t });
   };
 
   const trainees = traineesFetch.data || [];
   const activeCount = trainees.filter((t) => t.status === 'ACTIVE' || t.status === 'ENROLLED').length;
   const completedCount = trainees.filter((t) => t.status === 'COMPLETED').length;
   const atRiskCount = trainees.filter((t) => t.atRisk).length;
+
+  // Financial KPIs for Fee Collection & Payments
+  const totalBilled = trainees.reduce((sum, t) => {
+    const cp = t.candidatePayment || {};
+    const amt = cp.feeType === 'FREE' ? 0 : (cp.feeAmount !== undefined ? cp.feeAmount : (t.programId?.grossFee || 0));
+    return sum + Number(amt || 0);
+  }, 0);
+
+  const totalCollected = trainees.reduce((sum, t) => {
+    const cp = t.candidatePayment || {};
+    return sum + (cp.feeType === 'FREE' ? 0 : Number(cp.amountPaid || 0));
+  }, 0);
+
+  const totalOutstanding = Math.max(0, totalBilled - totalCollected);
+  const fullyPaidCount = trainees.filter((t) => {
+    const cp = t.candidatePayment || {};
+    return cp.feeType === 'FREE' || cp.paymentStatus === 'PAID' || (cp.feeAmount > 0 && Number(cp.amountPaid || 0) >= cp.feeAmount);
+  }).length;
+
+  const paymentTrainees = trainees.filter((t) => {
+    if (paymentProgramId && t.programId?._id !== paymentProgramId) return false;
+    if (paymentStatusFilter) {
+      const cp = t.candidatePayment || {};
+      const st = cp.paymentStatus || (cp.feeType === 'FREE' ? 'PAID' : 'PENDING');
+      if (st !== paymentStatusFilter) return false;
+    }
+    return true;
+  });
 
   const traineeCols = [
     {
@@ -699,31 +590,36 @@ export function TraineesPage() {
     },
     {
       key: 'program',
-      header: 'Training Program',
+      header: 'Training Program & Period',
       render: (t) => (
         <div>
           <span className="font-medium text-slate-800 block text-xs">{t.programId?.title}</span>
-          <span className="text-[11px] text-slate-500">{t.programId?.durationWeeks || 8} Weeks &bull; {t.programId?.mode || 'ONLINE'}</span>
+          <span className="text-[11px] text-slate-500">
+            {t.programId?.durationWeeks || 8} Weeks • {t.startDate ? `${fmtDate(t.startDate)} to ${t.expectedEndDate ? fmtDate(t.expectedEndDate) : 'Ongoing'}` : (t.programId?.mode || 'ONLINE')}
+          </span>
         </div>
       )
     },
     {
       key: 'candidatePayment',
-      header: 'Candidate Payment',
+      header: 'Program Fee & Payment',
       render: (t) => {
         const cp = t.candidatePayment || {};
         const pStatus = cp.paymentStatus || (cp.feeType === 'FREE' ? 'PAID' : 'PENDING');
+        const feeAmount = cp.feeAmount !== undefined ? cp.feeAmount : (t.programId?.grossFee || 0);
+        const amountPaid = cp.amountPaid || 0;
+        const balance = cp.feeType === 'FREE' ? 0 : Math.max(0, feeAmount - amountPaid);
         return (
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-slate-900">
-                {cp.feeType === 'FREE' ? 'Free' : `₹${(cp.amountPaid || 0).toLocaleString('en-IN')}`}
+                {cp.feeType === 'FREE' ? 'Free (No Cost)' : `Cost: ₹${feeAmount.toLocaleString('en-IN')}`}
               </span>
               <StatusBadge status={pStatus} />
             </div>
             {cp.feeType === 'PAID' && (
               <span className="text-[11px] text-slate-500 block">
-                Total: ₹{(cp.feeAmount || 0).toLocaleString('en-IN')}
+                Paid: ₹{amountPaid.toLocaleString('en-IN')} {balance > 0 ? `(Bal: ₹${balance.toLocaleString('en-IN')})` : '(Cleared)'}
               </span>
             )}
           </div>
@@ -772,13 +668,135 @@ export function TraineesPage() {
       header: '',
       align: 'right',
       render: (t) => (
+        <div className="flex items-center justify-end gap-1.5">
+          {can('training.manage') && (
+            <Button
+              size="sm"
+              variant="outline"
+              icon={CreditCard}
+              onClick={() => setPaymentTrainee(t)}
+              title="Update fee & candidate payments"
+            >
+              Fee
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate(`/admin/trainees/${t._id}`)}
+            data-testid={`manage-trainee-btn-${t._id}`}
+          >
+            Manage Trainee
+          </Button>
+        </div>
+      )
+    }
+  ];
+
+  const paymentCols = [
+    {
+      key: 'trainee',
+      header: 'Trainee',
+      render: (t) => (
+        <div>
+          <Link
+            to={`/admin/trainees/${t._id}`}
+            className="font-semibold text-slate-900 hover:text-brand-800 text-xs block"
+          >
+            {fullName(t.userId)}
+          </Link>
+          <span className="text-[11px] text-slate-500 block">{t.userId?.email}</span>
+          <span className="font-mono text-[10px] text-slate-400">{t.traineeId || t.internId?.internId || '-'}</span>
+        </div>
+      )
+    },
+    {
+      key: 'program',
+      header: 'Program & Cohort',
+      render: (t) => (
+        <div>
+          <span className="font-medium text-slate-800 block text-xs">{t.programId?.title || 'Program'}</span>
+          <span className="text-[11px] text-slate-500">
+            {t.programId?.durationWeeks || 8} Weeks • {t.startDate ? `${fmtDate(t.startDate)} to ${t.expectedEndDate ? fmtDate(t.expectedEndDate) : 'Ongoing'}` : (t.programId?.mode || 'ONLINE')}
+          </span>
+        </div>
+      )
+    },
+    {
+      key: 'feeAmount',
+      header: 'Program Fee',
+      render: (t) => {
+        const cp = t.candidatePayment || {};
+        if (cp.feeType === 'FREE') return <span className="text-xs font-semibold text-emerald-700">Free (Waived)</span>;
+        const fee = cp.feeAmount !== undefined ? cp.feeAmount : (t.programId?.grossFee || 0);
+        return <span className="text-xs font-semibold text-slate-900">₹{Number(fee).toLocaleString('en-IN')}</span>;
+      }
+    },
+    {
+      key: 'amountPaid',
+      header: 'Amount Collected',
+      render: (t) => {
+        const cp = t.candidatePayment || {};
+        const paid = Number(cp.amountPaid || 0);
+        return (
+          <span className={`text-xs font-semibold ${paid > 0 ? 'text-emerald-700' : 'text-slate-500'}`}>
+            ₹{paid.toLocaleString('en-IN')}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'balance',
+      header: 'Balance Due',
+      render: (t) => {
+        const cp = t.candidatePayment || {};
+        if (cp.feeType === 'FREE') return <span className="text-xs text-slate-400">₹0</span>;
+        const fee = cp.feeAmount !== undefined ? cp.feeAmount : (t.programId?.grossFee || 0);
+        const paid = Number(cp.amountPaid || 0);
+        const bal = Math.max(0, fee - paid);
+        return (
+          <span className={`text-xs font-bold ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+            ₹{bal.toLocaleString('en-IN')}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'paymentStatus',
+      header: 'Payment Status',
+      render: (t) => {
+        const cp = t.candidatePayment || {};
+        const st = cp.paymentStatus || (cp.feeType === 'FREE' ? 'PAID' : 'PENDING');
+        return <StatusBadge status={st} />;
+      }
+    },
+    {
+      key: 'method',
+      header: 'Method & Reference',
+      render: (t) => {
+        const cp = t.candidatePayment || {};
+        if (cp.feeType === 'FREE') return <span className="text-xs text-slate-400">Sponsored</span>;
+        return (
+          <div className="text-xs">
+            <span className="font-medium text-slate-700 block">{humanize(cp.paymentMethod || 'UPI')}</span>
+            <span className="text-[11px] text-slate-500 font-mono">{cp.paymentReference || 'No UTR logged'}</span>
+          </div>
+        );
+      }
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      render: (t) => can('training.manage') && (
         <Button
           size="sm"
           variant="outline"
-          onClick={() => navigate(`/admin/trainees/${t._id}`)}
-          data-testid={`manage-trainee-btn-${t._id}`}
+          icon={CreditCard}
+          onClick={() => setPaymentTrainee(t)}
+          data-testid={`fee-payment-btn-${t._id}`}
         >
-          Manage Trainee
+          Update Fee
         </Button>
       )
     }
@@ -807,18 +825,11 @@ export function TraineesPage() {
     },
     {
       key: 'fees',
-      header: 'Fees & Payment Structure',
+      header: 'Program Tuition Fee',
       render: (p) => (
-        <div>
-          <span className="font-medium text-slate-900">
-            {p.feeType === 'FREE' ? 'Free Program' : `₹${(p.grossFee || 0).toLocaleString('en-IN')}`}
-          </span>
-          {p.feeType !== 'FREE' && (
-            <p className="text-xs text-slate-500">
-              Paid: ₹{(p.amountPaid || 0).toLocaleString('en-IN')} | Rem: ₹{Math.max(0, (p.grossFee || 0) - (p.amountPaid || 0)).toLocaleString('en-IN')}
-            </p>
-          )}
-        </div>
+        <span className="font-semibold text-slate-900 text-xs">
+          {p.feeType === 'FREE' ? 'Free Program' : `₹${(p.grossFee || 0).toLocaleString('en-IN')}`}
+        </span>
       )
     },
     {
@@ -849,7 +860,7 @@ export function TraineesPage() {
     <>
       <PageHeader
         title="Training Programs & Intern Trainees"
-        description="Comprehensive training curriculum management, modular milestone tracking, candidate payment collection, and trainee progress."
+        description="Comprehensive training curriculum management, modular milestone tracking, candidate fee collection, and trainee progress."
         actions={
           <div className="flex items-center gap-2">
             {tab === 'trainees' && can('training.manage') && (
@@ -882,7 +893,8 @@ export function TraineesPage() {
         active={tab}
         onChange={handleTabChange}
         tabs={[
-          { id: 'trainees', label: 'Intern Trainees', count: trainees.length },
+          { id: 'trainees', label: 'Trainees Directory', count: trainees.length },
+          { id: 'payments', label: 'Fee Collection & Payments', count: trainees.length },
           { id: 'programs', label: 'Training Programs', count: allTrainingPrograms.data?.length }
         ]}
       />
@@ -952,6 +964,65 @@ export function TraineesPage() {
         </SectionCard>
       </TabPanel>
 
+      <TabPanel id="payments" active={tab}>
+        {/* Financial KPI Cards */}
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="payment-kpis">
+          <StatCard label="Total Fees Billed" value={`₹${totalBilled.toLocaleString('en-IN')}`} tone="indigo" />
+          <StatCard label="Total Fees Collected" value={`₹${totalCollected.toLocaleString('en-IN')}`} tone="emerald" />
+          <StatCard
+            label="Outstanding Balance Due"
+            value={`₹${totalOutstanding.toLocaleString('en-IN')}`}
+            tone={totalOutstanding > 0 ? 'rose' : 'slate'}
+            hint={totalOutstanding > 0 ? 'Fee collection pending' : 'All accounts settled'}
+          />
+          <StatCard
+            label="Settled / Cleared Trainees"
+            value={`${fullyPaidCount} / ${trainees.length}`}
+            tone="emerald"
+            hint="Paid in full or free waiver"
+          />
+        </div>
+
+        <FilterBar>
+          <SelectField
+            name="paymentProgramId"
+            label="Filter by Training Program"
+            value={paymentProgramId}
+            onChange={(e) => setPaymentProgramId(e.target.value)}
+            placeholder="All training programs"
+            options={(programs.data || []).map((p) => ({ value: p._id, label: p.title }))}
+          />
+          <SelectField
+            name="paymentStatusFilter"
+            label="Payment Status"
+            value={paymentStatusFilter}
+            onChange={(e) => setPaymentStatusFilter(e.target.value)}
+            placeholder="All payment statuses"
+            options={[
+              { value: 'PENDING', label: 'Pending (Unpaid)' },
+              { value: 'PARTIAL', label: 'Partial Payment' },
+              { value: 'PAID', label: 'Paid in Full' },
+              { value: 'WAIVED', label: 'Waived / Free' },
+              { value: 'OVERDUE', label: 'Overdue' }
+            ]}
+          />
+        </FilterBar>
+
+        <SectionCard title="Candidate Fee Collection & Payment Records">
+          <DataTable
+            testId="trainee-payments-table"
+            columns={paymentCols}
+            rows={paymentTrainees}
+            loading={traineesFetch.loading}
+            error={traineesFetch.error}
+            onRetry={traineesFetch.reload}
+            caption="Fee collection records"
+            emptyTitle="No payment records found"
+            emptyDescription="Trainee fee billing, payment receipts, and balance collections will appear here."
+          />
+        </SectionCard>
+      </TabPanel>
+
       <TabPanel id="programs" active={tab}>
         <SectionCard title="Curriculum Training Programs">
           <DataTable
@@ -976,6 +1047,17 @@ export function TraineesPage() {
             setModal(null);
             traineesFetch.reload();
             if (creds) setNewCreds(creds);
+          }}
+        />
+      )}
+
+      {paymentTrainee && (
+        <UpdateTraineePaymentModal
+          trainee={paymentTrainee}
+          onClose={() => setPaymentTrainee(null)}
+          onDone={() => {
+            setPaymentTrainee(null);
+            traineesFetch.reload();
           }}
         />
       )}

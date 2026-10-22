@@ -285,8 +285,8 @@ export const uploadRequirementDocument = ah(async (req, res) => {
   });
   if (!requirement) throw notFound('Requirement item not found');
 
-  if (req.userRole === ROLES.INTERN && String(requirement.userId) !== String(req.userId)) {
-    throw forbidden('You cannot upload documents for another intern.');
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole) && String(requirement.userId) !== String(req.userId)) {
+    throw forbidden('You cannot upload documents for another user.');
   }
 
   if (!req.file) {

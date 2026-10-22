@@ -166,7 +166,7 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
   useEffect(() => {
     api.get('/chat/online-users')
       .then(res => {
-        const ids = res.data?.onlineUserIds || [];
+        const ids = res.data?.onlineUserIds || (Array.isArray(res.data) ? res.data : []);
         setOnlineUserIds(new Set(ids.map(String)));
       })
       .catch(() => {});
@@ -188,7 +188,7 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
         }
       } else {
         const res = await api.get('/chat/conversations');
-        const list = res.data?.conversations || [];
+        const list = Array.isArray(res.data) ? res.data : (res.data?.conversations || []);
         setConversations(list);
 
         if (defaultConversationId) {
@@ -222,7 +222,8 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
 
         const res = await api.get(`/chat/conversations/${activeConversation._id}/messages`);
         if (active) {
-          setMessages(res.data?.messages || []);
+          const msgs = Array.isArray(res.data) ? res.data : (res.data?.messages || []);
+          setMessages(msgs);
           setTimeout(scrollToBottom, 100);
         }
       } catch (err) {

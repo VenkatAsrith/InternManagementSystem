@@ -20,7 +20,7 @@ const MENTEE_SCOPED = [ROLES.MENTOR, ROLES.TEAM_LEAD];
 /** Which tasks may this caller see? interns: assigned to them. mentors: their mentees' tasks + ones they created. Private tasks: creator only. */
 async function taskScope(req) {
   const scope = { organizationId: req.organizationId };
-  if (req.userRole === ROLES.INTERN) scope.assignedTo = req.userId;
+  if (req.userRole === ROLES.INTERN || req.userRole === ROLES.INTERN_TRAINEE) scope.assignedTo = req.userId;
   else if (MENTEE_SCOPED.includes(req.userRole)) {
     const menteeUsers = await Intern.find(internScope(req)).distinct('userId');
     scope.$or = [{ assignedTo: { $in: menteeUsers } }, { createdBy: req.userId }];
@@ -53,8 +53,8 @@ async function loadScopedTask(req, id) {
 
 async function validateAssignees(req, ids) {
   if (!ids || !ids.length) return [];
-  const users = await User.find({ _id: { $in: ids }, organizationId: req.organizationId, isActive: true, role: ROLES.INTERN });
-  if (users.length !== ids.length) throw unprocessable('Tasks can only be assigned to active interns in your organization.', [{ field: 'assignedTo', message: 'Unknown or inactive intern' }]);
+  const users = await User.find({ _id: { $in: ids }, organizationId: req.organizationId, isActive: true, role: { $in: [ROLES.INTERN, ROLES.INTERN_TRAINEE] } });
+  if (users.length !== ids.length) throw unprocessable('Tasks can only be assigned to active interns and trainees in your organization.', [{ field: 'assignedTo', message: 'Unknown or inactive intern' }]);
   const interns = await Intern.find({ userId: { $in: ids }, organizationId: req.organizationId });
   const notWorking = interns.filter(i => !INTERN_WORKING_STATUSES.includes(i.status));
   if (notWorking.length) throw unprocessable('Some interns are not in a working status and cannot receive tasks.', [{ field: 'assignedTo', message: `${notWorking.length} intern(s) not active` }]);
@@ -112,7 +112,7 @@ export const getTasks = ah(async (req, res) => {
   if (Object.values(TASK_STATUS).includes(req.query.status)) query.status = req.query.status;
   if (Object.values(TASK_PRIORITY).includes(req.query.priority)) query.priority = req.query.priority;
   if (isObjectId(req.query.projectId)) query.projectId = req.query.projectId;
-  if (isObjectId(req.query.assignedTo) && req.userRole !== ROLES.INTERN) query.assignedTo = req.query.assignedTo;
+  if (isObjectId(req.query.assignedTo) && ![ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole)) query.assignedTo = req.query.assignedTo;
 
   const [tasks, total] = await Promise.all([
     Task.find(query)

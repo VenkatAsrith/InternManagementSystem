@@ -46,7 +46,7 @@ function dates(startRaw, endRaw) {
 
 export const getProjects = ah(async (req, res) => {
   const query = { organizationId: req.organizationId };
-  if (req.userRole === ROLES.INTERN) query.$or = [{ members: req.userId }, { ownerId: req.userId }];
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole)) query.$or = [{ members: req.userId }, { ownerId: req.userId }];
   const projects = await Project.find(query)
     .populate('ownerId', 'firstName lastName email').populate('members', 'firstName lastName email avatarUrl').populate('programId', 'title')
     .sort({ createdAt: -1 });
@@ -71,13 +71,13 @@ export const createProject = ah(async (req, res) => {
 
 export const getProjectById = ah(async (req, res) => {
   const query = { _id: req.params.id, organizationId: req.organizationId };
-  if (req.userRole === ROLES.INTERN) query.$or = [{ members: req.userId }, { ownerId: req.userId }];
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole)) query.$or = [{ members: req.userId }, { ownerId: req.userId }];
   const project = await Project.findOne(query)
     .populate('ownerId', 'firstName lastName email').populate('members', 'firstName lastName email avatarUrl role').populate('programId', 'title');
   if (!project) throw notFound('Project not found');
 
   const taskQuery = { projectId: project._id };
-  if (req.userRole === ROLES.INTERN) taskQuery.assignedTo = req.userId;
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole)) taskQuery.assignedTo = req.userId;
   const tasks = await Task.find(taskQuery).select('title status priority dueDate assignedTo');
   const done = tasks.filter(t => t.status === TASK_STATUS.APPROVED).length;
   const open = tasks.filter(t => t.status !== TASK_STATUS.CANCELLED).length;

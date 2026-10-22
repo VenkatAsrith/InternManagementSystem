@@ -646,12 +646,11 @@ export function TraineeDetailPage() {
                             {engagement.internId.internId}
                           </Link>
                         ) : 'Independent Trainee' },
-                        { label: 'Program', value: program?.title },
+                        { label: 'Program Track', value: `${program?.title || '-'} (${program?.durationWeeks || 8} Weeks Cohort)` },
+                        { label: 'Program Period', value: `${fmtDate(engagement.startDate || engagement.enrolledAt)} to ${fmtDate(engagement.expectedEndDate)} (${program?.durationWeeks || 8} Weeks)` },
                         { label: 'Department', value: engagement.departmentId?.name || '-' },
                         { label: 'Manager / Supervisor', value: engagement.managerId ? fullName(engagement.managerId) : '-' },
                         { label: 'Learning Mode', value: humanize(engagement.workMode || program?.mode) },
-                        { label: 'Start Date', value: fmtDate(engagement.startDate || engagement.enrolledAt) },
-                        { label: 'Expected End Date', value: fmtDate(engagement.expectedEndDate) },
                         { label: 'Status', value: humanize(engagement.status) }
                       ]}
                     />
@@ -719,17 +718,6 @@ export function TraineeDetailPage() {
                     />
                   </SectionCard>
 
-                  {engagement.compensation?.type && engagement.compensation.type !== 'UNPAID' && (
-                    <SectionCard title="Stipend & Trainee Compensation">
-                      <DetailList
-                        items={[
-                          { label: 'Type', value: humanize(engagement.compensation.type) },
-                          { label: 'Amount', value: `${engagement.compensation.currency || 'INR'} ${Number(engagement.compensation.amount || 0).toLocaleString()}` },
-                          { label: 'Frequency', value: humanize(engagement.compensation.frequency || 'MONTHLY') }
-                        ]}
-                      />
-                    </SectionCard>
-                  )}
 
                   <SectionCard
                     title="Mentor & Review Feedback (§53-§54)"

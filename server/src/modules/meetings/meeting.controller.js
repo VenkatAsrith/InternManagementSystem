@@ -40,7 +40,7 @@ function slot(req, { scheduledDate, startTime, endTime }) {
 
 async function meetingScope(req) {
   const scope = { organizationId: req.organizationId };
-  if (req.userRole === ROLES.INTERN) {
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole)) {
     const intern = await Intern.findOne({ userId: req.userId, organizationId: req.organizationId });
     scope.$or = [{ participants: req.userId }, ...(intern ? [{ internIds: intern._id }] : [])];
   } else if ([ROLES.MENTOR, ROLES.TEAM_LEAD].includes(req.userRole)) {

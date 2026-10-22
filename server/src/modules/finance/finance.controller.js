@@ -71,8 +71,8 @@ async function loadPaymentForViewer(req, id) {
   const payment = await Payment.findOne({ _id: id, organizationId: req.organizationId })
     .populate({ path: 'internId', select: 'internId userId departmentId', populate: { path: 'userId', select: 'firstName lastName email' } });
   if (!payment) throw notFound('Payment record not found');
-  if (req.userRole === ROLES.INTERN || !req.can('finance.read')) {
-    // An intern can only ever open THEIR OWN statements.
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole) || !req.can('finance.read')) {
+    // An intern or trainee can only ever open THEIR OWN statements.
     if (String(payment.internId?.userId?._id || payment.internId?.userId) !== String(req.userId)) throw notFound('Payment record not found');
   }
   return payment;
@@ -271,7 +271,7 @@ export const getFinanceSummary = ah(async (req, res) => {
 // Payslip: interns may download their OWN paid statements; finance staff may download any.
 export const downloadPayslip = ah(async (req, res) => {
   const payment = await loadPaymentForViewer(req, req.params.id);
-  const isOwn = req.userRole === ROLES.INTERN || !req.can('finance.read');
+  const isOwn = [ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole) || !req.can('finance.read');
   if (isOwn && payment.status !== PAYMENT_STATUS.PAID) throw conflict('The payslip is available once the payment is disbursed.', 'NOT_PAID_YET');
   const [ledger, org] = await Promise.all([PaymentLedger.find({ paymentId: payment._id }).sort({ createdAt: 1 }), Organization.findById(req.organizationId)]);
   const money = (n) => `${payment.currency} ${Number(n).toFixed(2)}`;

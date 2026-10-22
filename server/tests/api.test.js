@@ -1,6 +1,7 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { jest } from '@jest/globals';
 import app from '../src/app.js';
 import { env } from '../src/config/env.js';
 import { User } from '../src/modules/users/user.model.js';
@@ -8,6 +9,8 @@ import { Intern } from '../src/modules/interns/intern.model.js';
 import { Certificate } from '../src/modules/certificates/certificate.model.js';
 import { Organization, Department } from '../src/modules/organizations/organization.model.js';
 import { InternshipProgram, InternshipOpening } from '../src/modules/recruitment/recruitment.model.js';
+
+jest.setTimeout(30000);
 
 let hrToken = '';
 let internToken = '';
@@ -47,6 +50,25 @@ beforeAll(async () => {
   } else if (testUser) {
     testUser.password = 'Password2026!';
     await testUser.save();
+  }
+
+  // Ensure test HR Admin user exists
+  let hrUser = await User.findOne({ email: 'hr@techmecha.com' }).select('+password');
+  if (!hrUser && org) {
+    hrUser = await User.create({
+      organizationId: org._id,
+      departmentId: dept?._id,
+      firstName: 'HR',
+      lastName: 'Admin',
+      email: 'hr@techmecha.com',
+      password: 'Password2026!',
+      role: 'HR_ADMIN',
+      isActive: true,
+      approvalStatus: 'APPROVED'
+    });
+  } else if (hrUser) {
+    hrUser.password = 'Password2026!';
+    await hrUser.save();
   }
 
   // Ensure test Intern engagement exists

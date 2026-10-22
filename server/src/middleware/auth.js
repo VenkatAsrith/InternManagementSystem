@@ -65,6 +65,20 @@ async function attachUser(req, token) {
         req.timezone = org.timezone;
       }
     }
+    // If no org specified, fallback to user's assigned organization or first active tenant
+    if (!orgId) {
+      if (user.organizationId) {
+        orgId = user.organizationId;
+        const org = await getOrgContext(orgId);
+        if (org) req.timezone = org.timezone;
+      } else {
+        const defaultOrg = await Organization.findOne({ status: 'ACTIVE' }).sort({ createdAt: 1 }).select('_id timezone name').lean();
+        if (defaultOrg) {
+          orgId = defaultOrg._id;
+          req.timezone = defaultOrg.timezone || env.ORG_TIMEZONE;
+        }
+      }
+    }
   }
 
   req.user = user;

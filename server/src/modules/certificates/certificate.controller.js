@@ -105,7 +105,7 @@ export const generateCertificate = ah(async (req, res) => {
 export const getCertificates = ah(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 50, maxLimit: 200 });
   const query = { organizationId: req.organizationId };
-  if (req.userRole === ROLES.INTERN || !req.can('certificates.read')) query.userId = req.userId;
+  if ([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole) || !req.can('certificates.read')) query.userId = req.userId;
   else if (isObjectId(req.query.internId)) query.internId = req.query.internId;
   const [certs, total] = await Promise.all([
     Certificate.find(query).select('-filePath -eligibilitySnapshot').sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -117,7 +117,7 @@ export const getCertificates = ah(async (req, res) => {
 async function loadOwnedCertificate(req) {
   const cert = await Certificate.findOne({ _id: req.params.id, organizationId: req.organizationId });
   if (!cert) throw notFound('Certificate not found');
-  if ((req.userRole === ROLES.INTERN || !req.can('certificates.read')) && String(cert.userId) !== String(req.userId)) throw notFound('Certificate not found');
+  if (([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole) || !req.can('certificates.read')) && String(cert.userId) !== String(req.userId)) throw notFound('Certificate not found');
   return cert;
 }
 

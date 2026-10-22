@@ -100,7 +100,6 @@ function OpeningModal({ open, onClose, opening, departments, programs, onSaved }
     requiredSkills: (opening?.requiredSkills || []).join(', '), preferredSkills: (opening?.preferredSkills || []).join(', '),
     eligibility: opening?.eligibility || '', duration: opening?.duration || '60 Days', workMode: opening?.workMode || 'REMOTE', location: opening?.location || '',
     stipend: opening?.stipend || '', stipendAmount: opening?.stipendAmount ?? '',
-    feeType: opening?.feeType || 'FREE', feeAmount: opening?.feeAmount ?? '', feeInclusions: (opening?.feeInclusions || []).join(', '),
     openPositions: opening?.openPositions ?? 1,
     deadline: opening?.deadline ? String(opening.deadline).slice(0, 10) : addDaysISO(todayISO(), 30)
   });
@@ -114,21 +113,22 @@ function OpeningModal({ open, onClose, opening, departments, programs, onSaved }
         description: [rules.required('Description'), rules.min(10, 'Description')],
         deadline: rules.required('Deadline'),
         openPositions: [rules.required('Positions'), rules.number('Positions', { min: 1, max: 500 })],
-        stipendAmount: rules.number('Stipend amount', { min: 0 }),
-        feeAmount: (v, a) => a.feeType === 'PAID' ? rules.number('Fee amount', { min: 0 })(v) : null
+        stipendAmount: rules.number('Stipend amount', { min: 0 })
       }}
       onSubmit={async (v) => {
         const body = {
           title: v.title.trim(), departmentId: v.departmentId, description: v.description.trim(),
           responsibilities: lines(v.responsibilities).join('\n'), requiredSkills: v.requiredSkills, preferredSkills: v.preferredSkills,
-          eligibility: v.eligibility.trim(), duration: v.duration.trim(), workMode: v.workMode, location: v.location.trim(),
-          stipend: v.stipend.trim(), feeType: v.feeType,
-          feeAmount: v.feeType === 'PAID' ? Number(v.feeAmount || 0) : 0,
-          feeInclusions: v.feeInclusions ? v.feeInclusions.split(',').map((s) => s.trim()).filter(Boolean) : [],
+          eligibility: v.eligibility.trim(), duration: v.duration.trim(), workMode: (v.workMode || 'REMOTE').toUpperCase(), location: v.location.trim(),
+          stipend: v.stipend.trim(), feeType: 'FREE',
+          feeAmount: 0,
+          feeInclusions: [],
           openPositions: Number(v.openPositions), deadline: v.deadline
         };
         if (v.programId) body.programId = v.programId;
-        if (v.stipendAmount !== '') body.stipendAmount = Number(v.stipendAmount);
+        if (v.stipendAmount !== '' && v.stipendAmount !== null && v.stipendAmount !== undefined) {
+          body.stipendAmount = Number(v.stipendAmount);
+        }
         Object.keys(body).forEach((k) => { if (body[k] === '' && !edit) delete body[k]; });
         return edit ? api.patch(`/recruitment/openings/${opening._id}`, body) : api.post('/recruitment/openings', body);
       }}
@@ -152,17 +152,6 @@ function OpeningModal({ open, onClose, opening, departments, programs, onSaved }
         <TextField {...f('openPositions')} label="Open positions" type="number" min="1" required />
         <TextField {...f('stipend')} label="Stipend (display text)" placeholder="INR 10,000 / month" />
         <TextField {...f('stipendAmount')} label="Stipend amount (₹)" type="number" min="0" hint="Pre-fills offers; the display text above is shown publicly." />
-        <SelectField
-          {...f('feeType')}
-          label="Program Fee Inclusion"
-          options={[{ value: 'FREE', label: 'Free (No fee charged)' }, { value: 'PAID', label: 'Paid Program Fee' }]}
-        />
-        {form.values.feeType === 'PAID' && (
-          <>
-            <TextField {...f('feeAmount')} label="Program Fee Amount (₹)" type="number" min="0" required placeholder="5000" />
-            <TextField {...f('feeInclusions')} label="Fee Inclusions (comma-separated)" className="sm:col-span-2" placeholder="Certificate, Mentorship, LMS Access, Placement Support" />
-          </>
-        )}
         <TextField {...f('deadline')} label="Apply by" type="date" required min={edit ? undefined : todayISO()} />
         <TextField {...f('eligibility')} label="Eligibility" placeholder="e.g. Any graduate / B.Tech / MCA" />
       </FormGrid>

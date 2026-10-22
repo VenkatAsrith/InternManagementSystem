@@ -35,8 +35,9 @@ const api = axios.create({ baseURL: apiBase, timeout: 30000, headers: { 'Content
 
 function actingOrgHeader(headers) {
   // A platform administrator acts inside one tenant at a time by naming it explicitly.
-  const actingOrg = session.getActingOrg();
-  if (actingOrg && session.getUser()?.role === 'SUPER_ADMIN') headers['x-organization-id'] = actingOrg;
+  const user = session.getUser();
+  const actingOrg = session.getActingOrg() || user?.organizationId?._id || user?.organizationId;
+  if (actingOrg && user?.role === 'SUPER_ADMIN') headers['x-organization-id'] = actingOrg;
 }
 
 function previewRoleHeader(headers) {

@@ -28,7 +28,7 @@ export function useChatSocket({ onMessage, onRead, onTyping, onNotification, onP
       return;
     }
 
-    const socketUrl = (import.meta.env.VITE_API_URL || 'https://internmanagementsystem-xm84.onrender.com').replace(/\/+$/, '');
+    const socketUrl = (import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://internmanagementsystem-xm84.onrender.com')).replace(/\/+$/, '');
     const socket = io(socketUrl, {
       path: '/socket.io',
       auth: { token },
@@ -122,7 +122,7 @@ export function useChatSocket({ onMessage, onRead, onTyping, onNotification, onP
         if (response?.error) {
           reject(new Error(response.error));
         } else {
-          resolve(response?.data);
+          resolve(response?.message || response?.data);
         }
       });
     });

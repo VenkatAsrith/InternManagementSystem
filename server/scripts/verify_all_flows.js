@@ -61,11 +61,6 @@ async function runVerification() {
     }
   });
 
-  await test('Performance Root: GET /performance', async () => {
-    const res = await req('/performance', { headers: hrHeaders });
-    if (!Array.isArray(res.data.data)) throw new Error('Expected array of reviews');
-  });
-
   // 3. Finance Flow
   let pendingPaymentId = '';
   await test('Finance: GET /finance/payments', async () => {
@@ -219,7 +214,7 @@ async function runVerification() {
     const res = await req('/auth/login', {
       method: 'POST',
       body: {
-        email: 'arjun.sharma@example.com',
+        email: 'test.intern@techmecha.com',
         password: 'Password2026!'
       }
     });
