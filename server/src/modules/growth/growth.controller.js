@@ -4,9 +4,7 @@ import mongoose from 'mongoose';
 import { Lead, CallActivity, Bootcamp, Pass, Demo } from './growth.model.js';
 import { Person } from '../people/people.model.js';
 import { Organization } from '../organizations/organization.model.js';
-import { Certificate } from '../certificates/certificate.model.js';
-import { generateBootcampPassPDF, generateCertificatePDF } from '../../utils/pdfGenerator.js';
-import { storageService } from '../../utils/storage.js';
+import { generateBootcampPassPDF, generateCertificatePDF, generateFeeReceiptPDF } from '../../utils/pdfGenerator.js';
 import { formatDateLong } from '../../utils/time.js';
 import { emailService } from '../email/email.service.js';
 import { recordAuditLog } from '../../middleware/auditLogger.js';
@@ -380,11 +378,12 @@ export async function getPassById(req, res) {
 }
 
 export async function renderPassPdf(req, res) {
-  const pass = await Pass.findOne({ _id: req.params.id, organizationId: req.organizationId }).lean();
+  const query = req.organizationId ? { _id: req.params.id, organizationId: req.organizationId } : { _id: req.params.id };
+  const pass = await Pass.findOne(query).lean();
   if (!pass) throw notFound('Pass not found');
   const bootcamp = await Bootcamp.findById(pass.bootcampId).lean();
   const slot = bootcamp?.slots?.find(s => String(s._id) === String(pass.slotId));
-  const org = await Organization.findById(req.organizationId).lean();
+  const org = await Organization.findById(pass.organizationId || req.organizationId).lean();
 
   const pdfBuffer = await generateBootcampPassPDF({
     candidateName: pass.candidateName,
@@ -989,39 +988,125 @@ export async function downloadPassCertificate(req, res) {
 
 // ==================== BOOTCAMP GOOGLE FORMS INTEGRATION ====================
 
+// Helper to parse RFC-4180 CSV with quotes, commas, and CRLF
+export function parseGoogleFormCSV(text) {
+  if (!text || typeof text !== 'string') return [];
+  const rows = [];
+  let currentRow = [];
+  let currentVal = '';
+  let inQuotes = false;
+  const clean = text.replace(/^\uFEFF/, ''); // strip BOM
+
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i];
+    const nextChar = clean[i + 1];
+
+    if (inQuotes) {
+      if (char === '"' && nextChar === '"') {
+        currentVal += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = false;
+      } else {
+        currentVal += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        currentRow.push(currentVal.trim());
+        currentVal = '';
+      } else if (char === '\r') {
+        // ignore carriage return
+      } else if (char === '\n') {
+        currentRow.push(currentVal.trim());
+        if (currentRow.some((c) => c.length > 0)) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentVal = '';
+      } else {
+        currentVal += char;
+      }
+    }
+  }
+  if (currentVal || currentRow.length > 0) {
+    currentRow.push(currentVal.trim());
+    if (currentRow.some((c) => c.length > 0)) {
+      rows.push(currentRow);
+    }
+  }
+
+  if (rows.length < 2) return [];
+  const headers = rows[0].map((h) => h.trim());
+  return rows.slice(1).map((row, rowIdx) => {
+    const obj = { _rowIndex: rowIdx + 1 };
+    headers.forEach((h, idx) => {
+      if (h) obj[h] = row[idx] || '';
+    });
+    return obj;
+  });
+}
+
+function extractField(row, mappedTitle, fallbacks = []) {
+  if (!row || typeof row !== 'object') return '';
+  if (mappedTitle && row[mappedTitle] !== undefined && String(row[mappedTitle]).trim() !== '') {
+    return String(row[mappedTitle]).trim();
+  }
+  const target = (mappedTitle || '').trim().toLowerCase();
+  for (const [k, v] of Object.entries(row)) {
+    if (k.trim().toLowerCase() === target && v !== undefined && String(v).trim() !== '') {
+      return String(v).trim();
+    }
+  }
+  for (const fb of fallbacks) {
+    for (const [k, v] of Object.entries(row)) {
+      if (fb.test(k) && v !== undefined && String(v).trim() !== '') {
+        return String(v).trim();
+      }
+    }
+  }
+  return '';
+}
+
 export async function configureBootcampGoogleForm(req, res) {
   const bootcamp = await Bootcamp.findOne({ _id: req.params.id, organizationId: req.organizationId });
   if (!bootcamp) throw notFound('Bootcamp not found');
 
-  const { formUrl, fieldMapping } = req.body || {};
+  const { formUrl, sheetUrl, fieldMapping } = req.body || {};
   if (!formUrl || typeof formUrl !== 'string' || !formUrl.trim()) {
-    throw badRequest('Form URL is required');
+    throw badRequest('Google Form or Spreadsheet URL is required');
   }
 
-  const cleanUrl = formUrl.trim();
-  const isGoogleForm = /^https?:\/\/(docs\.google\.com\/forms\/|forms\.gle\/)/i.test(cleanUrl);
-  if (!isGoogleForm) {
-    throw badRequest('Invalid Google Form URL. Please enter a valid Google Form or forms.gle link.');
+  const cleanFormUrl = formUrl.trim();
+  const cleanSheetUrl = (sheetUrl || '').trim();
+
+  const isGoogle = /^https?:\/\/(docs\.google\.com\/(forms|spreadsheets)\/|forms\.gle\/)/i.test(cleanFormUrl)
+    || (cleanSheetUrl && /^https?:\/\/docs\.google\.com\/spreadsheets\//i.test(cleanSheetUrl));
+
+  if (!isGoogle) {
+    throw badRequest('Invalid URL. Please enter a valid Google Form or linked Google Sheet link (docs.google.com/forms/d/... or docs.google.com/spreadsheets/d/...).');
   }
 
-  // Extract formId if possible
-  const formIdMatch = cleanUrl.match(/\/d\/e\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/\/forms\/d\/([a-zA-Z0-9_-]+)/);
-  const formId = formIdMatch ? formIdMatch[1] : `form_${Date.now().toString(36)}`;
+  // Extract formId
+  const formIdMatch = cleanFormUrl.match(/\/d\/(?:e\/)?([a-zA-Z0-9_-]+)/);
+  const formId = formIdMatch ? formIdMatch[1] : `gform_${Date.now().toString(36)}`;
 
   bootcamp.googleForm = {
-    formUrl: cleanUrl,
+    formUrl: cleanFormUrl,
     formId,
+    sheetUrl: cleanSheetUrl,
     isConnected: true,
     isValidated: true,
     validatedAt: new Date(),
     fieldMapping: {
-      fullName: fieldMapping?.fullName?.trim() || 'Full Name',
-      email: fieldMapping?.email?.trim() || 'Email',
-      phone: fieldMapping?.phone?.trim() || 'Phone',
-      college: fieldMapping?.college?.trim() || 'College',
-      course: fieldMapping?.course?.trim() || 'Course',
-      linkedIn: fieldMapping?.linkedIn?.trim() || 'LinkedIn',
-      resume: fieldMapping?.resume?.trim() || 'Resume'
+      fullName: (fieldMapping?.fullName || fieldMapping?.candidateName || 'Full Name').trim(),
+      email: (fieldMapping?.email || fieldMapping?.candidateEmail || 'Email Address').trim(),
+      phone: (fieldMapping?.phone || fieldMapping?.candidatePhone || 'Phone Number').trim(),
+      college: (fieldMapping?.college || 'College').trim(),
+      course: (fieldMapping?.course || 'Course').trim(),
+      linkedIn: (fieldMapping?.linkedIn || 'LinkedIn Profile').trim(),
+      resume: (fieldMapping?.resume || fieldMapping?.resumeUrl || 'Resume Link').trim()
     },
     lastSyncedAt: bootcamp.googleForm?.lastSyncedAt || null,
     syncStats: {
@@ -1038,11 +1123,11 @@ export async function configureBootcampGoogleForm(req, res) {
     action: 'BOOTCAMP_GOOGLE_FORM_CONFIGURED',
     entityType: 'Bootcamp',
     entityId: bootcamp._id,
-    after: { formUrl: cleanUrl, formId },
+    after: { formUrl: cleanFormUrl, sheetUrl: cleanSheetUrl, formId },
     req
   });
 
-  return successResponse(res, bootcamp.googleForm, 'Google Form connected and validated successfully');
+  return successResponse(res, bootcamp.googleForm, 'Google Form connected and field mapping saved successfully');
 }
 
 export async function syncBootcampGoogleFormResponses(req, res) {
@@ -1050,7 +1135,7 @@ export async function syncBootcampGoogleFormResponses(req, res) {
   if (!bootcamp) throw notFound('Bootcamp not found');
 
   if (!bootcamp.googleForm || !bootcamp.googleForm.formUrl) {
-    throw badRequest('Google Form is not configured for this bootcamp. Please configure the form URL first.');
+    throw badRequest('Google Form is not configured for this bootcamp. Please configure the form URL and field mapping first.');
   }
 
   const defaultSlot = bootcamp.slots[0];
@@ -1058,36 +1143,50 @@ export async function syncBootcampGoogleFormResponses(req, res) {
     throw badRequest('Bootcamp has no slots configured to receive registrations.');
   }
 
-  // Raw responses can be passed via body (webhook / ingested batch), or default batch sample responses
-  let incoming = Array.isArray(req.body?.responses) ? req.body.responses : null;
+  let incoming = null;
 
-  if (!incoming || incoming.length === 0) {
-    // Generate deterministic simulated response batch from public registrations if none supplied directly
-    const seed = Date.now().toString().slice(-4);
-    incoming = [
-      {
-        responseId: `gform_resp_${seed}_1`,
-        fullName: `Aarav Sharma ${seed}`,
-        email: `aarav.sharma.${seed}@example.com`,
-        phone: `+91 98765 0${seed.slice(-4)}`,
-        college: 'Indian Institute of Information Technology',
-        course: 'B.Tech Computer Science',
-        linkedIn: 'https://linkedin.com/in/aarav-sharma',
-        resume: 'https://storage.techmecha.internal/resumes/aarav.pdf'
-      },
-      {
-        responseId: `gform_resp_${seed}_2`,
-        fullName: `Meera Nair ${seed}`,
-        email: `meera.nair.${seed}@example.com`,
-        phone: `+91 98765 1${seed.slice(-4)}`,
-        college: 'National Institute of Technology',
-        course: 'B.Tech Information Technology',
-        linkedIn: 'https://linkedin.com/in/meera-nair',
-        resume: 'https://storage.techmecha.internal/resumes/meera.pdf'
-      }
-    ];
+  // 1. Direct CSV text or array of responses passed in request
+  if (req.body?.csvData && typeof req.body.csvData === 'string' && req.body.csvData.trim()) {
+    incoming = parseGoogleFormCSV(req.body.csvData);
+  } else if (Array.isArray(req.body?.responses) && req.body.responses.length > 0) {
+    incoming = req.body.responses;
   }
 
+  // 2. Fetch live from linked Google Sheet if provided
+  if (!incoming || incoming.length === 0) {
+    const targetUrl = bootcamp.googleForm.sheetUrl || bootcamp.googleForm.formUrl;
+    const sheetIdMatch = targetUrl.match(/\/spreadsheets\/d\/(?:e\/)?([a-zA-Z0-9_-]+)/);
+
+    if (sheetIdMatch && sheetIdMatch[1]) {
+      const sheetId = sheetIdMatch[1];
+      const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+      try {
+        const resp = await fetch(exportUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 TechMechaTorque-IMS' },
+          redirect: 'follow'
+        });
+        if (resp.ok) {
+          const csvText = await resp.text();
+          if (csvText && csvText.includes(',')) {
+            incoming = parseGoogleFormCSV(csvText);
+          }
+        }
+      } catch (err) {
+        console.warn('[Google Form Sync] Failed to fetch live Google Sheet:', err.message);
+      }
+    }
+  }
+
+  // 3. If still no responses found, provide a clean, helpful guide without fabricating dummy records
+  if (!incoming || incoming.length === 0) {
+    throw badRequest(
+      'No responses could be retrieved automatically. To sync your Google Form responses: ' +
+      '1) In your Google Form, click "Responses" > "Link to Sheets", paste the Google Sheet URL and ensure sharing is "Anyone with the link can view", ' +
+      'or 2) Click "Import / Paste Responses CSV" to paste your downloaded Google Form responses directly.'
+    );
+  }
+
+  const mapping = bootcamp.googleForm.fieldMapping || {};
   let newResponses = 0;
   let updatedResponses = 0;
   let duplicates = 0;
@@ -1095,18 +1194,18 @@ export async function syncBootcampGoogleFormResponses(req, res) {
   const syncResults = [];
 
   for (const resp of incoming) {
-    const rawEmail = (resp.email || resp.Email || resp.candidateEmail || '').trim().toLowerCase();
-    const rawName = (resp.fullName || resp.candidateName || resp['Full Name'] || resp.name || 'Participant').trim();
-    const rawPhone = (resp.phone || resp.candidatePhone || resp.Phone || '').trim();
-    const rawCollege = (resp.college || resp.College || '').trim();
-    const rawCourse = (resp.course || resp.Course || '').trim();
-    const rawLinkedIn = (resp.linkedIn || resp.LinkedIn || '').trim();
-    const rawResume = (resp.resume || resp.Resume || '').trim();
-    const responseId = resp.responseId || resp.id || `gform_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const rawName = extractField(resp, mapping.fullName, [/^name$/i, /full.*name/i, /candidate.*name/i]) || 'Participant';
+    const rawEmail = extractField(resp, mapping.email, [/^email$/i, /email.*address/i, /mail/i]).toLowerCase();
+    const rawPhone = extractField(resp, mapping.phone, [/^phone$/i, /phone.*number/i, /mobile/i, /contact/i, /whatsapp/i]);
+    const rawCollege = extractField(resp, mapping.college, [/^college$/i, /university/i, /institute/i, /school/i]);
+    const rawCourse = extractField(resp, mapping.course, [/^course$/i, /branch/i, /degree/i, /department/i, /stream/i]);
+    const rawResume = extractField(resp, mapping.resume, [/^resume$/i, /resume.*link/i, /cv/i, /portfolio/i, /drive/i]);
+    const rawLinkedIn = extractField(resp, mapping.linkedIn, [/linkedin/i, /social/i]);
+    const responseId = resp.responseId || resp.Timestamp || resp.timestamp || `gform_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
     if (!rawEmail || !rawEmail.includes('@')) {
       failed++;
-      syncResults.push({ candidateName: rawName, email: rawEmail, status: 'FAILED', reason: 'Invalid email address' });
+      syncResults.push({ candidateName: rawName, email: rawEmail || '(none)', status: 'FAILED', reason: 'Missing or invalid email address' });
       continue;
     }
 
@@ -1210,14 +1309,12 @@ export async function syncBootcampGoogleFormResponses(req, res) {
     }
   }
 
-  await bootcamp.save();
-
   bootcamp.googleForm.lastSyncedAt = new Date();
   bootcamp.googleForm.syncStats = {
-    newResponses,
-    updatedResponses,
-    duplicates,
-    failed
+    newResponses: (bootcamp.googleForm.syncStats?.newResponses || 0) + newResponses,
+    updatedResponses: (bootcamp.googleForm.syncStats?.updatedResponses || 0) + updatedResponses,
+    duplicates: (bootcamp.googleForm.syncStats?.duplicates || 0) + duplicates,
+    failed: (bootcamp.googleForm.syncStats?.failed || 0) + failed
   };
   await bootcamp.save();
 
@@ -1233,7 +1330,7 @@ export async function syncBootcampGoogleFormResponses(req, res) {
     syncStats: bootcamp.googleForm.syncStats,
     lastSyncedAt: bootcamp.googleForm.lastSyncedAt,
     results: syncResults
-  }, `Form responses synced: ${newResponses} new, ${updatedResponses} updated, ${duplicates} duplicates, ${failed} failed.`);
+  }, `Google Form responses synced: ${newResponses} new, ${updatedResponses} updated, ${duplicates} duplicates, ${failed} failed.`);
 }
 
 export async function updatePassStatus(req, res) {
@@ -1291,6 +1388,300 @@ export async function updatePassCallStatus(req, res) {
   });
 
   return successResponse(res, pass, `Call status updated to ${callStatus}`);
+}
+
+// ==================== BOOTCAMP FORM BUILDER & PUBLIC RESPONSES ====================
+
+export async function getPublicBootcampForm(req, res) {
+  const bootcamp = await Bootcamp.findById(req.params.id).populate('organizationId', 'name code logoUrl email phone').lean();
+  if (!bootcamp) throw notFound('Bootcamp form not found or has been closed');
+  if (bootcamp.status === 'CANCELLED') throw badRequest('This bootcamp event has been cancelled.');
+
+  const org = bootcamp.organizationId || {};
+  const publicData = {
+    _id: bootcamp._id,
+    title: bootcamp.title,
+    description: bootcamp.description,
+    venue: bootcamp.venue,
+    duration: bootcamp.duration,
+    date: bootcamp.date,
+    startDate: bootcamp.startDate,
+    endDate: bootcamp.endDate,
+    status: bootcamp.status,
+    feeType: bootcamp.feeType || 'FREE',
+    feeAmount: bootcamp.feeAmount || 0,
+    paymentUpiId: bootcamp.paymentUpiId || 'techmechatorque@upi',
+    paymentInstructions: bootcamp.paymentInstructions || '',
+    customForm: bootcamp.customForm || {
+      isEnabled: true,
+      bannerUrl: '',
+      instructions: 'Please provide the requested details to register for the official TechMecha Torque bootcamp session.',
+      fields: []
+    },
+    slots: (bootcamp.slots || []).map(s => ({
+      _id: s._id,
+      slotName: s.slotName,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      capacity: s.capacity,
+      bookedCount: s.bookedCount || 0,
+      isFull: (s.bookedCount || 0) >= (s.capacity || 1)
+    })),
+    organization: {
+      name: org.name || 'TechMecha Torque Pvt. Ltd.',
+      code: org.code || 'TMT',
+      email: org.email || 'team@techmechatorque.com',
+      phone: org.phone || '+91 94947 00000',
+      logoUrl: org.logoUrl || '/letters/tmt-logo.png'
+    }
+  };
+
+  return successResponse(res, publicData);
+}
+
+export async function submitPublicBootcampForm(req, res) {
+  const { id } = req.params;
+  const bootcamp = await Bootcamp.findById(id).populate('organizationId');
+  if (!bootcamp) throw notFound('Bootcamp not found');
+  if (bootcamp.status === 'CANCELLED') throw badRequest('Bootcamp registration is closed.');
+
+  const {
+    candidateName,
+    candidateEmail,
+    candidatePhone,
+    college,
+    course,
+    slotId,
+    paymentReference,
+    customResponses = {}
+  } = req.body;
+
+  if (!candidateName?.trim()) throw badRequest('Candidate full name is required');
+  if (!candidateEmail?.trim()) throw badRequest('Candidate email is required');
+  if (!slotId) throw badRequest('Please select a bootcamp slot');
+
+  const slot = bootcamp.slots?.id(slotId);
+  if (!slot) throw notFound('Selected slot not found');
+  if (slot.bookedCount >= slot.capacity) {
+    throw conflict('This slot is fully booked. Please select an alternate slot.');
+  }
+
+  // Validate custom required fields if any
+  const formFields = bootcamp.customForm?.fields || [];
+  for (const f of formFields) {
+    if (f.required && !customResponses[f.id] && !customResponses[f.label]) {
+      throw badRequest(`Field "${f.label}" is required.`);
+    }
+  }
+
+  const passCode = `TMT-${generateRandomId(4).toUpperCase()}`;
+  const hmacToken = generatePassToken(passCode);
+
+  const orgId = bootcamp.organizationId?._id || bootcamp.organizationId;
+  const orgName = bootcamp.organizationId?.name || 'TechMecha Torque';
+
+  // Fee calculation
+  const feeType = bootcamp.feeType || 'FREE';
+  const feeAmount = feeType === 'PAID' ? (bootcamp.feeAmount || 0) : 0;
+  const receiptNumber = feeType === 'PAID'
+    ? `RCP-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`
+    : '';
+
+  const candidateFee = {
+    feeType,
+    feeAmount,
+    amountPaid: feeType === 'PAID' ? feeAmount : 0,
+    paymentStatus: feeType === 'PAID' ? 'PAID' : 'FREE',
+    paymentMethod: feeType === 'PAID' ? 'UPI' : 'NONE',
+    paymentReference: paymentReference?.trim() || '',
+    receiptNumber,
+    paidAt: feeType === 'PAID' ? new Date() : undefined
+  };
+
+  // Find or create lead
+  let lead = await Lead.findOne({
+    organizationId: orgId,
+    email: candidateEmail.toLowerCase().trim()
+  });
+
+  if (!lead) {
+    lead = await Lead.create({
+      organizationId: orgId,
+      name: candidateName.trim(),
+      email: candidateEmail.toLowerCase().trim(),
+      phone: candidatePhone?.trim() || 'N/A',
+      source: 'FORM_BUILDER',
+      programOfInterest: bootcamp.title,
+      status: 'BOOTCAMP_BOOKED'
+    });
+  } else {
+    lead.status = 'BOOTCAMP_BOOKED';
+    await lead.save();
+  }
+
+  const pass = await Pass.create({
+    organizationId: orgId,
+    bootcampId: bootcamp._id,
+    slotId: slot._id,
+    leadId: lead._id,
+    candidateName: candidateName.trim(),
+    candidateEmail: candidateEmail.toLowerCase().trim(),
+    candidatePhone: candidatePhone?.trim() || '',
+    college: college?.trim() || '',
+    course: course?.trim() || '',
+    source: 'FORM_BUILDER',
+    passCode,
+    hmacToken,
+    status: 'CONFIRMED',
+    candidateFee,
+    customResponses
+  });
+
+  slot.bookedCount += 1;
+  await bootcamp.save();
+
+  // Generate pass PDF
+  const pdfBuffer = await generateBootcampPassPDF({
+    candidateName: pass.candidateName,
+    candidateEmail: pass.candidateEmail,
+    candidatePhone: pass.candidatePhone,
+    bootcampTitle: bootcamp.title,
+    date: bootcamp.date ? formatDateLong(bootcamp.date) : 'Upcoming',
+    time: `${slot.startTime} - ${slot.endTime}`,
+    venue: bootcamp.venue || 'Virtual Campus',
+    mode: 'ONLINE',
+    slotName: slot.slotName,
+    passCode: pass.passCode,
+    hmacToken: pass.hmacToken,
+    organizationName: orgName
+  });
+
+  // Dispatch email with pass asynchronously
+  try {
+    const attachments = [{
+      filename: `Bootcamp-Pass-${pass.passCode}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf'
+    }];
+
+    if (feeType === 'PAID') {
+      const receiptBuffer = await generateFeeReceiptPDF({
+        receiptNumber: candidateFee.receiptNumber,
+        paymentDate: new Date(),
+        traineeName: pass.candidateName,
+        traineeEmail: pass.candidateEmail,
+        traineePhone: pass.candidatePhone,
+        programTitle: bootcamp.title,
+        organizationName: orgName,
+        paymentMethod: candidateFee.paymentMethod,
+        paymentReference: candidateFee.paymentReference,
+        feeType: candidateFee.feeType,
+        feeAmount: candidateFee.feeAmount,
+        amountPaid: candidateFee.amountPaid,
+        paymentStatus: candidateFee.paymentStatus
+      });
+      attachments.push({
+        filename: `Receipt-${candidateFee.receiptNumber}.pdf`,
+        content: receiptBuffer,
+        contentType: 'application/pdf'
+      });
+    }
+
+    emailService.sendEmail({
+      to: pass.candidateEmail,
+      subject: `Registration Confirmed: ${bootcamp.title} - ${pass.passCode}`,
+      text: `Hello ${pass.candidateName},\n\nYour pass for ${bootcamp.title} is confirmed.\nPass Code: ${pass.passCode}\nSlot: ${slot.slotName} (${slot.startTime} - ${slot.endTime})\n\nPlease find your official admission pass attached.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h2 style="color: #0f172a; margin: 0;">Registration Confirmed!</h2>
+            <p style="color: #64748b; font-size: 14px; margin-top: 4px;">${bootcamp.title}</p>
+          </div>
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><strong>Candidate:</strong> ${pass.candidateName}</p>
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><strong>Pass Code:</strong> <code style="background-color: #0284c7; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold;">${pass.passCode}</code></p>
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><strong>Scheduled Track:</strong> ${slot.slotName} (${slot.startTime} - ${slot.endTime})</p>
+            <p style="margin: 0; font-size: 14px; color: #334155;"><strong>Venue / Mode:</strong> ${bootcamp.venue || 'Virtual Campus'}</p>
+          </div>
+          ${feeType === 'PAID' ? `<p style="font-size: 13px; color: #16a34a; font-weight: bold;">✓ Fee of ₹${candidateFee.amountPaid} acknowledged. Receipt ${candidateFee.receiptNumber} attached.</p>` : ''}
+          <p style="font-size: 13px; color: #64748b; line-height: 1.5;">Please present your admission pass attached to this email when attending the session.</p>
+        </div>
+      `,
+      attachments,
+      organizationId: orgId
+    }).catch(e => console.warn('[Bootcamp Public Submit] Async email error:', e.message));
+  } catch (err) {
+    console.warn('[Bootcamp Public Submit] Pass PDF dispatch error:', err.message);
+  }
+
+  return successResponse(res, {
+    pass,
+    receipt: candidateFee,
+    bootcampTitle: bootcamp.title
+  }, 'Registration submitted successfully! Admission pass and receipt sent to your email.', 201);
+}
+
+export async function updateBootcampFormBuilder(req, res) {
+  const bootcamp = await Bootcamp.findOne({ _id: req.params.id, organizationId: req.organizationId });
+  if (!bootcamp) throw notFound('Bootcamp not found');
+
+  const {
+    customForm,
+    feeType,
+    feeAmount,
+    paymentUpiId,
+    paymentInstructions
+  } = req.body;
+
+  if (customForm !== undefined) bootcamp.customForm = customForm;
+  if (feeType !== undefined) bootcamp.feeType = feeType;
+  if (feeAmount !== undefined) bootcamp.feeAmount = Math.max(0, Number(feeAmount) || 0);
+  if (paymentUpiId !== undefined) bootcamp.paymentUpiId = paymentUpiId;
+  if (paymentInstructions !== undefined) bootcamp.paymentInstructions = paymentInstructions;
+
+  await bootcamp.save();
+
+  await recordAuditLog({
+    organizationId: req.organizationId,
+    action: 'BOOTCAMP_FORM_BUILDER_UPDATED',
+    entityType: 'Bootcamp',
+    entityId: bootcamp._id,
+    req
+  });
+
+  return successResponse(res, bootcamp, 'Bootcamp form builder settings saved successfully');
+}
+
+export async function downloadPassFeeReceipt(req, res) {
+  const query = req.organizationId ? { _id: req.params.id, organizationId: req.organizationId } : { _id: req.params.id };
+  const pass = await Pass.findOne(query).lean();
+  if (!pass) throw notFound('Pass not found');
+
+  const bootcamp = await Bootcamp.findById(pass.bootcampId).lean();
+  const org = await Organization.findById(pass.organizationId || req.organizationId).lean();
+  const cf = pass.candidateFee || {};
+
+  const pdfBuffer = await generateFeeReceiptPDF({
+    receiptNumber: cf.receiptNumber || `RCP-${pass.passCode}`,
+    paymentDate: cf.paidAt || pass.createdAt || new Date(),
+    traineeName: pass.candidateName,
+    traineeEmail: pass.candidateEmail,
+    traineePhone: pass.candidatePhone,
+    programTitle: bootcamp?.title || 'Bootcamp Track',
+    organizationName: org?.name || 'TechMecha Torque',
+    paymentMethod: cf.paymentMethod || 'UPI',
+    paymentReference: cf.paymentReference || 'N/A',
+    feeType: cf.feeType || 'PAID',
+    feeAmount: cf.feeAmount || 0,
+    amountPaid: cf.amountPaid || 0,
+    paymentStatus: cf.paymentStatus || 'PAID'
+  });
+
+  const inline = req.query.inline === '1';
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="Receipt-${pass.passCode}.pdf"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  return res.send(pdfBuffer);
 }
 
 

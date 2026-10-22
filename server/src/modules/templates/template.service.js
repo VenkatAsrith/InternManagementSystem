@@ -203,18 +203,36 @@ ${SIGN}`,
   },
   {
     templateCode: 'COMPLETION_LETTER', title: 'Internship Completion Letter', documentType: DOCUMENT_TYPE.COMPLETION_LETTER, category: DOCUMENT_CATEGORY.CERTIFICATE,
-    bodyMarkdown: `Ref: {{document.sequence}}
-Date: {{issueDate}}
+    bodyMarkdown: `DATE: {{issueDate}}
 
-Dear **{{candidate.name}}**,
+# TO WHOMSOEVER IT MAY CONCERN
 
-**Subject: Internship Completion Letter**
+This is to certify that **{{candidate.name}}** has successfully completed an internship with **TechMecha Torque Pvt. Ltd.** from **{{intern.startDate}}** to **{{intern.endDate}}** in the domain of **{{intern.role}}**.
 
-This is to confirm that you have completed your internship as **{{intern.role}}** at **{{organization.name}}** from **{{intern.startDate}}** to **{{intern.endDate}}**.
+During the internship, the intern worked on developing and implementing web applications using modern technologies including MongoDB, Express.js, React.js, and Node.js. The work involved building responsive user interfaces, handling backend APIs, and integrating database operations to create efficient and scalable web solutions.
 
-We thank you for your contribution and wish you every success in your future endeavours.
+### The intern actively contributed to real-time project development, gaining hands-on experience
+- Designing and developing dynamic web applications
+- Implementing RESTful APIs
+- Managing databases using MongoDB
+- Frontend development using React.js
+- Backend development using Node.js and Express.js
 
-${SIGN}`,
+### Scope of Work
+- **Frontend Development:** Created responsive and interactive user interfaces using React.js
+- **Backend Development:** Developed server-side logic and APIs using Node.js and Express.js
+- **Database Management:** Worked with MongoDB for data storage and retrieval
+- **Project Implementation:** Contributed to real-time application development and deployment processes
+
+The overall performance of **{{candidate.name}}** during the internship was excellent. The intern demonstrated strong dedication, quick learning ability, and the capability to work effectively in a team environment while meeting project deadlines.
+
+We wish **{{candidate.name}}** all the very best in future academic and professional endeavors.
+
+This certificate is issued upon request for academic and professional purposes.
+
+Yours sincerely,
+**JAY CHANDRA REDDY CHILAKAMARRY**
+CEO, TechMecha Torque Pvt. Ltd.`,
     availableVariables: ['candidate.name', 'organization.name', 'intern.role', 'intern.startDate', 'intern.endDate', 'document.sequence', 'issueDate']
   },
   {

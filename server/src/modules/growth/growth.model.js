@@ -86,17 +86,18 @@ const bootcampSchema = new mongoose.Schema({
   googleForm: {
     formUrl: { type: String, trim: true, default: '' },
     formId: { type: String, trim: true, default: '' },
+    sheetUrl: { type: String, trim: true, default: '' },
     isConnected: { type: Boolean, default: false },
     isValidated: { type: Boolean, default: false },
     validatedAt: { type: Date },
     fieldMapping: {
       fullName: { type: String, default: 'Full Name' },
-      email: { type: String, default: 'Email' },
-      phone: { type: String, default: 'Phone' },
+      email: { type: String, default: 'Email Address' },
+      phone: { type: String, default: 'Phone Number' },
       college: { type: String, default: 'College' },
       course: { type: String, default: 'Course' },
-      linkedIn: { type: String, default: 'LinkedIn' },
-      resume: { type: String, default: 'Resume' }
+      linkedIn: { type: String, default: 'LinkedIn Profile' },
+      resume: { type: String, default: 'Resume Link' }
     },
     lastSyncedAt: { type: Date },
     syncStats: {
@@ -105,6 +106,23 @@ const bootcampSchema = new mongoose.Schema({
       duplicates: { type: Number, default: 0 },
       failed: { type: Number, default: 0 }
     }
+  },
+  feeType: { type: String, enum: ['FREE', 'PAID'], default: 'FREE' },
+  feeAmount: { type: Number, default: 0, min: 0 },
+  paymentUpiId: { type: String, default: 'techmechatorque@upi' },
+  paymentInstructions: { type: String, default: '' },
+  customForm: {
+    isEnabled: { type: Boolean, default: true },
+    bannerUrl: { type: String, default: '' },
+    instructions: { type: String, default: '' },
+    fields: [{
+      id: { type: String, required: true },
+      label: { type: String, required: true },
+      fieldType: { type: String, enum: ['TEXT', 'TEXTAREA', 'SELECT', 'RADIO', 'CHECKBOX', 'NUMBER'], default: 'TEXT' },
+      required: { type: Boolean, default: false },
+      placeholder: { type: String, default: '' },
+      options: [{ type: String }]
+    }]
   },
   slots: [bootcampSlotSchema]
 }, { timestamps: true });
@@ -122,7 +140,18 @@ const passSchema = new mongoose.Schema({
   college: { type: String, default: '' },
   course: { type: String, default: '' },
   resumeUrl: { type: String, default: '' },
-  source: { type: String, enum: ['DIRECT', 'GOOGLE_FORMS', 'REFERRAL', 'WEBSITE'], default: 'DIRECT' },
+  source: { type: String, enum: ['DIRECT', 'GOOGLE_FORMS', 'REFERRAL', 'WEBSITE', 'FORM_BUILDER'], default: 'DIRECT' },
+  candidateFee: {
+    feeType: { type: String, enum: ['FREE', 'PAID'], default: 'FREE' },
+    feeAmount: { type: Number, default: 0 },
+    amountPaid: { type: Number, default: 0 },
+    paymentStatus: { type: String, enum: ['FREE', 'PAID', 'PENDING', 'WAIVED'], default: 'FREE' },
+    paymentMethod: { type: String, default: 'UPI' },
+    paymentReference: { type: String, default: '' },
+    receiptNumber: { type: String, default: '' },
+    paidAt: { type: Date }
+  },
+  customResponses: { type: mongoose.Schema.Types.Mixed, default: {} },
   googleFormResponseId: { type: String, sparse: true, index: true },
   passCode: { type: String, required: true, unique: true, index: true },
   hmacToken: { type: String, required: true, index: true },

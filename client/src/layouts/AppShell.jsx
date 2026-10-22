@@ -269,9 +269,21 @@ export function AppShell() {
         </header>
 
         {auth.isSuperAdmin && actingOrg && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950 sm:px-6" data-testid="acting-org-banner" role="status">
-            <span>You are acting inside an organization as platform administrator. Every change is audited.</span>
-            <button type="button" onClick={leaveOrg} data-testid="leave-org" className="rounded font-semibold underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-900">Leave organization</button>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-2.5 text-sm text-amber-950 sm:px-6 shadow-xs" data-testid="acting-org-banner" role="status">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-amber-700" />
+              <span>
+                Managing Organization: <strong className="font-bold text-amber-900">{auth.organization?.name || 'Selected Tenant'}</strong>. Showing all operations and staff tools.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={leaveOrg}
+              data-testid="leave-org"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-200/80 hover:bg-amber-300 px-3 py-1 text-xs font-bold text-amber-950 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-900"
+            >
+              ← Exit to Global Command
+            </button>
           </div>
         )}
 

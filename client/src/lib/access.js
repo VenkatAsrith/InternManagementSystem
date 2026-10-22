@@ -202,6 +202,22 @@ export function visibleNav(auth) {
   const currentRole = auth.user?.role;
   const isSuper = auth.isSuperAdmin;
   const isParticipant = currentRole === 'INTERN' || currentRole === 'INTERN_TRAINEE';
+  const actingOrg = session.getActingOrg();
+
+  // If Global Administrator is at Platform level (NOT acting inside an organization):
+  // Show ONLY Organizations & Platform Command, avoiding all tenant sidebar clutter.
+  if (isSuper && !actingOrg) {
+    return [
+      {
+        group: 'Platform Overview',
+        key: 'platform',
+        icon: Globe,
+        items: [
+          { key: 'global', label: 'Organizations & Platform', to: '/admin/global-command', icon: Globe }
+        ]
+      }
+    ];
+  }
 
   return NAV
     .filter((g) => {
@@ -230,7 +246,7 @@ export function visibleNav(auth) {
 export function landingPath(auth) {
   if (!auth || !auth.user) return '/login';
   const role = auth.user.role;
-  if (role === 'SUPER_ADMIN') return '/admin/dashboard';
+  if (role === 'SUPER_ADMIN') return '/admin/global-command';
   if (role === 'INTERN_TRAINEE') return '/intern/trainee';
   if (role === 'INTERN') return '/intern/dashboard';
   if (role === 'ORGANIZATION_ADMIN') return '/admin/dashboard';

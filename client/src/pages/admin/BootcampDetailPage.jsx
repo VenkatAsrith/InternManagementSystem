@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, QrCode, Plus, CheckCircle2, ShieldCheck, Ticket, Paperclip, Award, Trash2, ExternalLink, FileSpreadsheet, RefreshCw, Link2, AlertTriangle, Send, Eye, Download, PhoneCall } from 'lucide-react';
-import api, { downloadFile } from '../../lib/http';
+import { Calendar, Clock, MapPin, Users, QrCode, Plus, CheckCircle2, ShieldCheck, Ticket, Paperclip, Award, Trash2, ExternalLink, FileSpreadsheet, RefreshCw, Link2, AlertTriangle, Send, Eye, Download, PhoneCall, Copy, IndianRupee, FileText, Check } from 'lucide-react';
+import api, { downloadFile, API_BASE_URL } from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useFetch } from '../../hooks/useFetch';
@@ -468,28 +468,32 @@ function GoogleFormsPanel({ bootcamp, onReload }) {
   const toast = useToast();
   const existingConfig = bootcamp.googleForm || {};
   const [formUrl, setFormUrl] = useState(existingConfig.formUrl || '');
+  const [sheetUrl, setSheetUrl] = useState(existingConfig.sheetUrl || '');
   const [mapping, setMapping] = useState({
-    candidateName: existingConfig.fieldMapping?.candidateName || 'Full Name',
-    candidateEmail: existingConfig.fieldMapping?.candidateEmail || 'Email Address',
-    candidatePhone: existingConfig.fieldMapping?.candidatePhone || 'Phone Number',
-    college: existingConfig.fieldMapping?.college || 'College / University',
-    course: existingConfig.fieldMapping?.course || 'Degree / Branch',
-    resumeUrl: existingConfig.fieldMapping?.resumeUrl || 'Resume Link'
+    candidateName: existingConfig.fieldMapping?.fullName || existingConfig.fieldMapping?.candidateName || 'Full Name',
+    candidateEmail: existingConfig.fieldMapping?.email || existingConfig.fieldMapping?.candidateEmail || 'Email Address',
+    candidatePhone: existingConfig.fieldMapping?.phone || existingConfig.fieldMapping?.candidatePhone || 'Phone Number',
+    college: existingConfig.fieldMapping?.college || 'College',
+    course: existingConfig.fieldMapping?.course || 'Course',
+    resumeUrl: existingConfig.fieldMapping?.resume || existingConfig.fieldMapping?.resumeUrl || 'Resume Link'
   });
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [csvText, setCsvText] = useState('');
+  const [syncingCsv, setSyncingCsv] = useState(false);
 
   const handleValidateUrl = () => {
     if (!formUrl.trim()) {
-      setValidationResult({ valid: false, message: 'Please enter a Google Form URL.' });
+      setValidationResult({ valid: false, message: 'Please enter a Google Form or Spreadsheet URL.' });
       return;
     }
-    const match = formUrl.match(/forms\/d\/(?:e\/)?([a-zA-Z0-9_-]+)/);
+    const match = formUrl.match(/(?:forms\/d\/(?:e\/)?|spreadsheets\/d\/(?:e\/)?)([a-zA-Z0-9_-]+)/);
     if (!match) {
-      setValidationResult({ valid: false, message: 'URL does not match a standard Google Form format (docs.google.com/forms/d/...).' });
+      setValidationResult({ valid: false, message: 'URL does not match a standard Google Form or Google Sheet format.' });
     } else {
-      setValidationResult({ valid: true, formId: match[1], message: `Valid Google Form detected (ID: ${match[1].slice(0, 10)}...)` });
+      setValidationResult({ valid: true, formId: match[1], message: `Valid Google Docs link detected (ID: ${match[1].slice(0, 10)}...)` });
     }
   };
 
@@ -503,6 +507,7 @@ function GoogleFormsPanel({ bootcamp, onReload }) {
     try {
       await api.post(`/growth/bootcamps/${bootcamp._id}/google-form`, {
         formUrl: formUrl.trim(),
+        sheetUrl: sheetUrl.trim(),
         fieldMapping: mapping
       });
       toast.success('Google Form integration configuration saved');
@@ -527,6 +532,39 @@ function GoogleFormsPanel({ bootcamp, onReload }) {
     }
   };
 
+  const handleSyncCsv = async (e) => {
+    e.preventDefault();
+    if (!csvText.trim()) {
+      toast.error('Please paste or upload your Google Form responses CSV');
+      return;
+    }
+    setSyncingCsv(true);
+    try {
+      const res = await api.post(`/growth/bootcamps/${bootcamp._id}/google-form/sync`, {
+        csvData: csvText.trim()
+      });
+      toast.success(res.message || 'CSV responses ingested successfully');
+      setCsvModalOpen(false);
+      setCsvText('');
+      onReload();
+    } catch (err) {
+      toast.error(err.message || 'Failed to sync CSV');
+    } finally {
+      setSyncingCsv(false);
+    }
+  };
+
+  const handleCsvFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setCsvText(event.target?.result || '');
+      toast.success(`Loaded file: ${file.name}`);
+    };
+    reader.readAsText(file);
+  };
+
   const stats = bootcamp.googleForm?.syncStats || { newResponses: 0, updatedResponses: 0, duplicates: 0, failed: 0 };
 
   return (
@@ -540,10 +578,18 @@ function GoogleFormsPanel({ bootcamp, onReload }) {
             </div>
             <div>
               <h3 className="font-semibold text-slate-900">Google Forms Registration Ingestion</h3>
-              <p className="text-xs text-slate-500">Collect candidate applications via Google Forms with automated deduplication & pass generation.</p>
+              <p className="text-xs text-slate-500">Collect candidate applications via Google Forms with automated field mapping & pass generation.</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={FileText}
+              onClick={() => setCsvModalOpen(true)}
+              data-testid="import-csv-btn"
+            >
+              Import / Paste CSV
+            </Button>
             <Button
               variant="primary"
               icon={RefreshCw}
@@ -615,6 +661,23 @@ function GoogleFormsPanel({ bootcamp, onReload }) {
             </Button>
           </div>
 
+          <div className="mt-3">
+            <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+              Linked Google Sheet URL (Optional - For Automatic Real-Time Sync)
+            </label>
+            <input
+              type="url"
+              value={sheetUrl}
+              onChange={(e) => setSheetUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+              data-testid="google-sheet-url-input"
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              In Google Forms, click <strong>Responses &rarr; Link to Sheets</strong>. Set share access to &quot;Anyone with the link can view&quot; to sync live submissions.
+            </p>
+          </div>
+
           {validationResult && (
             <div className={`mt-2 text-xs flex items-center gap-1.5 font-medium ${validationResult.valid ? 'text-emerald-700' : 'text-rose-600'}`}>
               {validationResult.valid ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
@@ -667,7 +730,7 @@ function GoogleFormsPanel({ bootcamp, onReload }) {
                 type="text"
                 value={mapping.college}
                 onChange={(e) => setMapping((m) => ({ ...m, college: e.target.value }))}
-                placeholder="College / University"
+                placeholder="College"
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
                 data-testid="mapping-college-input"
               />
@@ -678,7 +741,7 @@ function GoogleFormsPanel({ bootcamp, onReload }) {
                 type="text"
                 value={mapping.course}
                 onChange={(e) => setMapping((m) => ({ ...m, course: e.target.value }))}
-                placeholder="Course / Branch"
+                placeholder="Course"
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
                 data-testid="mapping-course-input"
               />
@@ -700,6 +763,324 @@ function GoogleFormsPanel({ bootcamp, onReload }) {
         <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
           <Button type="submit" variant="primary" loading={saving} data-testid="save-google-form-config-btn">
             Save Form Configuration
+          </Button>
+        </div>
+      </form>
+
+      {/* Modal to Import / Paste CSV directly */}
+      {csvModalOpen && (
+        <Modal
+          open
+          onClose={() => setCsvModalOpen(false)}
+          size="lg"
+          title="Import Google Form Responses (CSV)"
+          description="In Google Forms: Responses &rarr; 3 dots &rarr; 'Download responses (.csv)', or copy directly from the linked Google Sheet."
+          footer={(
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setCsvModalOpen(false)}>Cancel</Button>
+              <Button variant="primary" loading={syncingCsv} onClick={handleSyncCsv} data-testid="submit-csv-sync-btn">
+                Ingest Responses CSV
+              </Button>
+            </div>
+          )}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Upload CSV File</label>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={handleCsvFileUpload}
+                className="block w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Or Paste CSV Content Directly</label>
+              <textarea
+                rows={8}
+                value={csvText}
+                onChange={(e) => setCsvText(e.target.value)}
+                placeholder={'Timestamp,Full Name,Email Address,Phone Number,College,Course,Resume Link\n2026-10-22 10:00,John Doe,john@example.com,9876543210,IIT,CSE,https://drive...'}
+                className="w-full font-mono text-xs rounded-md border border-slate-300 p-2.5 text-slate-900 focus:border-brand-500 focus:outline-none"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Candidate passes will be created using your mapped field names. Existing emails will be updated instead of duplicated.
+              </p>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function BootcampFormBuilderPanel({ bootcamp, onReload }) {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const [isEnabled, setIsEnabled] = useState(bootcamp.customForm?.isEnabled ?? true);
+  const [instructions, setInstructions] = useState(bootcamp.customForm?.instructions || 'Please complete the registration form below.');
+  const [feeType, setFeeType] = useState(bootcamp.feeType || 'FREE');
+  const [feeAmount, setFeeAmount] = useState(bootcamp.feeAmount || 0);
+  const [paymentUpiId, setPaymentUpiId] = useState(bootcamp.paymentUpiId || 'techmechatorque@upi');
+  const [paymentInstructions, setPaymentInstructions] = useState(bootcamp.paymentInstructions || '');
+  const [fields, setFields] = useState(bootcamp.customForm?.fields || [
+    { id: 'q1', label: 'Why are you interested in this bootcamp?', fieldType: 'TEXTAREA', required: true, options: [], placeholder: 'Tell us your career goals...' }
+  ]);
+
+  const publicUrl = `${window.location.origin}/bootcamp-form/${bootcamp._id}`;
+
+  const copyPublicLink = () => {
+    navigator.clipboard.writeText(publicUrl);
+    setCopiedLink(true);
+    toast.success('Public form URL copied to clipboard');
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const addField = () => {
+    const newField = {
+      id: `q_${Date.now()}`,
+      label: 'New Question',
+      fieldType: 'TEXT',
+      required: false,
+      placeholder: '',
+      options: ['Option 1', 'Option 2']
+    };
+    setFields([...fields, newField]);
+  };
+
+  const removeField = (index) => {
+    setFields(fields.filter((_, idx) => idx !== index));
+  };
+
+  const updateField = (index, updates) => {
+    const updated = [...fields];
+    updated[index] = { ...updated[index], ...updates };
+    setFields(updated);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.put(`/growth/bootcamps/${bootcamp._id}/form-builder`, {
+        customForm: {
+          isEnabled,
+          instructions,
+          fields
+        },
+        feeType,
+        feeAmount: feeType === 'PAID' ? Number(feeAmount) : 0,
+        paymentUpiId,
+        paymentInstructions
+      });
+      toast.success('Form Builder configuration saved successfully');
+      onReload();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save Form Builder settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6" data-testid="bootcamp-form-builder-panel">
+      {/* Public Share Card */}
+      <div className="rounded-xl border border-brand-200 bg-gradient-to-r from-brand-50 to-indigo-50 p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-bold text-brand-800">
+              <Link2 className="h-3.5 w-3.5" /> Public Registration Link
+            </span>
+            <h3 className="text-lg font-bold text-slate-900">Share Form with Candidates</h3>
+            <p className="text-xs text-slate-600">Candidates can register, select slots, complete payments, and download their admission pass.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={copiedLink ? Check : Copy}
+              onClick={copyPublicLink}
+              data-testid="copy-form-url-btn"
+            >
+              {copiedLink ? 'Copied' : 'Copy Public URL'}
+            </Button>
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700 shadow-sm"
+              data-testid="preview-public-form-btn"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Open Form
+            </a>
+          </div>
+        </div>
+        <div className="mt-4 rounded-lg bg-white/80 p-2.5 border border-brand-200/60 font-mono text-xs text-slate-700 truncate">
+          {publicUrl}
+        </div>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-6">
+        {/* Fee & Enrollment Settings */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <h4 className="text-sm font-bold uppercase tracking-wider text-slate-800">1. Program Fee & Payment Settings</h4>
+          <p className="text-xs text-slate-500">Configure whether this bootcamp requires a candidate registration fee or is free of charge.</p>
+
+          <div className="grid gap-4 sm:grid-cols-2 pt-2">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Fee Type</label>
+              <select
+                value={feeType}
+                onChange={(e) => setFeeType(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+              >
+                <option value="FREE">Free Bootcamp (No Candidate Fee)</option>
+                <option value="PAID">Paid Bootcamp (Fee Required)</option>
+              </select>
+            </div>
+
+            {feeType === 'PAID' && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Fee Amount (₹ INR)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={feeAmount}
+                  onChange={(e) => setFeeAmount(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          {feeType === 'PAID' && (
+            <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t border-slate-100">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">UPI ID for Candidate Payment</label>
+                <input
+                  type="text"
+                  value={paymentUpiId}
+                  onChange={(e) => setPaymentUpiId(e.target.value)}
+                  placeholder="techmechatorque@upi"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Payment Instructions / Note</label>
+                <input
+                  type="text"
+                  value={paymentInstructions}
+                  onChange={(e) => setPaymentInstructions(e.target.value)}
+                  placeholder="e.g. Scan QR code or pay via GPay/PhonePe and paste UTR"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Custom Form Questions */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-800">2. Form Builder Questions</h4>
+              <p className="text-xs text-slate-500">Add custom questions for candidates (Full Name, Email, Phone, and Slot are included by default).</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              icon={Plus}
+              onClick={addField}
+              data-testid="add-form-question-btn"
+            >
+              Add Question
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {fields.length === 0 ? (
+              <p className="text-xs text-slate-400 py-4 text-center italic">No custom questions added. Click "Add Question" to build your form.</p>
+            ) : (
+              fields.map((f, idx) => (
+                <div key={f.id || idx} className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 grid gap-3 sm:grid-cols-3">
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">Question Title</label>
+                        <input
+                          type="text"
+                          value={f.label}
+                          onChange={(e) => updateField(idx, { label: e.target.value })}
+                          className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">Response Type</label>
+                        <select
+                          value={f.fieldType}
+                          onChange={(e) => updateField(idx, { fieldType: e.target.value })}
+                          className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
+                        >
+                          <option value="TEXT">Short Text</option>
+                          <option value="TEXTAREA">Paragraph / Long Text</option>
+                          <option value="NUMBER">Number</option>
+                          <option value="SELECT">Dropdown Menu</option>
+                          <option value="RADIO">Multiple Choice (Radio)</option>
+                          <option value="CHECKBOX">Checkboxes</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeField(idx)}
+                      className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"
+                      title="Remove question"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {['SELECT', 'RADIO', 'CHECKBOX'].includes(f.fieldType) && (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">Options (comma separated)</label>
+                      <input
+                        type="text"
+                        value={(f.options || []).join(', ')}
+                        onChange={(e) => updateField(idx, { options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                        placeholder="Option 1, Option 2, Option 3"
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-brand-500 focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={f.required}
+                        onChange={(e) => updateField(idx, { required: e.target.checked })}
+                        className="h-3.5 w-3.5 rounded text-brand-600 focus:ring-brand-500"
+                      />
+                      <span>Required field</span>
+                    </label>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button
+            type="submit"
+            variant="primary"
+            loading={saving}
+            data-testid="save-form-builder-btn"
+          >
+            Save Form Builder Configuration
           </Button>
         </div>
       </form>
@@ -790,6 +1171,7 @@ export function BootcampDetailPage() {
                 { id: 'overview', label: 'Overview' },
                 { id: 'slots', label: 'Slots', count: slots.length },
                 { id: 'schedule', label: 'Schedule' },
+                { id: 'formBuilder', label: 'Form Builder' },
                 { id: 'googleForms', label: 'Google Forms' },
                 { id: 'passes', label: 'Check-in Passes', count: passes.length }
               ]}
@@ -854,7 +1236,7 @@ export function BootcampDetailPage() {
                             {isImageOrGif && (
                               <div className="h-28 w-full rounded bg-slate-50 overflow-hidden flex items-center justify-center border border-slate-100">
                                 <img
-                                  src={`/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
+                                  src={`${API_BASE_URL}/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
                                   alt={att.originalName}
                                   className="max-h-full max-w-full object-contain"
                                 />
@@ -863,7 +1245,7 @@ export function BootcampDetailPage() {
                             <p className="font-semibold text-slate-900 text-xs truncate" title={att.originalName}>{att.originalName}</p>
                             <div className="flex gap-2 pt-1 border-t border-slate-100">
                               <a
-                                href={`/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
+                                href={`${API_BASE_URL}/api/v1/growth/bootcamps/${bootcamp._id}/attachments/${att._id}?inline=1`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex-1 text-center py-1 text-xs font-medium rounded border border-slate-300 text-slate-700 hover:bg-slate-50"
@@ -1089,7 +1471,26 @@ export function BootcampDetailPage() {
                     {passes.length === 0 ? (
                       <p className="text-sm text-slate-500 py-6 text-center">No passes issued yet for this bootcamp.</p>
                     ) : (
-                      <div className="overflow-x-auto">
+                      <div className="overflow-x-auto space-y-4">
+                        {/* Company Header with Logo */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src="/letters/tmt-logo.png"
+                              alt="TechMecha Torque"
+                              className="h-8 w-auto object-contain"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                            <div>
+                              <p className="font-bold text-slate-900 text-xs sm:text-sm">TechMecha Torque Pvt. Ltd. &bull; Registrant Directory</p>
+                              <p className="text-[11px] text-slate-500">Official registry of passes, candidate form responses, and fee tax invoices.</p>
+                            </div>
+                          </div>
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded bg-white text-slate-700 border border-slate-200 self-start sm:self-auto">
+                            Total Registrants: <strong>{passes.length}</strong>
+                          </span>
+                        </div>
+
                         <table className="w-full text-left text-sm" data-testid="passes-table">
                           <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600 uppercase">
                             <tr>
@@ -1105,6 +1506,7 @@ export function BootcampDetailPage() {
                               <th className="p-3">Pass Code</th>
                               <th className="p-3">Candidate</th>
                               <th className="p-3">College & Course</th>
+                              <th className="p-3">Fee & Receipt</th>
                               <th className="p-3">Source</th>
                               <th className="p-3">Status</th>
                               <th className="p-3">Call Status</th>
@@ -1132,6 +1534,16 @@ export function BootcampDetailPage() {
                                   <span className="font-medium text-slate-900 block">{p.candidateName}</span>
                                   <span className="text-xs text-slate-500">{p.candidateEmail}</span>
                                   {p.candidatePhone && <span className="text-xs text-slate-400 block">{p.candidatePhone}</span>}
+                                  {p.customResponses && Object.keys(p.customResponses).length > 0 && (
+                                    <div className="mt-1 pt-1 border-t border-slate-100 text-[11px] text-slate-600 max-w-[220px]">
+                                      <span className="font-semibold text-brand-700 block text-[10px] uppercase">Form Responses:</span>
+                                      {Object.entries(p.customResponses).map(([k, v]) => (
+                                        <span key={k} className="block truncate text-[11px] text-slate-600" title={`${k}: ${Array.isArray(v) ? v.join(', ') : v}`}>
+                                          &bull; <strong className="text-slate-700">{k}:</strong> {Array.isArray(v) ? v.join(', ') : String(v)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="p-3 text-xs text-slate-600">
                                   {p.college || p.course ? (
@@ -1148,11 +1560,42 @@ export function BootcampDetailPage() {
                                     </a>
                                   )}
                                 </td>
+                                <td className="p-3 text-xs">
+                                  {p.candidateFee?.feeType === 'PAID' || bootcamp.feeType === 'PAID' ? (
+                                    <div className="space-y-1">
+                                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
+                                        Paid: ₹{p.candidateFee?.amountPaid ?? bootcamp.feeAmount ?? 0}
+                                      </span>
+                                      {p.candidateFee?.paymentReference && (
+                                        <span className="text-[10px] text-slate-500 block truncate max-w-[130px]" title={`Ref: ${p.candidateFee.paymentReference}`}>
+                                          Ref: {p.candidateFee.paymentReference}
+                                        </span>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await downloadFile(`/growth/passes/${p._id}/receipt`, `Receipt-${p.passCode}.pdf`);
+                                            toast.success('Fee receipt downloaded');
+                                          } catch (e) {
+                                            toast.error(e.message || 'Download failed');
+                                          }
+                                        }}
+                                        className="text-brand-700 font-semibold hover:underline inline-flex items-center gap-0.5 text-[11px]"
+                                        data-testid={`receipt-download-${p.passCode}`}
+                                      >
+                                        <Download className="h-2.5 w-2.5" /> Receipt PDF
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-500 text-xs font-medium">Free Pass</span>
+                                  )}
+                                </td>
                                 <td className="p-3">
                                   <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded ${
-                                    p.source === 'GOOGLE_FORM' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-700'
+                                    p.source === 'GOOGLE_FORM' ? 'bg-purple-100 text-purple-800' : p.source === 'FORM_BUILDER' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700'
                                   }`}>
-                                    {p.source === 'GOOGLE_FORM' ? 'Google Form' : 'Direct'}
+                                    {p.source === 'GOOGLE_FORM' ? 'Google Form' : p.source === 'FORM_BUILDER' ? 'Public Form' : 'Direct'}
                                   </span>
                                 </td>
                                 <td className="p-3">
@@ -1410,6 +1853,10 @@ export function BootcampDetailPage() {
                   </SectionCard>
                 );
               })()}
+            </TabPanel>
+
+            <TabPanel id="formBuilder" active={tab}>
+              <BootcampFormBuilderPanel bootcamp={bootcamp} onReload={state.reload} />
             </TabPanel>
 
             <TabPanel id="googleForms" active={tab}>

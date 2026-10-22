@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Video } from 'lucide-react';
+import { Video, Send, Mail, FileText, ExternalLink } from 'lucide-react';
 import api from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -76,31 +76,152 @@ function CancelModal({ interview, onClose, onDone }) {
   );
 }
 
-function DetailModal({ interview, onClose }) {
+function DetailModal({ interview, onClose, onRefresh }) {
+  const toast = useToast();
+  const [sending, setSending] = useState(false);
+
+  const handleSendInvite = async () => {
+    try {
+      setSending(true);
+      await api.post(`/interviews/${interview._id}/send-invite`);
+      toast.success('Branded interview invitation email with meeting link & task sent to candidate!');
+      onRefresh?.();
+    } catch (err) {
+      toast.error(err.message || 'Failed to send invitation email');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const hasTask = Boolean(interview.task?.assigned || interview.task?.title || interview.task?.description || interview.task?.documentUrl);
+
   return (
-    <Modal open onClose={onClose} size="lg" testId="interview-detail" title={`${fullName(interview.candidateId)} - ${humanize(interview.type)} interview`}>
-      <DetailList items={[
-        { label: 'When', value: `${fmtDateTime(interview.startsAt)} - ${fmtDateTime(interview.endsAt)}` }, { label: 'Status', value: <StatusBadge status={interview.status} /> },
-        { label: 'Mode', value: humanize(interview.mode) }, { label: interview.mode === 'ONLINE' ? 'Meeting link' : 'Location', value: interview.mode === 'ONLINE' ? (interview.meetingLink ? <a className="text-brand-800 underline" href={interview.meetingLink} target="_blank" rel="noopener noreferrer">{interview.meetingLink}</a> : '-') : interview.location },
-        { label: 'Panel', value: (interview.interviewers || []).map(fullName).join(', ') }, { label: 'Scorecards', value: `${interview.scorecardsSubmitted} of ${interview.scorecardsExpected}` }
-      ]} />
-      {(interview.feedback || []).length > 0 && (
-        <div className="mt-5" data-testid="scorecards"><h3 className="mb-2 text-sm font-semibold text-slate-900">Scorecards</h3>
-          <ul className="space-y-3">{interview.feedback.map((fb, i) => (
-            <li key={i} className="rounded-lg border border-slate-200 p-3 text-sm">
-              <p className="font-medium text-slate-900">{humanize(fb.recommendation)}</p>
-              <p className="mt-1 text-xs text-slate-700">{CRITERIA.map(([k, l]) => `${l} ${fb[k]}`).join(' / ')}</p>
-              <p className="mt-2 text-slate-800 break-words">{fb.comments}</p>
-            </li>
-          ))}</ul>
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      testId="interview-detail"
+      title={`${fullName(interview.candidateId)} - ${humanize(interview.type)} interview`}
+      footer={
+        <div className="flex w-full items-center justify-between">
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+          <div className="flex items-center gap-2">
+            {interview.mode === 'ONLINE' && interview.meetingLink && (
+              <a
+                href={interview.meetingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+              >
+                <Video className="w-3.5 h-3.5" /> Join Room
+              </a>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Send}
+              loading={sending}
+              onClick={handleSendInvite}
+            >
+              {interview.emailSentAt ? 'Resend Invite Email' : 'Send Invite Email'}
+            </Button>
+          </div>
         </div>
-      )}
+      }
+    >
+      <div className="space-y-4">
+        <DetailList items={[
+          { label: 'When', value: `${fmtDateTime(interview.startsAt)} - ${fmtDateTime(interview.endsAt)}` },
+          { label: 'Status', value: <StatusBadge status={interview.status} /> },
+          { label: 'Mode', value: humanize(interview.mode) },
+          {
+            label: interview.mode === 'ONLINE' ? 'Meeting link' : 'Location',
+            value: interview.mode === 'ONLINE'
+              ? (interview.meetingLink ? <a className="text-brand-800 underline font-mono text-xs break-all" href={interview.meetingLink} target="_blank" rel="noopener noreferrer">{interview.meetingLink}</a> : '-')
+              : interview.location
+          },
+          { label: 'Panel', value: (interview.interviewers || []).map(fullName).join(', ') || '-' },
+          { label: 'Email Invite', value: interview.emailSentAt ? `Sent on ${fmtDateTime(interview.emailSentAt)}` : 'Not sent yet' },
+          { label: 'Scorecards', value: `${interview.scorecardsSubmitted || 0} of ${interview.scorecardsExpected || (interview.interviewers || []).length}` }
+        ]} />
+
+        {/* Take-Home Task / Assessment Box */}
+        {hasTask && (
+          <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-4 space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-bold text-purple-900 uppercase tracking-wider">
+              <FileText className="w-4 h-4 text-purple-600" />
+              <span>Assigned Assessment / Take-Home Task</span>
+            </div>
+            {interview.task.title && (
+              <h4 className="text-sm font-bold text-slate-900">{interview.task.title}</h4>
+            )}
+            {interview.task.description && (
+              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed bg-white/70 p-2.5 rounded border border-purple-100">
+                {interview.task.description}
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+              {interview.task.dueDate && (
+                <div>
+                  <span className="font-semibold text-slate-600">Due Date: </span>
+                  <span className="text-slate-900 font-medium">{fmtDateTime(interview.task.dueDate)}</span>
+                </div>
+              )}
+              {interview.task.documentUrl && (
+                <div>
+                  <a
+                    href={interview.task.documentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-semibold text-purple-700 hover:text-purple-900 underline"
+                  >
+                    <span>{interview.task.documentName || 'Download Task Brief'}</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
+            </div>
+            {interview.task.submissionInstructions && (
+              <p className="text-xs text-slate-600 pt-1">
+                <span className="font-semibold text-slate-700">Submission Note: </span>
+                {interview.task.submissionInstructions}
+              </p>
+            )}
+          </div>
+        )}
+
+        {interview.notes && (
+          <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-700">
+            <span className="font-semibold text-slate-800">Panel Notes: </span>
+            {interview.notes}
+          </div>
+        )}
+
+        {(interview.feedback || []).length > 0 && (
+          <div className="mt-4" data-testid="scorecards">
+            <h3 className="mb-2 text-sm font-semibold text-slate-900">Scorecards ({interview.feedback.length})</h3>
+            <ul className="space-y-3">
+              {interview.feedback.map((fb, i) => (
+                <li key={i} className="rounded-lg border border-slate-200 p-3 text-sm bg-white">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-slate-900">{humanize(fb.recommendation)}</p>
+                    <span className="text-xs text-slate-500">{fb.submittedAt ? fmtDateTime(fb.submittedAt) : ''}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">{CRITERIA.map(([k, l]) => `${l}: ${fb[k]}/10`).join(' • ')}</p>
+                  <p className="mt-2 text-slate-800 break-words text-xs">{fb.comments}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }
 
 export function InterviewsPage() {
   const { can, user } = useAuth();
+  const toast = useToast();
   const [status, setStatus] = useState('');
   const [upcoming, setUpcoming] = useState(false);
   const [search, setSearch] = useState('');
@@ -110,6 +231,16 @@ export function InterviewsPage() {
   const close = () => setModal(null);
   const done = () => { close(); list.reload({ silent: true }); };
 
+  const handleQuickSendInvite = async (interview) => {
+    try {
+      await api.post(`/interviews/${interview._id}/send-invite`);
+      toast.success(`Branded invitation email sent to ${fullName(interview.candidateId)}!`);
+      list.reload({ silent: true });
+    } catch (err) {
+      toast.error(err.message || 'Failed to dispatch email');
+    }
+  };
+
   const cols = [
     { key: 'candidate', header: 'Candidate', render: (i) => <div><p className="font-medium text-slate-900">{fullName(i.candidateId)}</p><Link to={`/admin/applications/${i.applicationId?._id}`} className="font-mono text-xs text-brand-800 underline">{i.applicationId?.applicationId}</Link></div> },
     { key: 'round', header: 'Round', render: (i) => `${i.round} - ${humanize(i.type)}` },
@@ -117,6 +248,21 @@ export function InterviewsPage() {
     { key: 'mode', header: 'Mode', render: (i) => humanize(i.mode) },
     { key: 'panel', header: 'Panel', render: (i) => (i.interviewers || []).map((p) => p.firstName).join(', ') },
     { key: 'score', header: 'Scorecards', render: (i) => `${i.scorecardsSubmitted}/${i.scorecardsExpected}` },
+    {
+      key: 'invite',
+      header: 'Invitation',
+      render: (i) => (
+        <div className="text-xs">
+          {i.emailSentAt ? (
+            <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+              <Mail className="w-3.5 h-3.5 text-emerald-600" /> Sent
+            </span>
+          ) : (
+            <span className="text-slate-400">Not sent</span>
+          )}
+        </div>
+      )
+    },
     { key: 'status', header: 'Status', render: (i) => <StatusBadge status={i.status} /> },
     { key: 'actions', header: 'Actions', align: 'right', render: (i) => {
       const active = ACTIVE.includes(i.status);
@@ -135,6 +281,18 @@ export function InterviewsPage() {
               <Video className="h-3 w-3" /> Meet
             </a>
           )}
+          {active && can('interviews.schedule') && (
+            <Button
+              size="sm"
+              variant="outline"
+              icon={Send}
+              onClick={() => handleQuickSendInvite(i)}
+              title="Send branded invitation email to candidate"
+              data-testid={`interview-invite-${i._id}`}
+            >
+              Invite
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={() => setModal({ type: 'detail', interview: i })} data-testid={`interview-view-${i._id}`}>View</Button>
           {active && onPanel && can('interviews.feedback') && !submitted && <Button size="sm" onClick={() => setModal({ type: 'score', interview: i })} data-testid={`interview-score-${i._id}`}>Scorecard</Button>}
           {active && can('interviews.schedule') && <Button size="sm" variant="outline" onClick={() => setModal({ type: 'reschedule', interview: i })} data-testid={`interview-reschedule-${i._id}`}>Reschedule</Button>}
@@ -146,7 +304,18 @@ export function InterviewsPage() {
 
   return (
     <>
-      <PageHeader title="Interviews" description="Interviews are scheduled from an application. The application moves to Interviewed once every panelist has submitted a scorecard." />
+      <PageHeader
+        title="Interviews"
+        description="Track candidate evaluation rounds, join video calls, review take-home tasks, and dispatch branded invitations."
+        actions={
+          <Link
+            to="/admin/applications"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-700"
+          >
+            Schedule from Applications →
+          </Link>
+        }
+      />
       <FilterBar>
         <TextField name="search" label="Search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Candidate name or application ID" />
         <SelectField name="status" label="Status" value={status} onChange={(e) => setStatus(e.target.value)} placeholder="All statuses" options={Object.values(INTERVIEW_STATUS).map((s) => ({ value: s, label: humanize(s) }))} />
@@ -154,7 +323,7 @@ export function InterviewsPage() {
       </FilterBar>
       <DataTable testId="interviews-table" columns={cols} rows={list.rows} loading={list.loading} error={list.error} onRetry={list.reload} caption="Interviews" emptyTitle="No interviews" emptyDescription="Shortlist an application, then schedule an interview from its detail page." />
       <Pagination pagination={list.pagination} onPage={list.setPage} />
-      {modal?.type === 'detail' && <DetailModal interview={modal.interview} onClose={close} />}
+      {modal?.type === 'detail' && <DetailModal interview={modal.interview} onClose={close} onRefresh={() => list.reload({ silent: true })} />}
       {modal?.type === 'score' && <ScorecardModal interview={modal.interview} onClose={close} onDone={done} />}
       {modal?.type === 'reschedule' && <RescheduleModal interview={modal.interview} onClose={close} onDone={done} />}
       {modal?.type === 'cancel' && <CancelModal interview={modal.interview} onClose={close} onDone={done} />}

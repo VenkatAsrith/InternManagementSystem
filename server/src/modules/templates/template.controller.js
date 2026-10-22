@@ -89,10 +89,15 @@ export const previewTemplate = ah(async (req, res) => {
   if (!template) throw notFound('Template not found');
   const { internId } = new Validator(req.body).objectId('internId').done();
   const { context, sample } = await previewContext(req, internId);
-  const { text, missing } = interpolateVariables(template.bodyMarkdown, context);
+  const { text, missing } = interpolateVariables(template.bodyMarkdown || '', context);
+  let interpolatedHtml = null;
+  if (template.bodyHtml) {
+    const htmlRes = interpolateVariables(template.bodyHtml, context);
+    interpolatedHtml = htmlRes.text;
+  }
   return successResponse(res, {
     templateId: template._id, templateCode: template.templateCode, version: template.version,
-    rawMarkdown: template.bodyMarkdown, interpolatedMarkdown: text, missingVariables: missing, isSample: sample, contextUsed: context
+    rawMarkdown: template.bodyMarkdown, interpolatedMarkdown: text, interpolatedHtml, missingVariables: missing, isSample: sample, contextUsed: context
   });
 });
 

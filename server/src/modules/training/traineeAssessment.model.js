@@ -37,9 +37,22 @@ const traineeAssessmentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  dueDate: {
+    type: Date
+  },
+  assessmentUrl: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  platformName: {
+    type: String,
+    default: 'Learning Spaces',
+    trim: true
+  },
   score: {
     type: Number,
-    required: true,
+    default: 0,
     min: 0
   },
   maxScore: {
@@ -47,18 +60,28 @@ const traineeAssessmentSchema = new mongoose.Schema({
     default: 100,
     min: 1
   },
+  passingScore: {
+    type: Number,
+    default: 70,
+    min: 0
+  },
   percentage: {
     type: Number,
+    default: 0,
     min: 0,
     max: 100
   },
   status: {
     type: String,
-    enum: ['PASSED', 'FAILED', 'NEEDS_REVISION'],
+    enum: ['SCHEDULED', 'PENDING', 'IN_PROGRESS', 'SUBMITTED', 'PASSED', 'FAILED', 'NEEDS_REVISION'],
     default: 'PASSED',
     index: true
   },
   feedback: {
+    type: String,
+    default: ''
+  },
+  instructions: {
     type: String,
     default: ''
   },

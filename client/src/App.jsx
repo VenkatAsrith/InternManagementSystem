@@ -17,6 +17,7 @@ import { ApplicationSuccessPage } from './pages/public/ApplicationSuccessPage';
 import { ApplicationStatusPage } from './pages/public/ApplicationStatusPage';
 import { CertificateVerifyPage } from './pages/public/CertificateVerifyPage';
 import { OfferResponsePage } from './pages/public/OfferResponsePage';
+import { PublicBootcampFormPage } from './pages/public/PublicBootcampFormPage';
 import { NotFoundPage } from './pages/public/NotFoundPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
@@ -101,6 +102,7 @@ export default function App() {
                   <Route path="/verify/document" element={<CertificateVerifyPage kind="document" />} />
                   <Route path="/verify/document/:documentId" element={<CertificateVerifyPage kind="document" />} />
                   <Route path="/offer/:token" element={<OfferResponsePage />} />
+                  <Route path="/bootcamp-form/:id" element={<PublicBootcampFormPage />} />
                 </Route>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
@@ -172,7 +174,11 @@ export default function App() {
                   </Route>
                 </Route>
 
-                <Route path="*" element={<PublicLayout />}><Route path="*" element={<NotFoundPage />} /></Route>
+                {/* Catch-all 404 for any unmatched route */}
+                <Route element={<PublicLayout />}>
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
+
               </Routes>
             </BrowserRouter>
           </ConfirmProvider>

@@ -28,7 +28,11 @@ import {
   configureBootcampGoogleForm,
   syncBootcampGoogleFormResponses,
   updatePassStatus,
-  updatePassCallStatus
+  updatePassCallStatus,
+  getPublicBootcampForm,
+  submitPublicBootcampForm,
+  updateBootcampFormBuilder,
+  downloadPassFeeReceipt
 } from './growth.controller.js';
 import { authenticate, requireOrgContext } from '../../middleware/auth.js';
 import { requirePermission, requireAnyPermission } from '../../middleware/rbac.js';
@@ -37,7 +41,17 @@ import { ah } from '../../utils/asyncHandler.js';
 
 const router = Router();
 
+// Public Bootcamp Registration Form & Passes (unauthenticated)
+router.get('/bootcamps/:id/public-form', ah(getPublicBootcampForm));
+router.post('/bootcamps/:id/public-submit', ah(submitPublicBootcampForm));
+router.get('/public/passes/:id/pdf', ah(renderPassPdf));
+router.get('/public/passes/:id/receipt', ah(downloadPassFeeReceipt));
+
 router.use(authenticate, requireOrgContext);
+
+// Form Builder & Pass Fee Receipts (authenticated)
+router.put('/bootcamps/:id/form-builder', requirePermission('bootcamps.manage'), ah(updateBootcampFormBuilder));
+router.get('/passes/:id/receipt', requireAnyPermission('bootcamps.read', 'passes.generate'), ah(downloadPassFeeReceipt));
 
 // Leads
 router.get('/leads', requirePermission('leads.read'), ah(getLeads));

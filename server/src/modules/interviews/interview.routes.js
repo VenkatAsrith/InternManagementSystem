@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  scheduleInterview, getInterviews, getInterviewById, submitInterviewFeedback, updateInterviewStatus, rescheduleInterview
+  scheduleInterview, getInterviews, getInterviewById, submitInterviewFeedback, updateInterviewStatus, rescheduleInterview, sendInterviewInvite
 } from './interview.controller.js';
 import { authenticate, requireOrgContext } from '../../middleware/auth.js';
 import { requirePermission } from '../../middleware/rbac.js';
@@ -14,6 +14,7 @@ router.post('/', requirePermission('interviews.schedule'), scheduleInterview);
 router.get('/:id', requirePermission('interviews.read'), getInterviewById);
 router.post('/:id/feedback', requirePermission('interviews.feedback'), submitInterviewFeedback);
 router.post('/:id/reschedule', requirePermission('interviews.schedule'), rescheduleInterview);
+router.post('/:id/send-invite', requirePermission('interviews.schedule'), sendInterviewInvite);
 router.patch('/:id/status', requirePermission('interviews.schedule'), updateInterviewStatus);
 
 export default router;

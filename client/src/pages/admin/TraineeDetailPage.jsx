@@ -3,9 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import {
   GraduationCap, CheckCircle2, Clock, Calendar, Award, Star, BookOpen, CheckSquare,
   AlertTriangle, ShieldAlert, ArrowLeft, Plus, ExternalLink, MessageSquare, Download, Check,
-  CreditCard, Edit, DollarSign
+  CreditCard, Edit, DollarSign, Mail
 } from 'lucide-react';
-import api from '../../lib/http';
+import api, { downloadFile } from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useFetch } from '../../hooks/useFetch';
@@ -217,23 +217,33 @@ function MarkAttendanceModal({ engagementId, onClose, onDone }) {
 function RecordAssessmentModal({ engagementId, onClose, onDone }) {
   const toast = useToast();
   const form = useForm({
-    title: 'Mid-Program Core Assessment',
+    title: 'Module Core Assessment',
+    status: 'PASSED',
+    assessmentUrl: '',
+    platformName: 'Learning Spaces',
     assessmentDate: new Date().toISOString().slice(0, 10),
+    dueDate: '',
     score: 85,
     maxScore: 100,
     passingScore: 70,
-    feedback: 'Strong grasp of core architectural principles.'
+    instructions: '',
+    feedback: 'Strong grasp of core concepts and design principles.'
   });
   const f = form.field;
 
   const handleSubmit = async (v) => {
     return await api.post(`/training/trainees/${engagementId}/assessments`, {
       title: v.title.trim(),
-      assessmentDate: v.assessmentDate,
-      score: Number(v.score),
-      maxScore: Number(v.maxScore),
-      passingScore: Number(v.passingScore),
-      feedback: v.feedback.trim()
+      status: v.status,
+      assessmentUrl: v.assessmentUrl?.trim() || undefined,
+      platformName: v.platformName?.trim() || undefined,
+      assessmentDate: v.assessmentDate || undefined,
+      dueDate: v.dueDate || undefined,
+      score: v.status === 'PENDING' ? 0 : Number(v.score || 0),
+      maxScore: Number(v.maxScore || 100),
+      passingScore: Number(v.passingScore || 70),
+      instructions: v.instructions?.trim() || undefined,
+      feedback: v.feedback?.trim() || undefined
     });
   };
 
@@ -241,29 +251,79 @@ function RecordAssessmentModal({ engagementId, onClose, onDone }) {
     <FormModal
       open
       onClose={onClose}
-      size="md"
+      size="lg"
       testId="record-assessment-modal"
-      title="Record Assessment Result (§51)"
-      submitLabel="Save Result"
+      title="Create / Record Trainee Assessment (§51)"
+      description="Assign an assessment test link or record grades and evaluation feedback for the trainee."
+      submitLabel="Save Assessment"
       form={form}
       rules={{
         title: rules.required('Assessment title'),
-        score: rules.required('Score'),
         maxScore: rules.required('Max score')
       }}
       onSubmit={handleSubmit}
       onDone={() => {
-        toast.success('Assessment result saved');
+        toast.success('Assessment saved successfully');
         onDone();
       }}
     >
       <FormGrid>
-        <TextField {...f('title')} label="Assessment Title" required className="sm:col-span-2" />
-        <TextField {...f('assessmentDate')} label="Date" type="date" required />
-        <TextField {...f('passingScore')} label="Passing Score" type="number" required />
-        <TextField {...f('score')} label="Score Achieved" type="number" required />
-        <TextField {...f('maxScore')} label="Maximum Score" type="number" required />
-        <TextAreaField {...f('feedback')} label="Trainer Feedback" rows={2} className="sm:col-span-2" />
+        <TextField {...f('title')} label="Assessment Title" required placeholder="e.g. Module 3 — Backend API & Database Evaluation" className="sm:col-span-2" />
+
+        <SelectField
+          {...f('status')}
+          label="Assessment State"
+          options={[
+            { value: 'PASSED', label: 'Passed / Approved (Graded)' },
+            { value: 'FAILED', label: 'Needs Revision / Failed (Graded)' },
+            { value: 'PENDING', label: 'Scheduled / Pending Trainee Submission' }
+          ]}
+        />
+
+        <TextField
+          {...f('platformName')}
+          label="Assessment Platform"
+          placeholder="e.g. Learning Spaces, HackerRank, Google Form"
+        />
+
+        <TextField
+          {...f('assessmentUrl')}
+          label="Assessment / Test Platform Link"
+          placeholder="https://learningspaces.techmecha.com/assessment/101"
+          hint="Direct URL where the intern trainee takes or submits this test"
+          className="sm:col-span-2"
+        />
+
+        <TextField {...f('assessmentDate')} label="Assessment Date" type="date" required />
+        <TextField {...f('dueDate')} label="Due Date (Optional)" type="date" />
+
+        {form.values.status !== 'PENDING' ? (
+          <>
+            <TextField {...f('score')} label="Score Achieved" type="number" min="0" required />
+            <TextField {...f('maxScore')} label="Maximum Score" type="number" min="1" required />
+            <TextField {...f('passingScore')} label="Passing Score Threshold" type="number" min="0" required />
+          </>
+        ) : (
+          <>
+            <TextField {...f('passingScore')} label="Passing Score Threshold" type="number" min="0" required />
+            <TextField {...f('maxScore')} label="Maximum Score" type="number" min="1" required />
+          </>
+        )}
+
+        <TextAreaField
+          {...f('instructions')}
+          label="Instructions for Trainee"
+          rows={2}
+          placeholder="e.g. Complete test within 90 mins; submit your repository link or quiz submission before deadline."
+          className="sm:col-span-2"
+        />
+
+        <TextAreaField
+          {...f('feedback')}
+          label="Trainer / Mentor Feedback & Notes"
+          rows={2}
+          className="sm:col-span-2"
+        />
       </FormGrid>
     </FormModal>
   );
@@ -457,6 +517,8 @@ function EditTraineeModal({ engagement, onClose, onDone }) {
     graduationYear: engagement.graduationYear || '',
     location: engagement.location || '',
     workMode: engagement.workMode || 'REMOTE',
+    learningSpacesUrl: engagement.learningSpacesUrl || engagement.programId?.learningSpacesUrl || '',
+    learningSpacesName: engagement.learningSpacesName || engagement.programId?.learningSpacesName || 'TechMecha Learning Spaces',
     internalNotes: engagement.internalNotes || ''
   });
   const f = form.field;
@@ -467,7 +529,7 @@ function EditTraineeModal({ engagement, onClose, onDone }) {
       size="md"
       testId="edit-trainee-modal"
       title="Edit Trainee Profile Details"
-      description="Update academic records, location, learning mode and internal notes."
+      description="Update academic records, location, learning spaces platform, and internal notes."
       submitLabel="Save Changes"
       form={form}
       onSubmit={async (v) => {
@@ -477,6 +539,8 @@ function EditTraineeModal({ engagement, onClose, onDone }) {
           graduationYear: v.graduationYear.trim(),
           location: v.location.trim(),
           workMode: v.workMode,
+          learningSpacesUrl: v.learningSpacesUrl.trim(),
+          learningSpacesName: v.learningSpacesName.trim(),
           internalNotes: v.internalNotes.trim()
         });
       }}
@@ -498,6 +562,19 @@ function EditTraineeModal({ engagement, onClose, onDone }) {
             { value: 'HYBRID', label: 'Hybrid' },
             { value: 'ON_SITE', label: 'On Site' }
           ]}
+        />
+        <TextField
+          {...f('learningSpacesUrl')}
+          label="Learning Spaces Platform URL"
+          placeholder="https://learningspaces.techmecha.com/course/track"
+          hint="External course platform link assigned to this trainee"
+          className="sm:col-span-2"
+        />
+        <TextField
+          {...f('learningSpacesName')}
+          label="Platform Name"
+          placeholder="TechMecha Learning Spaces"
+          className="sm:col-span-2"
         />
         <TextAreaField {...f('internalNotes')} label="Internal Notes" rows={2} className="sm:col-span-2" />
       </FormGrid>
@@ -568,15 +645,23 @@ export function TraineeDetailPage() {
                     </Button>
                   )}
                   {engagement.status === 'COMPLETED' && engagement.certificateId && (
-                    <a
-                      href={`/api/v1/certificates/${engagement.certificateId._id || engagement.certificateId}/pdf`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const certObj = engagement.certificateId;
+                        const cId = certObj?._id || certObj;
+                        const certNum = certObj?.certificateId || engagement.traineeId || 'completion';
+                        try {
+                          await downloadFile(`/certificates/${cId}/download`, `Certificate_${certNum}.pdf`);
+                        } catch (err) {
+                          window.open(`/verify/certificate/${certNum}`, '_blank');
+                        }
+                      }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
                       data-testid="download-certificate-link"
                     >
                       <Download className="h-4 w-4" /> Download Certificate
-                    </a>
+                    </button>
                   )}
                 </div>
               }
@@ -659,11 +744,51 @@ export function TraineeDetailPage() {
                   <SectionCard
                     title="Candidate Payment & Program Fee"
                     actions={
-                      can('training.manage') && (
-                        <Button size="xs" variant="outline" icon={CreditCard} onClick={() => setModal('updatePayment')} data-testid="update-trainee-payment-btn">
-                          Update Payment
-                        </Button>
-                      )
+                      <div className="flex items-center gap-1.5">
+                        {(engagement.candidatePayment?.amountPaid || 0) > 0 && (
+                          <>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              icon={Download}
+                              onClick={async () => {
+                                try {
+                                  await downloadFile(`/training/trainees/${engagement._id}/receipt`, `TMT-Receipt-${engagement._id}.pdf`);
+                                  toast.success('Official fee receipt downloaded');
+                                } catch (e) {
+                                  toast.error(e.message || 'Failed to download receipt');
+                                }
+                              }}
+                              data-testid="download-receipt-pdf-btn"
+                            >
+                              Receipt PDF
+                            </Button>
+                            {can('training.manage') && (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                icon={Mail}
+                                onClick={async () => {
+                                  try {
+                                    const res = await api.post(`/training/trainees/${engagement._id}/send-receipt`);
+                                    toast.success(res.message || 'Fee receipt emailed to trainee');
+                                  } catch (e) {
+                                    toast.error(e.message || 'Failed to send receipt email');
+                                  }
+                                }}
+                                data-testid="email-receipt-btn"
+                              >
+                                Email Receipt
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        {can('training.manage') && (
+                          <Button size="xs" variant="outline" icon={CreditCard} onClick={() => setModal('updatePayment')} data-testid="update-trainee-payment-btn">
+                            Update Payment
+                          </Button>
+                        )}
+                      </div>
                     }
                   >
                     {(() => {
@@ -921,19 +1046,56 @@ export function TraineeDetailPage() {
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
                     {assessments.map((a) => (
-                      <div key={a._id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-2">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-bold text-slate-900 text-sm">{a.title}</h4>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                            a.status === 'PASSED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                      <div key={a._id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-sm">{a.title}</h4>
+                            <p className="text-[11px] text-slate-500">
+                              {a.assessmentDate ? fmtDate(a.assessmentDate) : 'Date unassigned'}
+                              {a.dueDate ? ` • Due: ${fmtDate(a.dueDate)}` : ''}
+                            </p>
+                          </div>
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                            a.status === 'PASSED' ? 'bg-emerald-100 text-emerald-800' :
+                            a.status === 'FAILED' ? 'bg-rose-100 text-rose-800' :
+                            'bg-amber-100 text-amber-800'
                           }`}>
                             {a.status}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-xs text-slate-600">
-                          <span>Score: <strong>{a.score} / {a.maxScore}</strong> ({Math.round(a.percentage)}%)</span>
-                          <span>Passing: {a.passingScore}</span>
+
+                        <div className="flex justify-between items-center text-xs text-slate-600 bg-slate-50 p-2 rounded-lg">
+                          {['PENDING', 'SCHEDULED'].includes(a.status) ? (
+                            <span>Scheduled Assessment (Passing mark: {a.passingScore || 70}%)</span>
+                          ) : (
+                            <>
+                              <span>Score: <strong>{a.score} / {a.maxScore}</strong> ({Math.round(a.percentage)}%)</span>
+                              <span>Passing: {a.passingScore}%</span>
+                            </>
+                          )}
                         </div>
+
+                        {a.assessmentUrl && (
+                          <div className="pt-1">
+                            <a
+                              href={a.assessmentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-900 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-3 py-1.5 rounded-lg transition"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              {a.platformName ? `Open on ${a.platformName}` : 'Open Assessment Link'}
+                            </a>
+                          </div>
+                        )}
+
+                        {a.instructions && (
+                          <div className="text-xs text-slate-600 bg-amber-50/60 border border-amber-200/60 p-2 rounded-lg">
+                            <span className="font-semibold text-amber-900">Instructions: </span>
+                            {a.instructions}
+                          </div>
+                        )}
+
                         {a.feedback && <p className="text-xs text-slate-500 italic border-t border-slate-100 pt-2">"{a.feedback}"</p>}
                       </div>
                     ))}

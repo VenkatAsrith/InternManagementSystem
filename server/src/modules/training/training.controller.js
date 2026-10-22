@@ -68,6 +68,9 @@ export async function createProgram(req, res) {
     location: req.body.location || '',
     mode: req.body.mode || 'ONLINE',
     status: req.body.status || 'ACTIVE',
+    learningSpacesUrl: (req.body.learningSpacesUrl || '').trim(),
+    learningSpacesName: (req.body.learningSpacesName || 'TechMecha Learning Spaces').trim(),
+    learningSpacesInstructions: (req.body.learningSpacesInstructions || '').trim(),
     resources: req.body.resources || [],
     attachments: req.body.attachments || [],
     milestones: req.body.milestones || [
@@ -118,6 +121,9 @@ export async function updateProgram(req, res) {
   if (req.body.location !== undefined) program.location = req.body.location;
   if (req.body.mode !== undefined) program.mode = req.body.mode;
   if (req.body.status !== undefined) program.status = req.body.status;
+  if (req.body.learningSpacesUrl !== undefined) program.learningSpacesUrl = req.body.learningSpacesUrl.trim();
+  if (req.body.learningSpacesName !== undefined) program.learningSpacesName = req.body.learningSpacesName.trim();
+  if (req.body.learningSpacesInstructions !== undefined) program.learningSpacesInstructions = req.body.learningSpacesInstructions.trim();
   if (req.body.resources !== undefined) program.resources = req.body.resources;
   if (req.body.attachments !== undefined) program.attachments = req.body.attachments;
   if (req.body.milestones !== undefined) program.milestones = req.body.milestones;

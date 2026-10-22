@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Download, Eye } from 'lucide-react';
+import { Download, Eye, Calendar, Award, CheckCircle2, Send, FileText, UserCheck } from 'lucide-react';
 import api, { downloadFile } from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -13,7 +13,15 @@ import { ScheduleInterviewModal } from '../../components/domain/ScheduleIntervie
 import { OfferDraftModal } from '../../components/domain/OfferDraftModal';
 import { ResumePreviewModal } from '../../components/domain/ResumePreviewModal';
 
-const STAGE_LABEL = { UNDER_REVIEW: 'Start review', SHORTLISTED: 'Shortlist', SELECTED: 'Select candidate', REJECTED: 'Reject', WITHDRAWN: 'Mark withdrawn', ON_HOLD: 'Put on hold', INTERVIEWED: 'Mark interviewed' };
+const STAGE_LABEL = {
+  UNDER_REVIEW: 'Start review',
+  SHORTLISTED: 'Shortlist candidate',
+  SELECTED: 'Select & Approve candidate',
+  REJECTED: 'Reject application',
+  WITHDRAWN: 'Mark withdrawn',
+  ON_HOLD: 'Put on hold',
+  INTERVIEWED: 'Mark interviewed'
+};
 const DANGER = ['REJECTED', 'WITHDRAWN'];
 
 export function ApplicationDetailPage() {
@@ -134,15 +142,91 @@ export function ApplicationDetailPage() {
               </div>
 
               <div className="space-y-6">
-                <SectionCard title="Actions" testId="actions-card">
+                <SectionCard title="Actions & Progression" testId="actions-card">
                   {app.status === 'OFFER_ACCEPTED' ? <InlineAlert tone="success">Offer accepted. The intern workspace has been created.</InlineAlert> : (
-                    <div className="flex flex-col gap-2">
-                      {canStage && next.map((s) => (
-                        <Button key={s} variant={DANGER.includes(s) ? 'danger' : 'outline'} loading={move.pending} onClick={() => changeStage(app, s)} data-testid={`stage-${s}`}>{STAGE_LABEL[s] || humanize(s)}</Button>
-                      ))}
-                      {canOffer && <Button onClick={() => setDrafting(true)} data-testid="draft-offer">Draft offer</Button>}
-                      {!canStage && !canOffer && <p className="text-sm text-slate-600">You can view this application but not change it.</p>}
-                      {canStage && next.length === 0 && !canOffer && <p className="text-sm text-slate-600">No further manual actions. The next step happens through {app.status.startsWith('OFFER') ? 'the offer' : 'interviews'}.</p>}
+                    <div className="flex flex-col gap-3">
+                      {/* Primary Best Case Actions */}
+                      <div className="space-y-2">
+                        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Candidate Progression</p>
+                        {canSchedule && (
+                          <Button
+                            variant="primary"
+                            icon={Calendar}
+                            onClick={() => setScheduling(true)}
+                            data-testid="schedule-interview-primary"
+                            className="w-full justify-center"
+                          >
+                            Schedule Interview & Assign Task
+                          </Button>
+                        )}
+                        {canOffer && (
+                          <Button
+                            variant="primary"
+                            icon={Award}
+                            onClick={() => setDrafting(true)}
+                            data-testid="draft-offer"
+                            className="w-full justify-center"
+                          >
+                            Draft Official Offer Letter
+                          </Button>
+                        )}
+                        {canStage && next.filter((s) => !DANGER.includes(s) && s !== 'ON_HOLD').map((s) => (
+                          <Button
+                            key={s}
+                            variant="outline"
+                            loading={move.pending}
+                            onClick={() => changeStage(app, s)}
+                            data-testid={`stage-${s}`}
+                            className="w-full justify-center border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                          >
+                            ✓ {STAGE_LABEL[s] || humanize(s)}
+                          </Button>
+                        ))}
+                      </div>
+
+                      {/* Secondary Neutral Actions */}
+                      {canStage && next.filter((s) => s === 'ON_HOLD').length > 0 && (
+                        <div className="pt-2 border-t border-slate-100">
+                          {next.filter((s) => s === 'ON_HOLD').map((s) => (
+                            <Button
+                              key={s}
+                              variant="outline"
+                              loading={move.pending}
+                              onClick={() => changeStage(app, s)}
+                              data-testid={`stage-${s}`}
+                              className="w-full justify-center text-slate-700"
+                            >
+                              {STAGE_LABEL[s] || humanize(s)}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Decision Review (Rejections / Withdrawals) */}
+                      {canStage && next.filter((s) => DANGER.includes(s)).length > 0 && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Decision Review</p>
+                          <div className="space-y-1.5">
+                            {next.filter((s) => DANGER.includes(s)).map((s) => (
+                              <Button
+                                key={s}
+                                variant="outline"
+                                tone="danger"
+                                loading={move.pending}
+                                onClick={() => changeStage(app, s)}
+                                data-testid={`stage-${s}`}
+                                className="w-full justify-center text-rose-600 border-rose-200 hover:bg-rose-50"
+                              >
+                                ✕ {STAGE_LABEL[s] || humanize(s)}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {!canStage && !canOffer && !canSchedule && (
+                        <p className="text-sm text-slate-600">You can view this application but not change it.</p>
+                      )}
                     </div>
                   )}
                 </SectionCard>

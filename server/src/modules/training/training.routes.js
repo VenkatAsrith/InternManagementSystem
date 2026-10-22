@@ -19,7 +19,7 @@ import {
   getAvailablePrograms, enrollTrainee, createAndEnrollTrainee, getMyTraineeProfile, submitTraineeTask,
   completeModule, getAdminTrainees, getAdminTraineeDetail, updateAdminTrainee, createTraineeTask,
   reviewTraineeTask, recordAttendance, recordAssessment, updateProject,
-  completeTraineeProgram, recordMentorFeedback
+  completeTraineeProgram, recordMentorFeedback, downloadTraineeReceipt, sendTraineeReceipt
 } from './trainee.controller.js';
 
 const router = Router();
@@ -37,6 +37,10 @@ router.post('/trainee/tasks/:id/submit', ah(submitTraineeTask));
 router.post('/trainees/:engagementId/tasks/:id/submit', ah(submitTraineeTask));
 router.post('/trainee/modules/complete', ah(completeModule));
 router.put('/trainee/project', ah(updateProject));
+
+// Receipt routes (accessible by trainee or staff)
+router.get('/trainees/:id/receipt', ah(downloadTraineeReceipt));
+router.post('/trainees/:id/send-receipt', requireAnyPermission('training.manage', 'interns.update'), ah(sendTraineeReceipt));
 
 // Admin / Trainer Trainee Operations
 router.post('/trainees', requireAnyPermission('training.manage', 'programs.manage', 'interns.create', 'users.manage'), ah(createAndEnrollTrainee));

@@ -52,7 +52,7 @@ function StatusModal({ org, status, onClose, onDone }) {
   );
 }
 
-function GlobalUserModal({ orgs, onClose, onDone }) {
+function GlobalUserModal({ orgs, defaultRole = 'ORGANIZATION_ADMIN', onClose, onDone }) {
   const toast = useToast();
   const [created, setCreated] = useState(null);
   const form = useForm({
@@ -60,7 +60,7 @@ function GlobalUserModal({ orgs, onClose, onDone }) {
     lastName: '',
     email: '',
     phone: '',
-    role: 'HR_ADMIN',
+    role: defaultRole || 'ORGANIZATION_ADMIN',
     organizationId: orgs[0]?._id || ''
   });
   const f = form.field;
@@ -70,7 +70,7 @@ function GlobalUserModal({ orgs, onClose, onDone }) {
     return (
       <Modal open onClose={onDone} size="md" testId="global-user-created" title="User Account Created" footer={<Button onClick={onDone} data-testid="global-user-done">Done</Button>}>
         <InlineAlert tone="success" className="mb-3">
-          Account created for <strong>{created.user.firstName} {created.user.lastName}</strong> ({created.user.email}).
+          Account created for <strong>{created.user.firstName} {created.user.lastName}</strong> ({created.user.email}) as <strong>{humanize(created.user.role)}</strong>.
         </InlineAlert>
         <p className="text-xs text-slate-600 mb-2">Give this activation link to the user to complete password setup:</p>
         <CopyField label="Activation Link" value={created.setupLink} testId="global-setup-link" />
@@ -79,14 +79,16 @@ function GlobalUserModal({ orgs, onClose, onDone }) {
   }
 
   const roleOptions = [
-    { value: 'SUPER_ADMIN', label: 'Global Administrator (Platform)' },
-    { value: 'ORGANIZATION_ADMIN', label: 'Organization Administrator' },
+    { value: 'ORGANIZATION_ADMIN', label: 'Organization Administrator (Executive)' },
     { value: 'HR_ADMIN', label: 'HR Administrator' },
     { value: 'HR_RECRUITER', label: 'HR Recruiter' },
-    { value: 'MENTOR', label: 'Mentor / Tech Lead' },
-    { value: 'INTERVIEWER', label: 'Interviewer' },
+    { value: 'MENTOR', label: 'Mentor / Technical Lead' },
+    { value: 'INTERN', label: 'Intern / Mentee' },
+    { value: 'INTERN_TRAINEE', label: 'Intern Trainee (Bootcamp / Training)' },
+    { value: 'INTERVIEWER', label: 'Technical Interviewer' },
     { value: 'FINANCE_ADMIN', label: 'Finance Administrator' },
-    { value: 'AUDITOR', label: 'Compliance Auditor' }
+    { value: 'AUDITOR', label: 'Compliance Auditor' },
+    { value: 'SUPER_ADMIN', label: 'Global Administrator (Platform)' }
   ];
 
   const handleSubmit = async (v) => {
@@ -271,14 +273,49 @@ export function GlobalAdminPage() {
   return (
     <>
       <PageHeader
-        title="Global command center"
-        description="Platform administration across organizations."
+        title="Global Command Center"
+        description="Platform administration, multi-tenant isolation, and direct account provisioning."
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setModal({ type: 'newUser' })} data-testid="open-global-user-modal">
-              Create Internal User
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModal({ type: 'newUser', role: 'ORGANIZATION_ADMIN' })}
+              data-testid="provision-org-admin-btn"
+            >
+              + Org Admin
             </Button>
-            <Button icon={Plus} onClick={() => setModal({ type: 'new' })} data-testid="new-org">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModal({ type: 'newUser', role: 'HR_ADMIN' })}
+              data-testid="provision-hr-btn"
+            >
+              + HR Admin
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModal({ type: 'newUser', role: 'MENTOR' })}
+              data-testid="provision-mentor-btn"
+            >
+              + Mentor
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModal({ type: 'newUser', role: 'INTERN' })}
+              data-testid="provision-mentee-btn"
+            >
+              + Mentee / Intern
+            </Button>
+            <Button
+              icon={Plus}
+              size="sm"
+              variant="primary"
+              onClick={() => setModal({ type: 'new' })}
+              data-testid="new-org"
+            >
               New Organization
             </Button>
           </div>
@@ -337,7 +374,7 @@ export function GlobalAdminPage() {
         </StateView>
       </TabPanel>
       {modal?.type === 'new' && <OrgModal onClose={() => setModal(null)} onDone={() => { setModal(null); orgs.reload({ silent: true }); overview.reload({ silent: true }); }} />}
-      {modal?.type === 'newUser' && <GlobalUserModal orgs={orgs.data || []} onClose={() => setModal(null)} onDone={() => { setModal(null); users.reload({ silent: true }); overview.reload({ silent: true }); }} />}
+      {modal?.type === 'newUser' && <GlobalUserModal orgs={orgs.data || []} defaultRole={modal.role} onClose={() => setModal(null)} onDone={() => { setModal(null); users.reload({ silent: true }); overview.reload({ silent: true }); }} />}
       {modal?.type === 'status' && <StatusModal org={modal.o} status={modal.s} onClose={() => setModal(null)} onDone={() => { setModal(null); orgs.reload({ silent: true }); overview.reload({ silent: true }); }} />}
     </>
   );

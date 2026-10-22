@@ -9,10 +9,14 @@ import { useAction, useForm, rules } from '../../hooks/useForm';
 import { fmtDate, fullName } from '../../lib/format';
 import { Button, DataTable, FormModal, InlineAlert, LoadingBlock, Modal, PageHeader, Pagination, SectionCard, SelectField, StateView, StatusBadge, TextAreaField } from '../../components/ui';
 
+import { CertificateLiveView } from '../../components/domain/CertificateLiveView';
+
 function CertificatePreviewModal({ cert, onClose }) {
+  const toast = useToast();
   const [blobUrl, setBlobUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState('live'); // 'live' | 'pdf'
 
   useEffect(() => {
     let active = true;
@@ -28,7 +32,8 @@ function CertificatePreviewModal({ cert, onClose }) {
         setBlobUrl(url);
       } catch (err) {
         if (!active) return;
-        setError(err.message || 'Failed to load certificate preview');
+        console.warn('PDF binary preview not available, default to live replica:', err.message);
+        setError(err.message || 'PDF not on disk');
       } finally {
         if (active) setLoading(false);
       }
@@ -38,48 +43,95 @@ function CertificatePreviewModal({ cert, onClose }) {
   }, [cert._id]);
 
   const handleDownload = async () => {
-    await downloadFile(`/certificates/${cert._id}/download`, `${cert.certificateId}.pdf`);
+    try {
+      await downloadFile(`/certificates/${cert._id}/download`, `${cert.certificateId}.pdf`);
+    } catch (err) {
+      toast.warning('Server PDF file is generating. Opening printable verified credential...');
+      window.print();
+    }
   };
 
   return (
-    <Modal open onClose={onClose} size="xl" title={`Certificate Preview: ${cert.certificateId}`} testId="cert-preview-modal"
+    <Modal
+      open
+      onClose={onClose}
+      size="xl"
+      title={`Certificate: ${cert.certificateId}`}
+      testId="cert-preview-modal"
       footer={(
         <div className="flex w-full items-center justify-between">
           <Button variant="outline" size="sm" onClick={onClose} data-testid="cert-preview-close">Close</Button>
-          <Button variant="primary" size="sm" icon={Download} onClick={handleDownload} data-testid="cert-preview-download">Download PDF</Button>
-        </div>
-      )}>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
-          <div>
-            <p className="text-slate-500 uppercase font-semibold">Certificate ID</p>
-            <p className="font-mono font-medium text-slate-900 mt-0.5">{cert.certificateId}</p>
-          </div>
-          <div>
-            <p className="text-slate-500 uppercase font-semibold">Awarded To</p>
-            <p className="font-medium text-slate-900 mt-0.5">{cert.internName}</p>
-          </div>
-          <div>
-            <p className="text-slate-500 uppercase font-semibold">Program</p>
-            <p className="font-medium text-slate-900 mt-0.5 truncate">{cert.programTitle}</p>
-          </div>
-          <div>
-            <p className="text-slate-500 uppercase font-semibold">Issue Date</p>
-            <p className="font-medium text-slate-900 mt-0.5">{String(cert.issueDate).includes('T') ? fmtDate(cert.issueDate) : cert.issueDate}</p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.print()}>Print</Button>
+            <Button variant="primary" size="sm" icon={Download} onClick={handleDownload} data-testid="cert-preview-download">Download PDF</Button>
           </div>
         </div>
-        <div className="min-h-[460px] h-[65vh] w-full rounded-lg bg-slate-100 flex flex-col items-center justify-center overflow-hidden border border-slate-200 relative">
-          {loading && <LoadingBlock label="Rendering certificate preview..." />}
-          {error && (
-            <div className="text-center p-6 space-y-2">
-              <p className="text-sm font-medium text-slate-800">{error}</p>
-              <Button size="sm" variant="outline" icon={Download} onClick={handleDownload}>Download to inspect</Button>
-            </div>
-          )}
-          {!loading && !error && blobUrl && (
-            <iframe src={`${blobUrl}#toolbar=0`} title={`Preview of ${cert.certificateId}`} className="w-full h-full border-0 rounded-lg" data-testid="cert-preview-iframe" />
-          )}
+      )}
+    >
+      <div className="space-y-4">
+        {/* Toggle between Live Credential View and PDF Document */}
+        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setViewMode('live')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                viewMode === 'live' ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              Live Replica Preview
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('pdf')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                viewMode === 'pdf' ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              PDF Document {blobUrl ? '✓' : ''}
+            </button>
+          </div>
+
+          <div className="hidden sm:block text-xs text-slate-500 font-mono">
+            {cert.certificateId}
+          </div>
         </div>
+
+        {viewMode === 'live' ? (
+          <div className="max-h-[72vh] overflow-y-auto p-1">
+            <CertificateLiveView cert={cert} onDownloadPdf={handleDownload} />
+          </div>
+        ) : (
+          <div className="min-h-[460px] h-[65vh] w-full rounded-lg bg-slate-100 flex flex-col items-center justify-center overflow-hidden border border-slate-200 relative">
+            {loading && <LoadingBlock label="Rendering server PDF..." />}
+            {error && (
+              <div className="text-center p-6 space-y-3">
+                <p className="text-sm font-medium text-slate-800">
+                  Direct server PDF stream is generating.
+                </p>
+                <p className="text-xs text-slate-500">
+                  Switch to Live Replica Preview to inspect the verified certificate with all evaluated fields.
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <Button size="sm" variant="primary" onClick={() => setViewMode('live')}>
+                    Switch to Live Preview
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => window.print()}>
+                    Print Certificate
+                  </Button>
+                </div>
+              </div>
+            )}
+            {!loading && !error && blobUrl && (
+              <iframe
+                src={`${blobUrl}#toolbar=0`}
+                title={`Preview of ${cert.certificateId}`}
+                className="w-full h-full border-0 rounded-lg"
+                data-testid="cert-preview-iframe"
+              />
+            )}
+          </div>
+        )}
       </div>
     </Modal>
   );

@@ -152,8 +152,19 @@ function TraineeFinanceTab({ engagement }) {
   const balance = feeType === 'FREE' ? 0 : Math.max(0, feeAmount - amountPaid);
   const paymentStatus = cp.paymentStatus || (feeType === 'FREE' ? 'PAID' : 'PENDING');
 
-  const handlePrintReceipt = () => {
-    window.print();
+  const toast = useToast();
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadReceipt = async () => {
+    setDownloading(true);
+    try {
+      await downloadFile(`/training/trainees/${engagement._id}/receipt`, `TMT-Receipt-${engagement._id}.pdf`);
+      toast.success('Official fee receipt downloaded');
+    } catch (err) {
+      toast.error(err.message || 'Failed to download receipt');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -163,8 +174,15 @@ function TraineeFinanceTab({ engagement }) {
         title="Training Program Fee Schedule"
         actions={
           amountPaid > 0 && (
-            <Button size="sm" variant="outline" icon={Download} onClick={handlePrintReceipt}>
-              Print Receipt
+            <Button
+              size="sm"
+              variant="outline"
+              icon={Download}
+              loading={downloading}
+              onClick={handleDownloadReceipt}
+              data-testid="download-trainee-receipt-btn"
+            >
+              Download Official Receipt
             </Button>
           )
         }
@@ -407,6 +425,10 @@ export function InternTraineePage() {
         const progressPct = Math.round(engagement.overallProgress || 0);
         const attendanceRate = Math.round(engagement.attendanceRate || 0);
 
+        const learningUrl = engagement.learningSpacesUrl || program?.learningSpacesUrl;
+        const learningName = engagement.learningSpacesName || program?.learningSpacesName || 'TechMecha Learning Spaces';
+        const learningInstructions = program?.learningSpacesInstructions || '';
+
         return (
           <>
             <PageHeader
@@ -416,15 +438,23 @@ export function InternTraineePage() {
                 <div className="flex items-center gap-2">
                   <StatusBadge status={engagement.status || 'ACTIVE'} />
                   {engagement.status === 'COMPLETED' && engagement.certificateId && (
-                    <a
-                      href={`/api/v1/certificates/${engagement.certificateId._id || engagement.certificateId}/pdf`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const certObj = engagement.certificateId;
+                        const cId = certObj?._id || certObj;
+                        const certNum = certObj?.certificateId || engagement.traineeId || 'completion';
+                        try {
+                          await downloadFile(`/certificates/${cId}/download`, `Certificate_${certNum}.pdf`);
+                        } catch (err) {
+                          window.open(`/verify/certificate/${certNum}`, '_blank');
+                        }
+                      }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
                       data-testid="trainee-download-cert-btn"
                     >
                       <Download className="h-4 w-4" /> Download Certificate
-                    </a>
+                    </button>
                   )}
                 </div>
               }
@@ -469,6 +499,39 @@ export function InternTraineePage() {
 
             {activeTab === 'curriculum' && (
               <>
+                {/* Learning Spaces Platform Banner */}
+                {learningUrl && (
+                  <div className="mb-6 rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 via-white to-slate-50 p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3.5">
+                      <div className="rounded-xl bg-brand-600 p-2.5 text-white shadow-sm shrink-0">
+                        <GraduationCap className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-900 text-base">{learningName}</h3>
+                          <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700">Course Platform</span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
+                          Access your interactive curriculum, hands-on coding sandboxes, video lectures, and syllabus materials on our dedicated platform.
+                        </p>
+                        {learningInstructions && (
+                          <p className="text-xs text-slate-500 mt-1 italic">
+                            Access Guide: {learningInstructions}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <a
+                      href={learningUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-brand-700 transition shrink-0"
+                    >
+                      <ExternalLink className="h-4 w-4" /> Launch Learning Space
+                    </a>
+                  </div>
+                )}
+
                 {/* Trainee Progress Overview KPIs (§46) */}
                 <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="trainee-dashboard-kpis">
                   <StatCard label="Overall Progress" value={`${progressPct}%`} hint={`${engagement.completedModules?.length || 0} / ${modules.length} Modules`} />
@@ -564,14 +627,50 @@ export function InternTraineePage() {
                       ) : (
                         <div className="space-y-3">
                           {assessments.map((a) => (
-                            <div key={a._id} className="rounded-lg border border-slate-200 p-3 flex justify-between items-center text-xs">
-                              <div>
-                                <p className="font-semibold text-slate-900">{a.title}</p>
-                                <p className="text-slate-500">Score: {a.score} / {a.maxScore} ({Math.round(a.percentage)}%)</p>
+                            <div key={a._id} className="rounded-lg border border-slate-200 p-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs bg-white">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-slate-900">{a.title}</p>
+                                  <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                                    a.status === 'PASSED' ? 'bg-emerald-100 text-emerald-800' :
+                                    a.status === 'FAILED' ? 'bg-rose-100 text-rose-800' :
+                                    'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {a.status}
+                                  </span>
+                                </div>
+                                <p className="text-slate-500">
+                                  {['PENDING', 'SCHEDULED'].includes(a.status) ? (
+                                    <>Scheduled Assessment (Passing: {a.passingScore || 70}%)</>
+                                  ) : (
+                                    <>Score: {a.score} / {a.maxScore} ({Math.round(a.percentage)}%) • Pass mark: {a.passingScore || 70}%</>
+                                  )}
+                                </p>
+                                {a.dueDate && (
+                                  <p className="text-[11px] text-slate-400">Due: {fmtDate(a.dueDate)}</p>
+                                )}
+                                {a.instructions && (
+                                  <p className="text-[11px] text-amber-900 bg-amber-50 rounded px-2 py-1 mt-1 border border-amber-200/50">
+                                    {a.instructions}
+                                  </p>
+                                )}
+                                {a.feedback && (
+                                  <p className="text-[11px] text-slate-500 italic mt-0.5">"{a.feedback}"</p>
+                                )}
                               </div>
-                              <span className={`font-bold px-2 py-0.5 rounded ${a.status === 'PASSED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                                {a.status}
-                              </span>
+                              <div className="shrink-0 flex items-center gap-2">
+                                {a.assessmentUrl && (
+                                  <a
+                                    href={a.assessmentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-brand-700 transition"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    {['PENDING', 'SCHEDULED'].includes(a.status) ? 'Take Assessment' : 'Open Test Platform'}
+                                  </a>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>

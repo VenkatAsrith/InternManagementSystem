@@ -142,6 +142,19 @@ app.use('/api/v1/roles', roleRoutes);
 app.use('/api/v1/global-admin', globalAdminRoutes);
 app.use('/api/v1/people', peopleRoutes);
 app.use('/api/v1/growth', growthRoutes);
+// Direct aliases so both /api/v1/growth/bootcamps and /api/v1/bootcamps work without 404
+app.use('/api/v1/bootcamps', (req, res, next) => {
+  req.url = '/bootcamps' + (req.url === '/' ? '' : req.url);
+  return growthRoutes(req, res, next);
+});
+app.use('/api/v1/passes', (req, res, next) => {
+  req.url = '/passes' + (req.url === '/' ? '' : req.url);
+  return growthRoutes(req, res, next);
+});
+app.use('/api/v1/public/passes', (req, res, next) => {
+  req.url = '/public/passes' + (req.url === '/' ? '' : req.url);
+  return growthRoutes(req, res, next);
+});
 app.use('/api/v1/training', trainingRoutes);
 app.use('/api/v1/mailboxes', mailRoutes);
 app.use('/api/v1/chat', chatRoutes);

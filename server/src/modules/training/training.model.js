@@ -37,6 +37,9 @@ const trainingProgramSchema = new mongoose.Schema({
   certificateRequirements: { type: String, default: 'Minimum 80% attendance and approved milestone checkpoints.' },
   bootcampId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bootcamp' },
   concessionRules: { type: String, default: '' },
+  learningSpacesUrl: { type: String, default: '', trim: true },
+  learningSpacesName: { type: String, default: 'TechMecha Learning Spaces', trim: true },
+  learningSpacesInstructions: { type: String, default: '', trim: true },
   modules: [{
     moduleNumber: { type: Number, required: true },
     title: { type: String, required: true, trim: true },
@@ -75,7 +78,9 @@ const courseSchema = new mongoose.Schema({
     }]
   }],
   passingCriteria: { type: String, default: '75% completion and all assignments submitted' },
-  completionRequirements: { type: String, default: 'Pass module assessments and project review' }
+  completionRequirements: { type: String, default: 'Pass module assessments and project review' },
+  learningSpacesUrl: { type: String, default: '', trim: true },
+  learningSpacesName: { type: String, default: 'Learning Spaces Platform', trim: true }
 }, { timestamps: true });
 
 courseSchema.index({ organizationId: 1, title: 1 });
@@ -225,6 +230,9 @@ const trainingEngagementSchema = new mongoose.Schema({
     professionalism: { type: Number, min: 1, max: 5 },
     overallFeedback: { type: String, trim: true }
   }],
+  learningSpacesUrl: { type: String, default: '', trim: true },
+  learningSpacesName: { type: String, default: '', trim: true },
+  assignedCourses: [{ type: String, trim: true }],
   enrolledAt: { type: Date, default: Date.now },
   completedAt: { type: Date },
   completionSnapshot: {

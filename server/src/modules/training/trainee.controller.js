@@ -9,7 +9,7 @@ import { Person } from '../people/people.model.js';
 import { Organization } from '../organizations/organization.model.js';
 import { Certificate } from '../certificates/certificate.model.js';
 import { Intern } from '../interns/intern.model.js';
-import { generateCertificatePDF } from '../../utils/pdfGenerator.js';
+import { generateCertificatePDF, generateFeeReceiptPDF } from '../../utils/pdfGenerator.js';
 import { storageService } from '../../utils/storage.js';
 import { generateId, generateRandomId } from '../../utils/idGenerator.js';
 import { formatDateLong } from '../../utils/time.js';
@@ -21,7 +21,7 @@ import { notFound, conflict, unprocessable, forbidden, badRequest } from '../../
 import { Validator, parsePagination, isObjectId, escapeRegex } from '../../utils/validate.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
-import { sendOnboardingCredentialsEmail } from '../email/email.service.js';
+import { sendOnboardingCredentialsEmail, sendFeeReceiptEmail } from '../email/email.service.js';
 
 // Calculate rule-based At-Risk status
 export function calculateAtRiskStatus(engagement, { attendanceRate, pendingTasksCount, failedAssessmentsCount }) {
@@ -372,6 +372,8 @@ export const createAndEnrollTrainee = ah(async (req, res) => {
       compensation: compensationObj,
       candidatePayment: candidatePaymentObj,
       assignedCourses: Array.isArray(assignedCourses) ? assignedCourses : [],
+      learningSpacesUrl: (req.body.learningSpacesUrl || program.learningSpacesUrl || '').trim(),
+      learningSpacesName: (req.body.learningSpacesName || program.learningSpacesName || 'TechMecha Learning Spaces').trim(),
       concessions: concessionsList,
       status: 'ACTIVE',
       overallProgress: 0,
@@ -658,7 +660,7 @@ export const updateAdminTrainee = ah(async (req, res) => {
   const before = engagement.toObject();
   const allowedFields = [
     'institution', 'degree', 'graduationYear', 'location', 'workMode',
-    'internalNotes', 'source', 'status'
+    'internalNotes', 'source', 'status', 'learningSpacesUrl', 'learningSpacesName', 'assignedCourses'
   ];
   allowedFields.forEach((f) => {
     if (req.body[f] !== undefined) {
@@ -867,8 +869,13 @@ export const recordAssessment = ah(async (req, res) => {
   const v = new Validator(req.body)
     .objectId('engagementId', { required: !engagementIdParam })
     .string('title', { required: true, max: 150 })
-    .number('score', { required: true, min: 0 })
+    .number('score', { min: 0 })
     .number('maxScore', { defaultValue: 100, min: 1 })
+    .number('passingScore', { defaultValue: 70, min: 0 })
+    .string('assessmentUrl', { max: 1000 })
+    .string('link', { max: 1000 })
+    .string('platformName', { max: 150 })
+    .string('instructions', { max: 2000 })
     .string('feedback', { max: 1000 });
   const body = v.done();
 
@@ -876,8 +883,23 @@ export const recordAssessment = ah(async (req, res) => {
   const engagement = await TrainingEngagement.findOne({ _id: targetEngagementId, organizationId: req.organizationId });
   if (!engagement) throw notFound('Trainee engagement not found');
 
-  const percentage = Math.round((body.score / body.maxScore) * 100);
-  const status = percentage >= 70 ? 'PASSED' : 'FAILED';
+  const maxScore = Number(body.maxScore) || 100;
+  const passingScore = Number(body.passingScore) || 70;
+  const hasScore = body.score !== undefined && body.score !== null;
+  const score = hasScore ? Number(body.score) : 0;
+  const percentage = hasScore ? Math.round((score / maxScore) * 100) : 0;
+
+  let status = req.body.status;
+  if (!status) {
+    if (hasScore) {
+      status = percentage >= passingScore ? 'PASSED' : 'FAILED';
+    } else {
+      status = 'PENDING';
+    }
+  }
+
+  const assessmentUrl = (body.assessmentUrl || body.link || req.body.url || '').trim();
+  const platformName = (body.platformName || 'Learning Spaces').trim();
 
   const assessment = await TraineeAssessment.create({
     organizationId: req.organizationId,
@@ -885,8 +907,14 @@ export const recordAssessment = ah(async (req, res) => {
     engagementId: engagement._id,
     userId: engagement.userId,
     title: body.title,
-    score: body.score,
-    maxScore: body.maxScore,
+    assessmentDate: req.body.assessmentDate ? new Date(req.body.assessmentDate) : new Date(),
+    dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined,
+    assessmentUrl,
+    platformName,
+    instructions: body.instructions || req.body.instructions || '',
+    score,
+    maxScore,
+    passingScore,
     percentage,
     status,
     feedback: body.feedback || '',
@@ -898,8 +926,8 @@ export const recordAssessment = ah(async (req, res) => {
     engagementId: engagement._id,
     userId: engagement.userId,
     action: 'ASSESSMENT_RECORDED',
-    title: `Assessment: ${assessment.title} (${percentage}%)`,
-    details: { score: body.score, maxScore: body.maxScore, status }
+    title: `Assessment: ${assessment.title} (${hasScore ? `${percentage}%` : status})`,
+    details: { score, maxScore, status, assessmentUrl }
   });
 
   await updateEngagementProgress(engagement._id);
@@ -1097,4 +1125,109 @@ export const completeTraineeProgram = ah(async (req, res) => {
     certificate: cert,
     certificateId: cert.certificateId
   }, 'Program completed and certificate issued', 201);
+});
+
+export const downloadTraineeReceipt = ah(async (req, res) => {
+  const engagement = await TrainingEngagement.findOne({
+    _id: req.params.id,
+    organizationId: req.organizationId
+  }).populate('userId', 'firstName lastName email phone')
+    .populate('programId')
+    .populate('batchId', 'name');
+
+  if (!engagement) throw notFound('Trainee engagement record not found');
+
+  const org = await Organization.findById(req.organizationId);
+  const cp = engagement.candidatePayment || {};
+  const feeAmount = cp.feeAmount !== undefined ? Number(cp.feeAmount) : (engagement.programId?.grossFee || 0);
+  const amountPaid = cp.amountPaid !== undefined ? Number(cp.amountPaid) : 0;
+  const concession = engagement.concession?.amount || 0;
+  const balance = Math.max(0, feeAmount - concession - amountPaid);
+  const receiptId = cp.receiptId || `RCP-${new Date().getFullYear()}-${engagement._id.toString().slice(-6).toUpperCase()}`;
+
+  const pdfBuffer = await generateFeeReceiptPDF({
+    traineeName: `${engagement.userId?.firstName || 'Trainee'} ${engagement.userId?.lastName || ''}`.trim(),
+    traineeId: `TRN-${engagement.userId?._id?.toString().slice(-6).toUpperCase()}`,
+    email: engagement.userId?.email || '',
+    phone: engagement.userId?.phone || '',
+    college: engagement.profileSnapshot?.college || '',
+    programTitle: engagement.programId?.title || 'Training Program',
+    batchName: engagement.batchId?.name || 'Default Batch',
+    receiptId,
+    paymentStatus: cp.paymentStatus || (amountPaid >= (feeAmount - concession) ? 'PAID' : 'PARTIAL'),
+    feeAmount,
+    concession,
+    amountPaid,
+    balance,
+    paymentMethod: cp.paymentMethod || 'UPI / Online Transfer',
+    paymentReference: cp.paymentReference || 'VERIFIED-TRANSACTION',
+    paidAt: cp.paidAt || engagement.enrolledAt || new Date(),
+    organizationName: org?.name || 'TechMecha Torque Pvt. Ltd.'
+  });
+
+  const inline = req.query.inline === '1';
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${receiptId}.pdf"`);
+  return res.send(pdfBuffer);
+});
+
+export const sendTraineeReceipt = ah(async (req, res) => {
+  const engagement = await TrainingEngagement.findOne({
+    _id: req.params.id,
+    organizationId: req.organizationId
+  }).populate('userId', 'firstName lastName email phone')
+    .populate('programId')
+    .populate('batchId', 'name');
+
+  if (!engagement) throw notFound('Trainee engagement record not found');
+  if (!engagement.userId?.email) throw conflict('Trainee has no registered email address');
+
+  const org = await Organization.findById(req.organizationId);
+  const cp = engagement.candidatePayment || {};
+  const feeAmount = cp.feeAmount !== undefined ? Number(cp.feeAmount) : (engagement.programId?.grossFee || 0);
+  const amountPaid = cp.amountPaid !== undefined ? Number(cp.amountPaid) : 0;
+  const concession = engagement.concession?.amount || 0;
+  const balance = Math.max(0, feeAmount - concession - amountPaid);
+  const receiptId = cp.receiptId || `RCP-${new Date().getFullYear()}-${engagement._id.toString().slice(-6).toUpperCase()}`;
+
+  const pdfBuffer = await generateFeeReceiptPDF({
+    traineeName: `${engagement.userId?.firstName || 'Trainee'} ${engagement.userId?.lastName || ''}`.trim(),
+    traineeId: `TRN-${engagement.userId?._id?.toString().slice(-6).toUpperCase()}`,
+    email: engagement.userId?.email || '',
+    phone: engagement.userId?.phone || '',
+    college: engagement.profileSnapshot?.college || '',
+    programTitle: engagement.programId?.title || 'Training Program',
+    batchName: engagement.batchId?.name || 'Default Batch',
+    receiptId,
+    paymentStatus: cp.paymentStatus || (amountPaid >= (feeAmount - concession) ? 'PAID' : 'PARTIAL'),
+    feeAmount,
+    concession,
+    amountPaid,
+    balance,
+    paymentMethod: cp.paymentMethod || 'UPI / Online Transfer',
+    paymentReference: cp.paymentReference || 'VERIFIED-TRANSACTION',
+    paidAt: cp.paidAt || engagement.enrolledAt || new Date(),
+    organizationName: org?.name || 'TechMecha Torque Pvt. Ltd.'
+  });
+
+  await sendFeeReceiptEmail({
+    to: engagement.userId.email,
+    traineeName: engagement.userId.firstName,
+    traineeId: `TRN-${engagement.userId._id.toString().slice(-6).toUpperCase()}`,
+    programTitle: engagement.programId?.title || 'Training Program',
+    receiptId,
+    amountPaid,
+    paymentMethod: cp.paymentMethod || 'UPI / Online Transfer',
+    paymentReference: cp.paymentReference || 'VERIFIED-TRANSACTION',
+    paidAt: cp.paidAt || engagement.enrolledAt || new Date(),
+    balance,
+    orgName: org?.name || 'TechMecha Torque Pvt. Ltd.',
+    attachments: [{
+      filename: `${receiptId}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf'
+    }]
+  });
+
+  return successResponse(res, { receiptId }, `Payment receipt dispatched to ${engagement.userId.email}`);
 });

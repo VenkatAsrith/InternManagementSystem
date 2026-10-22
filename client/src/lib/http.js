@@ -27,7 +27,13 @@ export class ApiError extends Error {
   }
 }
 
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://internmanagementsystem-xm84.onrender.com').replace(/\/+$/, '');
+const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+export const API_BASE_URL = (
+  (isLocalhost && !import.meta.env.VITE_FORCE_REMOTE)
+    ? (import.meta.env.VITE_LOCAL_API_URL || (import.meta.env.VITE_API_URL?.includes('localhost') ? import.meta.env.VITE_API_URL : 'http://localhost:5000'))
+    : (import.meta.env.VITE_API_URL || 'https://internmanagementsystem-xm84.onrender.com')
+).replace(/\/+$/, '');
 const apiBase = `${API_BASE_URL}/api/v1`;
 
 const raw = axios.create({ baseURL: apiBase, timeout: 30000 });

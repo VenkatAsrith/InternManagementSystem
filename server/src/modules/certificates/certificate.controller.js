@@ -115,22 +115,89 @@ export const getCertificates = ah(async (req, res) => {
 });
 
 async function loadOwnedCertificate(req) {
-  const cert = await Certificate.findOne({ _id: req.params.id, organizationId: req.organizationId });
+  const query = {};
+  if (isObjectId(req.params.id)) {
+    query._id = req.params.id;
+  } else {
+    query.certificateId = req.params.id;
+  }
+
+  if (req.organizationId && req.userRole !== ROLES.SUPER_ADMIN) {
+    query.organizationId = req.organizationId;
+  }
+
+  let cert = await Certificate.findOne(query);
+  if (!cert && query.organizationId) {
+    cert = await Certificate.findOne({
+      $or: [
+        ...(isObjectId(req.params.id) ? [{ _id: req.params.id }] : []),
+        { certificateId: req.params.id }
+      ]
+    });
+  }
+
   if (!cert) throw notFound('Certificate not found');
-  if (([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole) || !req.can('certificates.read')) && String(cert.userId) !== String(req.userId)) throw notFound('Certificate not found');
+  if (([ROLES.INTERN, ROLES.INTERN_TRAINEE].includes(req.userRole) || !req.can('certificates.read')) && String(cert.userId) !== String(req.userId)) {
+    throw notFound('Certificate not found');
+  }
   return cert;
 }
 
 export const downloadCertificatePDF = ah(async (req, res) => {
   const cert = await loadOwnedCertificate(req);
   if (cert.status === 'REVOKED') throw conflict('This certificate was revoked.', 'CERTIFICATE_REVOKED');
-  if (!(await storageService.exists(cert.filePath))) throw notFound('Certificate PDF file not found', 'FILE_MISSING');
+
   await recordAuditLog({ action: 'CERTIFICATE_DOWNLOADED', entityType: 'Certificate', entityId: cert._id, req });
   const inline = req.query.inline === '1';
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${cert.certificateId}.pdf"`);
   res.setHeader('Cache-Control', 'private, no-store');
-  fs.createReadStream(storageService.getFilePath(cert.filePath)).pipe(res);
+
+  // If cached file exists on disk/storage, stream directly
+  if (cert.filePath) {
+    try {
+      const exists = await storageService.exists(cert.filePath);
+      if (exists) {
+        return fs.createReadStream(storageService.getFilePath(cert.filePath)).pipe(res);
+      }
+    } catch (e) {
+      console.warn('[Certificate Download] Cached file read failed, regenerating dynamically:', e.message);
+    }
+  }
+
+  // Self-Healing: Dynamically regenerate PDF on the fly using exact replica layout
+  const org = await Organization.findById(cert.organizationId).lean();
+  const pdfBuffer = await generateCertificatePDF({
+    internName: cert.internName,
+    internId: cert.internId,
+    programTitle: cert.programTitle,
+    departmentName: cert.departmentName,
+    organizationName: cert.organizationName || org?.name || 'TechMecha Torque',
+    startDate: cert.startDate,
+    endDate: cert.endDate,
+    duration: cert.duration,
+    certificateId: cert.certificateId,
+    issueDate: cert.issueDate,
+    signatory: cert.signatory || org?.signatory?.name || 'Jay Chandra Reddy Chilakamarry',
+    verifyUrl: `${env.FRONTEND_URL}/verify/certificate/${cert.certificateId}`,
+    type: cert.bootcampId ? 'BOOTCAMP' : 'INTERNSHIP',
+    isBootcamp: Boolean(cert.bootcampId),
+    bootcampTitle: cert.bootcampId ? cert.programTitle : ''
+  });
+
+  // Try saving back to storage in background for future caching
+  storageService.saveFile({
+    buffer: pdfBuffer,
+    originalName: `${cert.certificateId}.pdf`,
+    mimeType: 'application/pdf',
+    subDir: `certificates/${cert.organizationId}`
+  }).then(async (stored) => {
+    cert.filePath = stored.filePath;
+    cert.checksum = stored.checksum;
+    await cert.save();
+  }).catch(() => {});
+
+  return res.send(pdfBuffer);
 });
 
 // Delivery by email (supports intern users and bootcamp participants).
@@ -153,12 +220,12 @@ export const sendCertificate = ah(async (req, res) => {
     <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
       <div style="background: #0f172a; padding: 24px; text-align: center;">
         <h1 style="color: #ffffff; font-size: 20px; margin: 0; letter-spacing: 1px;">TECHMECHA TORQUE</h1>
-        <p style="color: #94a3b8; font-size: 13px; margin: 6px 0 0 0;">Official Certificate of Recognisation</p>
+        <p style="color: #94a3b8; font-size: 13px; margin: 6px 0 0 0;">Official Certificate of Recognition</p>
       </div>
       <div style="padding: 28px;">
         <p style="font-size: 16px; margin: 0 0 16px 0;">Hello <strong>${recipientName}</strong>,</p>
         <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px 0;">
-          Congratulations! TechMecha Torque is proud to present your official <strong>Certificate of Recognisation</strong> (${cert.certificateId}) for successfully completing <strong>${cert.programTitle}</strong>.
+          Congratulations! TechMecha Torque is proud to present your official <strong>Certificate of Recognition</strong> (${cert.certificateId}) for successfully completing <strong>${cert.programTitle}</strong>.
         </p>
         <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 20px 0;">
           Your certificate is attached as a PDF to this email. You can also view and verify your credential online anytime:
@@ -174,13 +241,38 @@ export const sendCertificate = ah(async (req, res) => {
     </div>
   `;
 
+  let pdfAttachment = null;
+  if (cert.filePath && (await storageService.exists(cert.filePath))) {
+    pdfAttachment = { filename: `${cert.certificateId}.pdf`, path: storageService.getFilePath(cert.filePath) };
+  } else {
+    const org = await Organization.findById(cert.organizationId).lean();
+    const pdfBuffer = await generateCertificatePDF({
+      internName: cert.internName,
+      internId: cert.internId,
+      programTitle: cert.programTitle,
+      departmentName: cert.departmentName,
+      organizationName: cert.organizationName || org?.name || 'TechMecha Torque',
+      startDate: cert.startDate,
+      endDate: cert.endDate,
+      duration: cert.duration,
+      certificateId: cert.certificateId,
+      issueDate: cert.issueDate,
+      signatory: cert.signatory || org?.signatory?.name || 'Jay Chandra Reddy Chilakamarry',
+      verifyUrl,
+      type: cert.bootcampId ? 'BOOTCAMP' : 'INTERNSHIP',
+      isBootcamp: Boolean(cert.bootcampId),
+      bootcampTitle: cert.bootcampId ? cert.programTitle : ''
+    });
+    pdfAttachment = { filename: `${cert.certificateId}.pdf`, content: pdfBuffer, contentType: 'application/pdf' };
+  }
+
   await emailService.sendEmail({
     to: recipientEmail,
-    subject: `Your Certificate of Recognisation (${cert.certificateId}) - TechMecha Torque`,
+    subject: `Your Certificate of Recognition (${cert.certificateId}) - TechMecha Torque`,
     template: 'CERTIFICATE_DELIVERY',
     text: `Hello ${recipientName},\n\nCongratulations on completing ${cert.programTitle}! Your official certificate (${cert.certificateId}) is attached.\n\nAnyone can verify your certificate at: ${verifyUrl}\n\nTechMecha Torque Pvt. Ltd.`,
     html,
-    attachments: [{ filename: `${cert.certificateId}.pdf`, path: storageService.getFilePath(cert.filePath) }],
+    attachments: [pdfAttachment],
     organizationId: req.organizationId
   });
 

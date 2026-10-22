@@ -225,7 +225,7 @@ function PreviewModal({ template, onClose }) {
   const pdf = useAction();
   const [blobUrl, setBlobUrl] = useState(null);
   const [loadingBlob, setLoadingBlob] = useState(false);
-  const [mode, setMode] = useState('pdf'); // 'pdf' | 'text'
+  const [mode, setMode] = useState(template.bodyHtml ? 'html' : 'pdf'); // 'html' | 'pdf' | 'text'
 
   React.useEffect(() => {
     let active = true;
@@ -233,20 +233,13 @@ function PreviewModal({ template, onClose }) {
     async function fetchPdfBlob() {
       try {
         setLoadingBlob(true);
-        const token = session.getToken();
-        const headers = {};
-        if (token) headers.Authorization = `Bearer ${token}`;
-        const actingOrg = session.getActingOrg();
-        if (actingOrg) headers['x-organization-id'] = actingOrg;
-
-        const response = await fetch(`/api/v1/templates/${template._id}/pdf-preview`, { headers });
-        if (!response.ok) throw new Error('Failed to generate template preview');
-        const blobData = await response.blob();
+        const res = await api.get(`/templates/${template._id}/pdf-preview`, { responseType: 'blob' });
         if (!active) return;
-        url = URL.createObjectURL(blobData);
+        const blob = res instanceof Blob ? res : (res?.data instanceof Blob ? res.data : new Blob([res], { type: 'application/pdf' }));
+        url = URL.createObjectURL(blob);
         setBlobUrl(url);
       } catch (err) {
-        console.warn('PDF preview could not be loaded directly:', err);
+        console.warn('PDF preview could not be loaded directly:', err.message);
       } finally {
         if (active) setLoadingBlob(false);
       }
@@ -276,13 +269,23 @@ function PreviewModal({ template, onClose }) {
       footer={
         <div className="flex w-full items-center justify-between">
           <div className="flex gap-2">
+            {template.bodyHtml && (
+              <Button
+                size="xs"
+                variant={mode === 'html' ? 'primary' : 'outline'}
+                onClick={() => setMode('html')}
+                data-testid="mode-html"
+              >
+                Evaluated Live View
+              </Button>
+            )}
             <Button
               size="xs"
               variant={mode === 'pdf' ? 'primary' : 'outline'}
               onClick={() => setMode('pdf')}
               data-testid="mode-pdf"
             >
-              PDF Document
+              PDF Document {blobUrl ? '✓' : ''}
             </Button>
             <Button
               size="xs"
@@ -306,40 +309,82 @@ function PreviewModal({ template, onClose }) {
       }
     >
       <StateView state={state}>
-        {(p) => (
-          <div className="space-y-3">
-            {p.isSample && (
-              <InlineAlert tone="warning" testId="sample-warning">
-                This preview uses SAMPLE values, not a real person&apos;s data. Nothing here can be issued.
-              </InlineAlert>
-            )}
-            {p.missingVariables?.length > 0 && (
-              <InlineAlert tone="warning" title="Unknown variables" testId="missing-vars">
-                {p.missingVariables.join(', ')}
-              </InlineAlert>
-            )}
+        {(p) => {
+          // Client-side fallback interpolation so that no raw {{...}} placeholders ever appear
+          const evaluatedHtml = (() => {
+            if (p?.interpolatedHtml) return p.interpolatedHtml;
+            if (!template?.bodyHtml) return null;
+            let html = template.bodyHtml;
+            const ctx = p?.contextUsed || {
+              candidate: { name: 'Sample Participant', email: 'candidate@techmechatorque.com' },
+              intern: { internId: 'INT-2026-0042', role: 'Full Stack Web Development Intern', department: 'Software Engineering', startDate: '15 Jan 2026', endDate: '15 Apr 2026', workMode: 'Remote' },
+              organization: { name: 'TechMecha Torque Pvt. Ltd.', signatoryName: 'Jay Chandra Reddy', signatoryTitle: 'Founder & CEO' },
+              issueDate: '22 October 2026',
+              stipend: { amount: 'INR 15,000 / month' },
+              document: { sequence: 'DOC/2026/0042' }
+            };
+            return html.replace(/{{\s*([a-zA-Z0-9_.]+)\s*}}/g, (match, path) => {
+              const parts = path.split('.');
+              let cur = ctx;
+              for (const part of parts) {
+                if (cur == null) return match;
+                cur = cur[part];
+              }
+              return cur !== undefined && cur !== null ? String(cur) : match;
+            });
+          })();
 
-            {template.bodyHtml ? (
-              <div className="w-full h-[520px] rounded-lg border border-slate-200 overflow-hidden bg-white shadow-inner">
-                <iframe
-                  srcDoc={template.bodyHtml}
-                  sandbox="allow-same-origin"
-                  className="w-full h-full border-0"
-                  title="HTML Preview"
-                />
-              </div>
-            ) : mode === 'pdf' ? (
-              blobUrl ? (
-                <iframe
-                  src={blobUrl}
-                  className="w-full h-[520px] rounded-lg border border-slate-200 shadow-inner bg-slate-100"
-                  title="PDF Preview"
-                  data-testid="template-pdf-frame"
-                />
-              ) : loadingBlob ? (
-                <div className="h-[520px] flex items-center justify-center border border-slate-200 rounded-lg bg-slate-50 text-slate-500 text-sm">
-                  Rendering PDF document preview...
+          return (
+            <div className="space-y-3">
+              {p.isSample && (
+                <InlineAlert tone="warning" testId="sample-warning">
+                  This preview uses SAMPLE values, not a real person&apos;s data. Nothing here can be issued.
+                </InlineAlert>
+              )}
+              {p.missingVariables?.length > 0 && (
+                <InlineAlert tone="warning" title="Unknown variables" testId="missing-vars">
+                  {p.missingVariables.join(', ')}
+                </InlineAlert>
+              )}
+
+              {mode === 'html' && evaluatedHtml ? (
+                <div className="w-full h-[520px] rounded-lg border border-slate-200 overflow-hidden bg-white shadow-inner">
+                  <iframe
+                    srcDoc={evaluatedHtml}
+                    sandbox="allow-same-origin"
+                    className="w-full h-full border-0"
+                    title="HTML Preview"
+                  />
                 </div>
+              ) : mode === 'pdf' ? (
+                blobUrl ? (
+                  <iframe
+                    src={`${blobUrl}#toolbar=0`}
+                    className="w-full h-[520px] rounded-lg border border-slate-200 shadow-inner bg-slate-100"
+                    title="PDF Preview"
+                    data-testid="template-pdf-frame"
+                  />
+                ) : loadingBlob ? (
+                  <div className="h-[520px] flex items-center justify-center border border-slate-200 rounded-lg bg-slate-50 text-slate-500 text-sm">
+                    Rendering PDF document preview...
+                  </div>
+                ) : evaluatedHtml ? (
+                  <div className="w-full h-[520px] rounded-lg border border-slate-200 overflow-hidden bg-white shadow-inner">
+                    <iframe
+                      srcDoc={evaluatedHtml}
+                      sandbox="allow-same-origin"
+                      className="w-full h-full border-0"
+                      title="HTML Preview"
+                    />
+                  </div>
+                ) : (
+                  <pre
+                    className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900"
+                    data-testid="preview-text"
+                  >
+                    {p.interpolatedMarkdown}
+                  </pre>
+                )
               ) : (
                 <pre
                   className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900"
@@ -347,17 +392,10 @@ function PreviewModal({ template, onClose }) {
                 >
                   {p.interpolatedMarkdown}
                 </pre>
-              )
-            ) : (
-              <pre
-                className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900"
-                data-testid="preview-text"
-              >
-                {p.interpolatedMarkdown}
-              </pre>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          );
+        }}
       </StateView>
     </Modal>
   );

@@ -4,7 +4,7 @@ import {
   Check, CheckCheck, Wifi, WifiOff, FileText, Image as ImageIcon, Download, X,
   ArrowLeft, Clock, AlertCircle, Eye, Share2, FileSpreadsheet, Sparkles
 } from 'lucide-react';
-import api from '../../lib/http';
+import api, { API_BASE_URL } from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { Button, LoadingBlock, InlineAlert, StatusBadge, Modal } from '../ui';
@@ -15,7 +15,7 @@ function ChatDocPreviewModal({ attachment, onClose }) {
   if (!attachment) return null;
   const isImg = attachment.mimeType?.startsWith('image/');
   const isPdf = attachment.mimeType?.includes('pdf') || attachment.originalName?.toLowerCase().endsWith('.pdf');
-  const fileUrl = `/api/v1/chat/attachment/${attachment.storedName}`;
+  const fileUrl = `${API_BASE_URL}/api/v1/chat/attachment/${attachment.storedName}`;
 
   return (
     <Modal open onClose={onClose} size="lg" title={`Document Preview: ${attachment.originalName}`}>
@@ -645,7 +645,7 @@ export function ChatPanel({ projectId = null, defaultConversationId = null, clas
                                     <Eye className="h-3 w-3" /> Preview
                                   </button>
                                   <a
-                                    href={`/api/v1/chat/attachment/${att.storedName}`}
+                                    href={`${API_BASE_URL}/api/v1/chat/attachment/${att.storedName}`}
                                     download={att.originalName}
                                     className={`p-1 rounded transition ${
                                       isMine ? 'hover:bg-brand-600 text-white' : 'hover:bg-slate-200 text-slate-500'

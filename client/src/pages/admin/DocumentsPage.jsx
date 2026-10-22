@@ -476,10 +476,13 @@ function InternRequirementsModal({ intern, onClose, onDone }) {
                   {r.rejectionReason && <p className="text-xs text-rose-600 font-medium">Rejection reason: {r.rejectionReason}</p>}
                   {r.documentId && (
                     <div className="flex items-center gap-2 text-xs text-slate-600 mt-1">
-                      <span>File: {r.documentId.originalName || 'Attached'}</span>
-                      <a href={`/api/v1/documents/${r.documentId._id}/download`} target="_blank" rel="noopener noreferrer" className="text-brand-600 underline font-medium">
+                      <button
+                        type="button"
+                        onClick={() => downloadFile(`/documents/${r.documentId._id}/download`, r.documentId.originalName || 'Document.pdf')}
+                        className="text-brand-600 underline font-medium hover:text-brand-800"
+                      >
                         Download / View
-                      </a>
+                      </button>
                     </div>
                   )}
                 </div>

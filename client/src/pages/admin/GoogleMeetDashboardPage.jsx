@@ -172,23 +172,27 @@ export function GoogleMeetDashboardPage() {
               </p>
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="primary"
-            icon={Video}
-            onClick={async () => {
-              try {
-                const res = await api.get('/integrations/google/auth-url');
-                if (res.data?.authUrl) window.location.href = res.data.authUrl;
-              } catch (e) {
-                toast.error(e.message || 'Failed to start OAuth');
-              }
-            }}
-          >
-            Connect Google Calendar
-          </Button>
-        </div>
-      )}
+            <Button
+              size="sm"
+              variant="primary"
+              icon={Video}
+              onClick={async () => {
+                try {
+                  const res = await api.get('/integrations/google/auth-url');
+                  if (res.data?.authUrl) {
+                    window.location.href = res.data.authUrl;
+                  } else {
+                    toast.info(res.data?.message || 'Google Workspace OAuth credentials (GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET) are not configured on this server environment.');
+                  }
+                } catch (e) {
+                  toast.error(e.message || 'Failed to start OAuth');
+                }
+              }}
+            >
+              Connect Google Calendar
+            </Button>
+          </div>
+        )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
@@ -339,9 +343,9 @@ export function GoogleMeetDashboardPage() {
 
       {/* TAB 2: BROADCAST EMAIL BY ROLE */}
       <TabPanel id="email-broadcast" active={tab}>
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className={`grid gap-6 ${broadcastPreview ? 'lg:grid-cols-3' : 'grid-cols-1'}`}>
           {/* Email Composer Form */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className={`${broadcastPreview ? 'lg:col-span-2' : 'col-span-1'} space-y-6`}>
             <SectionCard
               title="Broadcast Email to Organizational Roles"
               description="Send official notifications, Google Meet links, or onboarding directives to specific roles or the entire organization."
@@ -473,39 +477,41 @@ export function GoogleMeetDashboardPage() {
             </SectionCard>
           </div>
 
-          {/* Email Preview Column */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-slate-900 text-sm">Recipient Live Preview</h4>
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-              <div className="border-b border-slate-100 pb-3">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase">Subject:</span>
-                <p className="font-bold text-slate-900 text-sm mt-0.5">
-                  {broadcastSubject || '(Subject will appear here)'}
-                </p>
-                <span className="text-[11px] text-slate-500 mt-1 block">
-                  To: {broadcastRoles.map(r => humanize(r)).join(', ')} ({totalActiveRecipients} users)
-                </span>
-              </div>
+          {/* Email Preview Column (Conditionally Rendered) */}
+          {broadcastPreview && (
+            <div className="space-y-4">
+              <h4 className="font-semibold text-slate-900 text-sm">Recipient Live Preview</h4>
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+                <div className="border-b border-slate-100 pb-3">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase">Subject:</span>
+                  <p className="font-bold text-slate-900 text-sm mt-0.5">
+                    {broadcastSubject || '(Subject will appear here)'}
+                  </p>
+                  <span className="text-[11px] text-slate-500 mt-1 block">
+                    To: {broadcastRoles.map(r => humanize(r)).join(', ')} ({totalActiveRecipients} users)
+                  </span>
+                </div>
 
-              <div className="rounded-lg bg-slate-50 p-4 border border-slate-100 min-h-40">
-                <p className="text-xs text-slate-500 mb-2">Hello [Recipient Name],</p>
-                <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
-                  {broadcastMessage || 'Your message preview will appear here as you type in the editor.'}
-                </p>
-                {broadcastActionUrl && (
-                  <div className="mt-4 text-center">
-                    <span className="inline-block rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm">
-                      {broadcastActionText || 'View Details'}
-                    </span>
-                  </div>
-                )}
-              </div>
+                <div className="rounded-lg bg-slate-50 p-4 border border-slate-100 min-h-40">
+                  <p className="text-xs text-slate-500 mb-2">Hello [Recipient Name],</p>
+                  <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
+                    {broadcastMessage || 'Your message preview will appear here as you type in the editor.'}
+                  </p>
+                  {broadcastActionUrl && (
+                    <div className="mt-4 text-center">
+                      <span className="inline-block rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm">
+                        {broadcastActionText || 'View Details'}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-              <p className="text-[11px] text-slate-400 text-center">
-                Dispatched using automated dual-SMTP relay with delivery verification.
-              </p>
+                <p className="text-[11px] text-slate-400 text-center">
+                  Dispatched using automated dual-SMTP relay with delivery verification.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </TabPanel>
 

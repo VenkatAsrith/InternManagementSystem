@@ -41,6 +41,17 @@ const interviewSchema = new mongoose.Schema({
   meetingLink: { type: String, default: '' },
   location: { type: String, default: '' },
   notes: { type: String, default: '' },
+  task: {
+    assigned: { type: Boolean, default: false },
+    title: { type: String, default: '' },
+    description: { type: String, default: '' },
+    documentUrl: { type: String, default: '' },
+    documentName: { type: String, default: '' },
+    dueDate: { type: Date },
+    submissionInstructions: { type: String, default: '' }
+  },
+  emailSentAt: { type: Date },
+  emailDeliveryStatus: { type: String, enum: ['PENDING', 'SENT', 'FAILED'], default: 'PENDING' },
   status: {
     type: String,
     enum: Object.values(INTERVIEW_STATUS),

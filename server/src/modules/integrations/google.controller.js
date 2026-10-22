@@ -13,8 +13,17 @@ export const getGoogleIntegrationStatus = ah(async (req, res) => {
 });
 
 export const getGoogleOAuthUrl = ah(async (req, res) => {
+  const config = GoogleIntegrationService.isConfigured();
+  if (!config.isConfigured) {
+    return successResponse(res, {
+      authUrl: null,
+      isConfigured: false,
+      missingConfig: config.missingConfig,
+      message: `Google Workspace OAuth credentials missing: ${config.missingConfig.join(', ')}. Set them in server/.env or environment variables.`
+    });
+  }
   const authUrl = GoogleIntegrationService.getOAuthUrl(req.organizationId, req.userId);
-  return successResponse(res, { authUrl });
+  return successResponse(res, { authUrl, isConfigured: true });
 });
 
 export const handleGoogleOAuthCallback = ah(async (req, res) => {

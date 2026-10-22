@@ -8,6 +8,7 @@ import { DOCUMENT_STATUS } from '../../../../shared/constants.js';
 import { notFound, unprocessable } from '../../utils/errors.js';
 import { formatDateLong } from '../../utils/time.js';
 import { env } from '../../config/env.js';
+import { generateCompletionLetterPDF } from '../../utils/pdfGenerator.js';
 
 /**
  * Issues an official letter from a versioned template using REAL records only.
@@ -34,11 +35,24 @@ export async function generateDocumentForIntern({ req, intern, templateCode, ext
     );
   }
 
-  const pdf = await renderTemplatePDF({
-    organizationName: org?.name || '', title: tpl.title, body: text, recipientName: context.candidate.name,
-    signatory: { name: context.organization.signatoryName, title: context.organization.signatoryTitle },
-    documentNumber: documentId, verifyUrl: context.document.verifyUrl, issueDate: formatDateLong(issuedAt, tz)
-  });
+  let pdf;
+  if (templateCode === 'COMPLETION_LETTER') {
+    pdf = await generateCompletionLetterPDF({
+      candidateName: context.candidate.name,
+      startDate: context.intern.startDate || 'February 2026',
+      endDate: context.intern.endDate || 'March 2026',
+      domain: context.intern.role || 'Full Stack Web Development (MERN Stack)',
+      issueDate: formatDateLong(issuedAt, tz) || '01/04/2026',
+      documentNumber: documentId,
+      verifyUrl: context.document.verifyUrl
+    });
+  } else {
+    pdf = await renderTemplatePDF({
+      organizationName: org?.name || '', title: tpl.title, body: text, recipientName: context.candidate.name,
+      signatory: { name: context.organization.signatoryName, title: context.organization.signatoryTitle },
+      documentNumber: documentId, verifyUrl: context.document.verifyUrl, issueDate: formatDateLong(issuedAt, tz)
+    });
+  }
   const stored = await storageService.saveFile({
     buffer: pdf, originalName: `${documentId}.pdf`, mimeType: 'application/pdf', subDir: `documents/${intern.organizationId}/generated`
   });
@@ -70,4 +84,61 @@ export async function generateDocumentForIntern({ req, intern, templateCode, ext
   });
   return doc;
 }
+
+/**
+ * Self-healing: regenerates missing physical file on disk for GENERATED letters
+ * if disk was cleared or ephemeral storage was reset.
+ */
+export async function ensureDocumentFileExists(doc, req) {
+  if (await storageService.exists(doc.filePath)) return true;
+  if (doc.source !== 'GENERATED' || !doc.internId) return false;
+
+  try {
+    const { Intern } = await import('../interns/intern.model.js');
+    const intern = await Intern.findById(doc.internId).populate('userId').populate('programId').populate('departmentId').populate('mentorId');
+    if (!intern) return false;
+
+    const org = await Organization.findById(doc.organizationId).lean();
+    const tz = req?.timezone || env.ORG_TIMEZONE;
+    const context = await buildInternContext({ intern, org, documentId: doc.documentId, issuedAt: doc.issuedAt || doc.createdAt || new Date(), tz });
+
+    let pdf;
+    if (doc.templateCode === 'COMPLETION_LETTER' || doc.documentType === 'COMPLETION_LETTER') {
+      pdf = await generateCompletionLetterPDF({
+        candidateName: context.candidate.name,
+        startDate: context.intern.startDate || 'February 2026',
+        endDate: context.intern.endDate || 'March 2026',
+        domain: context.intern.role || 'Full Stack Web Development (MERN Stack)',
+        issueDate: formatDateLong(doc.issuedAt || doc.createdAt || new Date(), tz) || '01/04/2026',
+        documentNumber: doc.documentId,
+        verifyUrl: context.document.verifyUrl
+      });
+    } else {
+      const tpl = await getActiveTemplate(doc.organizationId, doc.templateCode || 'OFFER_LETTER', req?.userId);
+      if (tpl) {
+        const { text } = interpolateVariables(tpl.bodyMarkdown, context);
+        pdf = await renderTemplatePDF({
+          organizationName: org?.name || '', title: doc.title || tpl.title, body: text, recipientName: context.candidate.name,
+          signatory: { name: context.organization.signatoryName, title: context.organization.signatoryTitle },
+          documentNumber: doc.documentId, verifyUrl: context.document.verifyUrl, issueDate: formatDateLong(doc.issuedAt || doc.createdAt || new Date(), tz)
+        });
+      }
+    }
+
+    if (pdf) {
+      const stored = await storageService.saveFile({
+        buffer: pdf, originalName: `${doc.documentId}.pdf`, mimeType: 'application/pdf', subDir: `documents/${intern.organizationId}/generated`
+      });
+      doc.filePath = stored.filePath;
+      doc.size = stored.size;
+      doc.checksum = stored.checksum;
+      await doc.save();
+      return true;
+    }
+  } catch (err) {
+    console.warn('Auto-regeneration of missing document PDF failed:', err.message);
+  }
+  return false;
+}
+
 

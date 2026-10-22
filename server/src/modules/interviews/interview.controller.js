@@ -6,7 +6,8 @@ import { successResponse, paginatedResponse } from '../../utils/response.js';
 import { recordAuditLog } from '../../middleware/auditLogger.js';
 import { resolvePermissions, hasGranted } from '../../middleware/permissions.js';
 import { createNotification } from '../notifications/notification.service.js';
-import { emailService } from '../email/email.service.js';
+import { emailService, sendInterviewInvitationEmail } from '../email/email.service.js';
+import { Organization } from '../organizations/organization.model.js';
 import { moveApplication } from '../recruitment/application.service.js';
 import { APPLICATION_STATUS, INTERVIEW_STATUS, INTERVIEW_RECOMMENDATION, ROLES } from '../../../../shared/constants.js';
 import { ah } from '../../utils/asyncHandler.js';
@@ -117,6 +118,23 @@ export const scheduleInterview = ah(async (req, res) => {
     ? (body.meetingLink || `https://meet.jit.si/TMT-Interview-${crypto.randomBytes(6).toString('hex')}`)
     : '';
 
+  const hasTask = Boolean(
+    req.body.task?.assigned ||
+    req.body.task?.title ||
+    req.body.task?.description ||
+    req.body.task?.documentUrl ||
+    req.body.taskTitle
+  );
+  const taskData = hasTask ? {
+    assigned: true,
+    title: req.body.task?.title || req.body.taskTitle || 'Assessment & Take-Home Task',
+    description: req.body.task?.description || req.body.taskDescription || '',
+    documentUrl: req.body.task?.documentUrl || req.body.taskDocumentUrl || '',
+    documentName: req.body.task?.documentName || req.body.taskDocumentName || 'Task Specification Document',
+    dueDate: req.body.task?.dueDate || req.body.taskDueDate ? new Date(req.body.task?.dueDate || req.body.taskDueDate) : undefined,
+    submissionInstructions: req.body.task?.submissionInstructions || req.body.taskSubmissionInstructions || ''
+  } : { assigned: false };
+
   const interview = await Interview.create({
     organizationId: req.organizationId,
     applicationId: app._id,
@@ -130,12 +148,13 @@ export const scheduleInterview = ah(async (req, res) => {
     meetingLink,
     location: body.location || '',
     notes: body.notes || '',
+    task: taskData,
     createdBy: req.userId
   });
 
   try {
     moveApplication(app, APPLICATION_STATUS.INTERVIEW_SCHEDULED, {
-      req, note: `Round ${round} ${body.type} interview scheduled for ${formatDateLong(slot.scheduledDate, req.timezone)} at ${slot.startTime}`
+      req, note: `Round ${round} ${body.type} interview scheduled for ${formatDateLong(slot.scheduledDate, req.timezone)} at ${slot.startTime}${hasTask ? ` with assessment task: ${taskData.title}` : ''}`
     });
     await app.save();
   } catch (err) {
@@ -149,14 +168,51 @@ export const scheduleInterview = ah(async (req, res) => {
     message: `You are scheduled to interview ${app.candidateId.firstName} ${app.candidateId.lastName} on ${when}.`,
     entityType: 'Interview', entityId: interview._id
   })));
-  emailService.queueEmail({
-    to: app.candidateId.email, subject: `Interview scheduled: ${app.openingId?.title || 'Internship'}`, template: 'INTERVIEW_INVITATION',
-    text: `Hi ${app.candidateId.firstName}, your ${body.type.toLowerCase()} interview is scheduled for ${when}. ${meetingLink ? `Join: ${meetingLink}` : `Location: ${body.location}`}`,
-    organizationId: req.organizationId
-  });
-  await recordAuditLog({ action: 'INTERVIEW_SCHEDULED', entityType: 'Interview', entityId: interview._id, after: { applicationId: app.applicationId, round, startsAt: slot.startsAt, interviewers: body.interviewers }, req });
 
-  return successResponse(res, interview, 'Interview scheduled successfully', 201);
+  // Send branded HTML email invitation with meeting link and optional task document
+  const org = await Organization.findById(req.organizationId).lean();
+  const orgName = org?.name || 'TechMecha Torque Pvt. Ltd.';
+  const interviewerUsers = await User.find({ _id: { $in: body.interviewers } }).select('firstName lastName email').lean();
+
+  try {
+    await sendInterviewInvitationEmail({
+      to: app.candidateId.email,
+      candidateName: `${app.candidateId.firstName} ${app.candidateId.lastName}`,
+      openingTitle: app.openingId?.title || 'Internship Program',
+      interviewTitle: interview.title,
+      round,
+      interviewType: body.type,
+      scheduledDate: formatDateLong(slot.scheduledDate, req.timezone),
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      timezone: req.timezone || 'Asia/Kolkata',
+      mode: body.mode,
+      meetingLink,
+      location: body.location,
+      interviewers: interviewerUsers,
+      notes: body.notes,
+      task: hasTask ? taskData : null,
+      organizationId: req.organizationId,
+      orgName
+    });
+    interview.emailSentAt = new Date();
+    interview.emailDeliveryStatus = 'SENT';
+    await interview.save();
+  } catch (emailErr) {
+    interview.emailDeliveryStatus = 'FAILED';
+    await interview.save();
+    console.error('[ScheduleInterview] Invitation email dispatch error:', emailErr.message);
+  }
+
+  await recordAuditLog({
+    action: 'INTERVIEW_SCHEDULED',
+    entityType: 'Interview',
+    entityId: interview._id,
+    after: { applicationId: app.applicationId, round, startsAt: slot.startsAt, interviewers: body.interviewers, hasTask },
+    req
+  });
+
+  return successResponse(res, interview, 'Interview scheduled and invitation sent successfully', 201);
 });
 
 function shape(interview, req) {
@@ -308,3 +364,55 @@ export const updateInterviewStatus = ah(async (req, res) => {
   await recordAuditLog({ action: `INTERVIEW_${status}`, entityType: 'Interview', entityId: interview._id, after: { reason }, req });
   return successResponse(res, interview, `Interview marked ${status}`);
 });
+
+export const sendInterviewInvite = ah(async (req, res) => {
+  const interview = await Interview.findOne({ _id: req.params.id, organizationId: req.organizationId })
+    .populate('candidateId')
+    .populate('interviewers', 'firstName lastName email')
+    .populate({ path: 'applicationId', populate: { path: 'openingId', select: 'title' } });
+  if (!interview) throw notFound('Interview not found');
+
+  const org = await Organization.findById(req.organizationId).lean();
+  const orgName = org?.name || 'TechMecha Torque Pvt. Ltd.';
+
+  const candidate = interview.candidateId;
+  if (!candidate || !candidate.email) throw unprocessable('Candidate email address not found on interview record');
+
+  const taskData = interview.task?.assigned ? interview.task : null;
+
+  await sendInterviewInvitationEmail({
+    to: candidate.email,
+    candidateName: `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim() || 'Candidate',
+    openingTitle: interview.applicationId?.openingId?.title || 'Internship Program',
+    interviewTitle: interview.title,
+    round: interview.round,
+    interviewType: interview.type,
+    scheduledDate: formatDateLong(interview.scheduledDate, req.timezone),
+    startTime: interview.startTime,
+    endTime: interview.endTime,
+    timezone: req.timezone || 'Asia/Kolkata',
+    mode: interview.mode,
+    meetingLink: interview.meetingLink,
+    location: interview.location,
+    interviewers: interview.interviewers,
+    notes: interview.notes,
+    task: taskData,
+    organizationId: req.organizationId,
+    orgName
+  });
+
+  interview.emailSentAt = new Date();
+  interview.emailDeliveryStatus = 'SENT';
+  await interview.save();
+
+  await recordAuditLog({
+    action: 'INTERVIEW_INVITATION_SENT',
+    entityType: 'Interview',
+    entityId: interview._id,
+    after: { recipient: candidate.email, sentAt: interview.emailSentAt, round: interview.round },
+    req
+  });
+
+  return successResponse(res, interview, 'Interview invitation email sent successfully');
+});
+

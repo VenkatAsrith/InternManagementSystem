@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { Document, SENSITIVE_CATEGORIES } from './document.model.js';
 import { User } from '../users/user.model.js';
-import { generateDocumentForIntern } from './document.service.js';
+import { generateDocumentForIntern, ensureDocumentFileExists } from './document.service.js';
 import { OnboardingTask } from '../onboarding/onboarding.model.js';
 import { OnboardingPlan } from '../onboarding/onboarding.model.js';
 import { markOnboardingStarted, recomputeOnboarding } from '../onboarding/onboarding.service.js';
@@ -197,7 +197,10 @@ export const downloadDocument = ah(async (req, res) => {
   if (!doc) throw notFound('Document not found');
   await assertAccess(req, doc);
   if (doc.status === DOCUMENT_STATUS.REVOKED) throw conflict('This document was revoked.', 'DOCUMENT_REVOKED');
-  if (!(await storageService.exists(doc.filePath))) throw notFound('File content not found on server', 'FILE_MISSING');
+  const fileExists = await ensureDocumentFileExists(doc, req);
+  if (!fileExists && !(await storageService.exists(doc.filePath))) {
+    throw notFound('File content not found on server', 'FILE_MISSING');
+  }
 
   if (SENSITIVE_CATEGORIES.includes(doc.type) || doc.source === 'GENERATED') {
     await recordAuditLog({ action: 'DOCUMENT_DOWNLOADED', entityType: 'Document', entityId: doc._id, after: { type: doc.type, documentId: doc.documentId }, req });

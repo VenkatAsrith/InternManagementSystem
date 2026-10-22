@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, GraduationCap, AlertTriangle, CheckCircle2, UserCheck, UserPlus, BookOpen,
-  Clock, ShieldAlert, Key, Copy, Check, Video, IndianRupee, Layers, Briefcase, CreditCard
+  Clock, ShieldAlert, Key, Copy, Check, Video, IndianRupee, Layers, Briefcase, CreditCard, ExternalLink
 } from 'lucide-react';
 import api from '../../lib/http';
 import { useAuth } from '../../context/AuthContext';
@@ -391,6 +391,9 @@ function TrainingProgramModal({ open, onClose, program, onSaved }) {
     grossFee: program?.grossFee ?? 5000,
     trainer: program?.trainer || '',
     description: program?.description || '',
+    learningSpacesUrl: program?.learningSpacesUrl || '',
+    learningSpacesName: program?.learningSpacesName || 'TechMecha Learning Spaces',
+    learningSpacesInstructions: program?.learningSpacesInstructions || '',
     capacity: program?.capacity ?? 50,
     eligibility: program?.eligibility || '',
     location: program?.location || '',
@@ -430,6 +433,9 @@ function TrainingProgramModal({ open, onClose, program, onSaved }) {
           grossFee: v.feeType === 'FREE' ? 0 : Number(v.grossFee || 0),
           trainer: v.trainer.trim(),
           description: v.description.trim(),
+          learningSpacesUrl: v.learningSpacesUrl.trim(),
+          learningSpacesName: v.learningSpacesName.trim(),
+          learningSpacesInstructions: v.learningSpacesInstructions.trim(),
           capacity: Number(v.capacity) || 50,
           eligibility: v.eligibility.trim(),
           location: v.location.trim(),
@@ -471,6 +477,42 @@ function TrainingProgramModal({ open, onClose, program, onSaved }) {
         )}
         <TextField {...f('capacity')} label="Capacity" type="number" min="1" />
         <TextField {...f('location')} label="Location / Venue" placeholder="Online Zoom / Tech Campus" />
+
+        {/* Learning Spaces External LMS Integration */}
+        <div className="sm:col-span-2 rounded-xl border border-brand-200 bg-brand-50/40 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-brand-900">
+                Learning Spaces Platform & Course LMS Integration
+              </h4>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Paste the URL to your external learning spaces course platform where trainees access curriculum, coding labs, and materials.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <TextField
+              {...f('learningSpacesUrl')}
+              label="Learning Spaces Platform URL"
+              placeholder="https://learningspaces.techmecha.com/course/fsd"
+              hint="Direct link to course dashboard or workspace"
+              className="sm:col-span-2"
+            />
+            <TextField
+              {...f('learningSpacesName')}
+              label="Platform Name"
+              placeholder="TechMecha Learning Spaces"
+            />
+            <TextAreaField
+              {...f('learningSpacesInstructions')}
+              label="Trainee Access Instructions"
+              rows={2}
+              placeholder="e.g. Sign in with your registered email; join cohort FSD-2026."
+              className="sm:col-span-2"
+            />
+          </div>
+        </div>
+
         <TextField {...f('eligibility')} label="Eligibility" className="sm:col-span-2" placeholder="Prerequisites or target audience" />
         <TextAreaField {...f('description')} label="Description & Curriculum" rows={3} className="sm:col-span-2" />
       </FormGrid>
@@ -841,6 +883,23 @@ export function TraineesPage() {
       key: 'trainer',
       header: 'Lead Trainer',
       render: (p) => p.trainer || 'Unassigned'
+    },
+    {
+      key: 'learningSpace',
+      header: 'Learning Space Platform',
+      render: (p) => p.learningSpacesUrl ? (
+        <a
+          href={p.learningSpacesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-900 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-md"
+        >
+          {p.learningSpacesName || 'Launch Space'}
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      ) : (
+        <span className="text-xs text-slate-400">Not configured</span>
+      )
     },
     {
       key: 'actions',

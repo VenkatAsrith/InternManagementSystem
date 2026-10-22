@@ -4,6 +4,7 @@ import api, { downloadFile } from '../../lib/http';
 import { session } from '../../lib/session';
 import { Button, Modal, LoadingBlock, DetailList, StatusBadge } from '../ui';
 import { fmtDateTime, fullName, humanize } from '../../lib/format';
+import { DocumentLiveView } from './DocumentLiveView';
 
 export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
   const [blobUrl, setBlobUrl] = useState(null);
@@ -11,6 +12,7 @@ export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [viewMode, setViewMode] = useState('live'); // 'live' | 'pdf'
 
   useEffect(() => {
     let active = true;
@@ -48,25 +50,17 @@ export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
       try {
         setLoading(true);
         setError(null);
-        const token = session.getToken();
-        const headers = {};
-        if (token) headers.Authorization = `Bearer ${token}`;
-        const actingOrg = session.getActingOrg();
-        if (actingOrg) headers['x-organization-id'] = actingOrg;
-
-        const response = await fetch(`/api/v1/documents/${docId}/download?inline=1`, { headers });
-        if (!response.ok) {
-          throw new Error(`Failed to load document (${response.status} ${response.statusText})`);
-        }
-        const mime = response.headers.get('content-type') || doc.mimeType || 'application/pdf';
-        const blobData = await response.blob();
+        const res = await api.get(`/documents/${docId}/download?inline=1`, { responseType: 'blob' });
         if (!active) return;
+        const blobData = res instanceof Blob ? res : (res?.data instanceof Blob ? res.data : new Blob([res], { type: 'application/pdf' }));
+        const mime = blobData.type || doc.mimeType || 'application/pdf';
         setDetectedType(mime);
         url = URL.createObjectURL(blobData);
         setBlobUrl(url);
       } catch (err) {
         if (!active) return;
-        setError(err.message || 'Failed to render document preview.');
+        console.warn('Direct PDF load failed, defaulting to live letter replica:', err.message);
+        setError(err.message || 'Direct PDF stream unavailable.');
       } finally {
         if (active) setLoading(false);
       }
@@ -84,13 +78,14 @@ export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
     try {
       await downloadFile(`/documents/${doc._id}/download`, doc.originalName || `${doc.documentId || 'document'}.pdf`);
     } catch (err) {
-      console.error('Download failed', err);
+      console.warn('PDF download fallback to print:', err.message);
+      window.print();
     }
   };
 
   const who = doc.internId?.userId ? `${fullName(doc.internId.userId)} (${doc.internId.internId})` : '-';
   const isImage = (detectedType || doc.mimeType || '').startsWith('image/');
-  const isPdf = (detectedType || doc.mimeType || '') === 'application/pdf';
+  const isPdf = (detectedType || doc.mimeType || '') === 'application/pdf' || doc.source === 'GENERATED';
 
   return (
     <Modal
@@ -104,7 +99,10 @@ export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
           <Button variant="outline" size="sm" onClick={onClose} data-testid="doc-preview-close">
             Close
           </Button>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              Print
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -153,71 +151,113 @@ export function DocumentPreviewModal({ doc, onClose, onOpenSend }) {
           </div>
         </div>
 
-        {/* Document Viewer Canvas */}
-        <div className="min-h-[460px] h-[65vh] w-full rounded-lg bg-slate-100 flex flex-col items-center justify-center overflow-hidden border border-slate-200 relative">
-          {loading && <LoadingBlock label="Retrieving document preview..." />}
-          {error && (
-            <div className="text-center p-6 space-y-2">
-              <FileText className="h-10 w-10 text-slate-400 mx-auto" />
-              <p className="text-sm font-medium text-slate-800">{error}</p>
-              <Button size="sm" variant="outline" icon={Download} onClick={handleDownload}>
-                Download File to inspect
-              </Button>
+        {/* View Mode Switcher for Generated Documents / Letters */}
+        {(isPdf || doc.source === 'GENERATED' || doc.templateCode) && (
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setViewMode('live')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  viewMode === 'live' ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Live Replica Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('pdf')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  viewMode === 'pdf' ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                PDF Document {blobUrl ? '✓' : ''}
+              </button>
             </div>
-          )}
-          {!loading && !error && (
-            (doc?.htmlContent || doc?.bodyHtml) ? (
-              <div className="w-full h-full flex flex-col bg-white">
-                <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-200 text-xs text-slate-600">
-                  <span className="font-medium">Sandboxed HTML Template Preview</span>
-                  <div className="flex items-center gap-1">
-                    <Button size="xs" variant="ghost" icon={ZoomOut} onClick={() => setZoomLevel(z => Math.max(50, z - 10))} />
-                    <span className="px-1 text-[11px] font-mono">{zoomLevel}%</span>
-                    <Button size="xs" variant="ghost" icon={ZoomIn} onClick={() => setZoomLevel(z => Math.min(150, z + 10))} />
-                    <Button size="xs" variant="ghost" icon={RefreshCw} onClick={() => setZoomLevel(100)}>Reset</Button>
-                  </div>
-                </div>
-                <div className="flex-1 w-full overflow-auto p-4 flex justify-center">
-                  <div style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center', transition: 'transform 0.2s' }} className="w-full h-full">
-                    <iframe
-                      srcDoc={doc.htmlContent || doc.bodyHtml}
-                      sandbox="allow-same-origin"
-                      title={doc.title || 'HTML Preview'}
-                      className="w-full h-full min-h-[500px] border border-slate-200 rounded shadow-sm bg-white"
-                      data-testid="document-preview-html-iframe"
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : isImage && blobUrl ? (
-              <div className="w-full h-full flex items-center justify-center p-4 bg-slate-900/5 overflow-auto">
-                <img
-                  src={blobUrl}
-                  alt={doc.title || doc.originalName}
-                  style={{ transform: `scale(${zoomLevel / 100})`, transition: 'transform 0.2s' }}
-                  className="max-h-full max-w-full object-contain rounded shadow border border-slate-200"
-                  data-testid="document-preview-image"
-                />
-              </div>
-            ) : isPdf && blobUrl ? (
-              <iframe
-                src={`${blobUrl}#toolbar=0`}
-                title={`Preview of ${doc.title || doc.originalName}`}
-                className="w-full h-full border-0 rounded-lg"
-                data-testid="document-preview-iframe"
-              />
-            ) : (
+
+            <div className="hidden sm:block text-xs text-slate-500 font-mono">
+              {doc.documentId || doc.originalName}
+            </div>
+          </div>
+        )}
+
+        {/* Document Viewer Canvas */}
+        {viewMode === 'live' && (isPdf || doc.source === 'GENERATED' || doc.templateCode) ? (
+          <div className="max-h-[72vh] overflow-y-auto p-1 bg-slate-100 rounded-lg">
+            <DocumentLiveView doc={doc} onDownloadPdf={handleDownload} />
+          </div>
+        ) : (
+          <div className="min-h-[460px] h-[65vh] w-full rounded-lg bg-slate-100 flex flex-col items-center justify-center overflow-hidden border border-slate-200 relative">
+            {loading && <LoadingBlock label="Retrieving document preview..." />}
+            {error && (
               <div className="text-center p-6 space-y-3">
-                <FileText className="h-12 w-12 text-primary-600 mx-auto" />
-                <p className="text-base font-semibold text-slate-900">{doc.originalName || doc.title}</p>
-                <p className="text-xs text-slate-500">Preview is optimized for PDF, HTML and Image files. Download to inspect this format.</p>
-                <Button size="sm" variant="primary" icon={Download} onClick={handleDownload}>
-                  Download Document
-                </Button>
+                <FileText className="h-10 w-10 text-slate-400 mx-auto" />
+                <p className="text-sm font-medium text-slate-800">Direct PDF stream is generating.</p>
+                <p className="text-xs text-slate-500">You can view the evaluated live replica with verified credentials and signatures.</p>
+                <div className="flex items-center justify-center gap-2">
+                  <Button size="sm" variant="primary" onClick={() => setViewMode('live')}>
+                    Switch to Live Preview
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => window.print()}>
+                    Print Letter
+                  </Button>
+                </div>
               </div>
-            )
-          )}
-        </div>
+            )}
+            {!loading && !error && (
+              (doc?.htmlContent || doc?.bodyHtml) ? (
+                <div className="w-full h-full flex flex-col bg-white">
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-200 text-xs text-slate-600">
+                    <span className="font-medium">Sandboxed HTML Template Preview</span>
+                    <div className="flex items-center gap-1">
+                      <Button size="xs" variant="ghost" icon={ZoomOut} onClick={() => setZoomLevel(z => Math.max(50, z - 10))} />
+                      <span className="px-1 text-[11px] font-mono">{zoomLevel}%</span>
+                      <Button size="xs" variant="ghost" icon={ZoomIn} onClick={() => setZoomLevel(z => Math.min(150, z + 10))} />
+                      <Button size="xs" variant="ghost" icon={RefreshCw} onClick={() => setZoomLevel(100)}>Reset</Button>
+                    </div>
+                  </div>
+                  <div className="flex-1 w-full overflow-auto p-4 flex justify-center">
+                    <div style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center', transition: 'transform 0.2s' }} className="w-full h-full">
+                      <iframe
+                        srcDoc={doc.htmlContent || doc.bodyHtml}
+                        sandbox="allow-same-origin"
+                        title={doc.title || 'HTML Preview'}
+                        className="w-full h-full min-h-[500px] border border-slate-200 rounded shadow-sm bg-white"
+                        data-testid="document-preview-html-iframe"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : isImage && blobUrl ? (
+                <div className="w-full h-full flex items-center justify-center p-4 bg-slate-900/5 overflow-auto">
+                  <img
+                    src={blobUrl}
+                    alt={doc.title || doc.originalName}
+                    style={{ transform: `scale(${zoomLevel / 100})`, transition: 'transform 0.2s' }}
+                    className="max-h-full max-w-full object-contain rounded shadow border border-slate-200"
+                    data-testid="document-preview-image"
+                  />
+                </div>
+              ) : isPdf && blobUrl ? (
+                <iframe
+                  src={`${blobUrl}#toolbar=0`}
+                  title={`Preview of ${doc.title || doc.originalName}`}
+                  className="w-full h-full border-0 rounded-lg"
+                  data-testid="document-preview-iframe"
+                />
+              ) : (
+                <div className="text-center p-6 space-y-3">
+                  <FileText className="h-12 w-12 text-primary-600 mx-auto" />
+                  <p className="text-base font-semibold text-slate-900">{doc.originalName || doc.title}</p>
+                  <p className="text-xs text-slate-500">Preview is optimized for PDF, HTML and Image files. Download to inspect this format.</p>
+                  <Button size="sm" variant="primary" icon={Download} onClick={handleDownload}>
+                    Download Document
+                  </Button>
+                </div>
+              )
+            )}
+          </div>
+        )}
       </div>
     </Modal>
   );

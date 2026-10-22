@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Lock, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Lock, ExternalLink, GraduationCap } from 'lucide-react';
 import api from '../../lib/http';
 import { useToast } from '../../context/ToastContext';
 import { useFetch } from '../../hooks/useFetch';
@@ -83,14 +83,54 @@ function PathView({ id, onChanged }) {
 
 export function InternLearningPage() {
   const state = useFetch(() => api.get('/learning/paths'), []);
+  const traineeState = useFetch(() => api.get('/training/trainee/my'), []);
   const [active, setActive] = useState(null);
   if (state.loading && !state.data) return <LoadingBlock label="Loading learning paths..." />;
   if (state.error) return <ErrorState error={state.error} onRetry={state.reload} />;
   const paths = state.data || [];
   const current = active || paths[0]?._id;
+
+  const traineeData = traineeState.data || {};
+  const learningUrl = traineeData?.engagement?.learningSpacesUrl || traineeData?.program?.learningSpacesUrl;
+  const learningName = traineeData?.engagement?.learningSpacesName || traineeData?.program?.learningSpacesName || 'TechMecha Learning Spaces';
+  const learningInstructions = traineeData?.program?.learningSpacesInstructions || '';
+
   return (
     <>
       <PageHeader title="Learning" description="Lessons unlock one after another. Quizzes are marked by the system." />
+
+      {learningUrl && (
+        <div className="mb-6 rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 via-white to-slate-50 p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="rounded-xl bg-brand-600 p-2.5 text-white shadow-sm shrink-0">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-slate-900 text-base">{learningName}</h3>
+                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700">Course Platform</span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
+                Your curriculum, coding sandbox, interactive assignments, and live modules are hosted on our learning spaces platform.
+              </p>
+              {learningInstructions && (
+                <p className="text-xs text-slate-500 mt-1 italic">
+                  Guide: {learningInstructions}
+                </p>
+              )}
+            </div>
+          </div>
+          <a
+            href={learningUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-brand-700 transition shrink-0"
+          >
+            <ExternalLink className="h-4 w-4" /> Launch Learning Space
+          </a>
+        </div>
+      )}
+
       {paths.length === 0 ? <EmptyState title="No learning paths yet" description="Your program manager will publish learning material here." /> : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list" aria-label="Learning paths">
